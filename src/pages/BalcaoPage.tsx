@@ -290,15 +290,15 @@ export default function BalcaoPage() {
                     )}
                     onClick={() => !isProcessing && handleTicketClick(ticket)}
                   >
-                    <CardContent className="p-6 space-y-4 flex-1 flex flex-col justify-between">
+                    <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between"> {/* Reduced padding */}
                       <div className="text-center">
-                        <p className="text-5xl font-mono font-extrabold tracking-wider text-gray-900"> {/* Larger font */}
+                        <p className="text-4xl font-mono font-extrabold tracking-wider text-gray-900"> {/* Reduced font size */}
                           {ticket.code}
                         </p>
                       </div>
                       
                       <div className="flex justify-center">
-                        <Badge className={cn("px-4 py-2 text-base font-semibold", status.className)}> {/* Larger badge */}
+                        <Badge className={cn("px-3 py-1 text-sm font-semibold", status.className)}> {/* Reduced badge padding/font */}
                           {isProcessing ? (
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                           ) : (
@@ -310,13 +310,13 @@ export default function BalcaoPage() {
                       
                       {status.clickable && !isProcessing && (
                         <div className="text-center mt-2">
-                          <p className={cn("text-sm font-medium", isPendingDelete ? 'text-red-700' : 'text-muted-foreground')}> {/* Larger text for click hint */}
+                          <p className={cn("text-xs font-medium", isPendingDelete ? 'text-red-700' : 'text-muted-foreground')}> {/* Reduced font size */}
                             {status.clickText}
                           </p>
                         </div>
                       )}
                       
-                      <div className="text-center text-xs text-muted-foreground space-y-1 mt-auto pt-4 border-t border-gray-200/50"> {/* Separator */}
+                      <div className="text-center text-xs text-muted-foreground space-y-1 mt-auto pt-3 border-t border-gray-200/50"> {/* Reduced padding */}
                         <p>
                           {t('created')}: {format(parseISO(ticket.created_date), 'HH:mm', { locale: i18n.language === 'pt' ? ptBR : undefined })}
                         </p>
