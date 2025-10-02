@@ -116,5 +116,6 @@
   "clickToConfirm": "Clique para confirmar",
   "noActiveTickets": "Nenhum ticket ativo",
   "awaitingNewCodes": "Aguardando novos códigos dos estafetas.",
-  "activeTicketsDescription": "{{count}} ticket{{count === 1 ? '' : 's'}} ativo{{count === 1 ? '' : 's'}}."
+  "activeTicketsDescription_one": "{{count}} ticket ativo.",
+  "activeTicketsDescription_other": "{{count}} tickets ativos."
 }

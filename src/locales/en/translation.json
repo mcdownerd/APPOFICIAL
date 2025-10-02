@@ -116,5 +116,6 @@
   "clickToConfirm": "Click to confirm",
   "noActiveTickets": "No active tickets",
   "awaitingNewCodes": "Awaiting new codes from couriers.",
-  "activeTicketsDescription": "{{count}} active ticket{{count === 1 ? '' : 's'}}."
+  "activeTicketsDescription_one": "{{count}} active ticket.",
+  "activeTicketsDescription_other": "{{count}} active tickets."
 }
