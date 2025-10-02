@@ -8,7 +8,7 @@ import { showError } from "@/utils/toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { RefreshCwIcon, TrendingUpIcon, ClockIcon, AlertCircleIcon, BarChart3Icon, DownloadIcon } from "lucide-react";
+import { RefreshCwIcon, TrendingUpIcon, ClockIcon, AlertCircleIcon, BarChart3Icon, DownloadIcon, CheckCircleIcon } from "lucide-react";
 import { format, parseISO, differenceInMinutes, subDays, addDays, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
@@ -37,21 +37,25 @@ interface HourlyData {
   avgPending?: number; // Opcional para futuro gráfico
 }
 
+// Type for DateRange (from shadcn/ui Calendar)
+type DateRange = { from?: Date; to?: Date };
+
 // Componente para Date Range Picker simplificado
-const DateRangePicker = ({ dateRange, onChange }: { dateRange: Date[]; onChange: (range: Date[]) => void }) => {
+const DateRangePicker = ({ dateRange, onChange }: { dateRange: DateRange; onChange: (range: DateRange | undefined) => void }) => {
   const { t } = useTranslation();
+  const dates = dateRange.from && dateRange.to ? [dateRange.from, dateRange.to] : [];
   return (
     <Popover>
       <PopoverTrigger asChild>
         <Button variant="outline" className="w-[280px] justify-start text-left font-normal">
           <CalendarIcon className="mr-2 h-4 w-4" />
-          {dateRange[0]?.toLocaleDateString() ?? t("startDate")} - {dateRange[1]?.toLocaleDateString() ?? t("endDate")}
+          {dateRange.from?.toLocaleDateString() ?? t("startDate")} - {dateRange.to?.toLocaleDateString() ?? t("endDate")}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           mode="range"
-          selected={dateRange}
+          selected={dates}
           onSelect={onChange}
           numberOfMonths={2}
           toDate={new Date()}
@@ -157,49 +161,56 @@ const KPIcard = ({ title, value, subtitle, icon: Icon, color = "blue" }: { title
 const AnaliseTempoPage = () => {
   const { user, isAdmin } = useAuth();
   const { t } = useTranslation();
-  const [dateRange, setDateRange] = useState<Date[]>([subDays(new Date(), 7), new Date()]);
+  const [dateRange, setDateRange] = useState<DateRange>({ from: subDays(new Date(), 7), to: new Date() });
   const [selectedPeriod, setSelectedPeriod] = useState("week"); // hoje, week, month
   const [selectedRestaurant, setSelectedRestaurant] = useState("all"); // all ou restaurant_id
   const [error, setError] = useState<string | null>(null);
 
-  // Query para dados com filtros
-  const { data: analysisData, isLoading, refetch } = useQuery({
+  // Query para dados com filtros (fetch all and filter client-side since API lacks range support)
+  const { data: analysisData, isLoading, error: queryError, refetch } = useQuery<AnalysisData, Error>({
     queryKey: ["analysis", dateRange, selectedPeriod, selectedRestaurant],
     queryFn: async () => {
-      const startDate = startOfDay(dateRange[0]);
-      const endDate = endOfDay(dateRange[1]);
-      let tickets: Ticket[] = [];
-
+      let allTickets: Ticket[] = [];
       if (isAdmin) {
-        tickets = await TicketAPI.filter(
-          { created_date: { gte: format(startDate, "yyyy-MM-dd'T'HH:mm:ss"), lte: format(endDate, "yyyy-MM-dd'T'HH:mm:ss") } },
-          "-created_date"
-        );
+        allTickets = await TicketAPI.list("-created_date");
       } else if (user?.restaurant_id) {
-        tickets = await TicketAPI.filter(
-          {
-            created_date: { gte: format(startDate, "yyyy-MM-dd'T'HH:mm:ss"), lte: format(endDate, "yyyy-MM-dd'T'HH:mm:ss") },
-            restaurant_id: user.restaurant_id,
-          },
-          "-created_date"
-        );
+        allTickets = await TicketAPI.filter({ restaurant_id: user.restaurant_id }, "-created_date");
       }
 
-      return calculateKPIs(tickets);
+      // Client-side date filtering
+      const startDate = dateRange.from ? startOfDay(dateRange.from) : subDays(new Date(), 7);
+      const endDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(new Date());
+      const filteredTickets = allTickets.filter((ticket) => {
+        const created = parseISO(ticket.created_date);
+        return created >= startDate && created <= endDate;
+      });
+
+      // Restaurant filter for admins
+      if (isAdmin && selectedRestaurant !== "all") {
+        // Assuming selectedRestaurant is restaurant_id; filter accordingly
+        // If you have a list of restaurants, map IDs here
+        const filteredByRestaurant = filteredTickets.filter((ticket) => ticket.restaurant_id === selectedRestaurant);
+        return calculateKPIs(filteredByRestaurant);
+      }
+
+      return calculateKPIs(filteredTickets);
     },
     retry: 2,
-    onError: (err: any) => {
-      setError(err.message || t("failedToLoadTimeAnalysis"));
-      showError(t("failedToLoadTimeAnalysis"));
-    },
   });
+
+  // Handle query error
+  useEffect(() => {
+    if (queryError) {
+      setError(queryError.message || t("failedToLoadTimeAnalysis"));
+      showError(t("failedToLoadTimeAnalysis"));
+    }
+  }, [queryError, t]);
 
   const handleApplyFilters = () => {
     refetch();
   };
 
   const handleExport = () => {
-    // Simples export CSV (pode expandir com papaparse)
     if (!analysisData) return;
     const csv = `Hora,Pedidos\n${analysisData.hourlyData.map(d => `${d.hour},${d.pedidos}`).join("\n")}`;
     const blob = new Blob([csv], { type: "text/csv" });
@@ -312,7 +323,7 @@ const AnaliseTempoPage = () => {
             <Button onClick={handleApplyFilters} variant="default">
               {t("applyFilters")}
             </Button>
-            <Button onClick={refetch} variant="outline" disabled={isLoading}>
+            <Button onClick={() => refetch()} variant="outline" disabled={isLoading}>
               <RefreshCwIcon className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
               {t("refresh")}
             </Button>
@@ -373,7 +384,7 @@ const AnaliseTempoPage = () => {
               {t("totalOrdersCreatedEachHour")}
             </CardDescription>
           </div>
-          <Button variant="outline" size="icon" onClick={refetch} disabled={isLoading}>
+          <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isLoading}>
             <RefreshCwIcon className={cn("h-4 w-4", isLoading && "animate-spin")} />
           </Button>
         </CardHeader>
