@@ -168,7 +168,7 @@ const EstafetaPage = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="grid grid-cols-1 lg:grid-cols-2 gap-6" // Removido p-4
+      className="grid grid-cols-1 lg:grid-cols-2 gap-6"
     >
       <div className="flex flex-col items-center space-y-6">
         <div className="flex flex-col items-center gap-2 text-center">
@@ -176,8 +176,8 @@ const EstafetaPage = () => {
             <TruckIcon className="h-8 w-8" />
           </div>
           <h2 className="text-3xl font-bold text-gray-800">{t("courierCenter")}</h2>
-          <p className="text-gray-600">{t("sendDeliveryCodesToCounter")}</p>
-          {user && <p className="text-sm text-gray-500">{t("welcomeUser", { userName: user.full_name })}</p>}
+          {/* Removido: <p className="text-gray-600">{t("sendDeliveryCodesToCounter")}</p> */}
+          {/* Removido: {user && <p className="text-sm text-gray-500">{t("welcomeUser", { userName: user.full_name })}</p>} */}
         </div>
 
         <Card className="w-full max-w-md">
