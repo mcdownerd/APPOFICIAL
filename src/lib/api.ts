@@ -314,10 +314,13 @@ export const TicketAPI = {
 
     const { data, error } = await supabaseQuery
       .select()
-      .single();
+      .maybeSingle(); // Alterado de .single() para .maybeSingle()
 
     if (error) throw error;
-    if (!data) throw new Error("Ticket not found or user does not have permission to update it.");
+    if (!data) {
+      // Se não houver dados, significa que o ticket não foi encontrado ou o usuário não tem permissão.
+      throw new Error("Ticket not found or user does not have permission to update it. Check RLS policies.");
+    }
 
     return {
       id: data.id,
