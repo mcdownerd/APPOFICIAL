@@ -16,8 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { HistoryIcon, RefreshCwIcon, Undo2Icon, CheckCircleIcon, ClockIcon, Trash2Icon } from "lucide-react";
-import { format, parseISO, differenceInMinutes, differenceInHours, differenceInDays } from "date-fns";
+import { HistoryIcon, RefreshCwIcon, Undo2Icon, CheckCircleIcon, ClockIcon, Trash2Icon, CalendarIcon } from "lucide-react";
+import { format, parseISO, differenceInMinutes, differenceInHours, differenceInDays, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next"; // Import useTranslation
 
@@ -33,10 +33,13 @@ const getPendingDuration = (ticket: Ticket, t: any): string => { // Pass t as ar
   } else if (ticket.soft_deleted && ticket.deleted_at) {
     // Se foi soft-deleted e não foi CONFIRMADO, o tempo pendente termina na exclusão.
     endDate = parseISO(ticket.deleted_at);
+  } else if (ticket.soft_deleted && !ticket.deleted_at) {
+    // Fallback: se soft_deleted mas sem deleted_at, usa data de criação + tempo estimado ou atual
+    endDate = new Date(); // Tempo até agora
   }
 
   if (!endDate) {
-    return "N/A"; // Não deve acontecer para tickets no histórico
+    return t("lessThanOneMin"); // Fallback para tempo muito curto
   }
 
   const totalMinutes = differenceInMinutes(endDate, createdDate);
@@ -55,6 +58,12 @@ const getPendingDuration = (ticket: Ticket, t: any): string => { // Pass t as ar
   if (minutes > 0) parts.push(`${minutes}min`);
 
   return parts.length > 0 ? parts.join(" ") : "0min";
+};
+
+// Função para formatar data com dia da semana
+const formatDateWithWeekday = (dateString: string, locale: any) => {
+  const date = parseISO(dateString);
+  return format(date, "dd/MM/yyyy (EEEE) HH:mm", { locale });
 };
 
 const HistoricoPage = () => {
@@ -148,40 +157,51 @@ const HistoricoPage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {deletedTickets.map((ticket) => (
-                    <TableRow key={ticket.id}>
-                      <TableCell className="font-medium">{ticket.code}</TableCell>
-                      <TableCell>
-                        {ticket.status === "PENDING" ? (
-                          <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
-                            <ClockIcon className="mr-1 h-3 w-3" /> {t("pending")}
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-green-100 text-green-800">
-                            <CheckCircleIcon className="mr-1 h-3 w-3" /> {t("ready")}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>{ticket.created_by}</TableCell>
-                      <TableCell>
-                        {ticket.deleted_at
-                          ? format(parseISO(ticket.deleted_at), "dd/MM/yyyy (EEEE) HH:mm", { locale: i18n.language === 'pt' ? ptBR : undefined })
-                          : "N/A"}
-                      </TableCell>
-                      <TableCell>{getPendingDuration(ticket, t)}</TableCell> {/* Exibe o tempo pendente */}
-                      <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleRestoreTicket(ticket.id)}
-                          disabled={actionLoading === ticket.id}
-                        >
-                          <Undo2Icon className="mr-2 h-4 w-4" />
-                          {actionLoading === ticket.id ? t("restoring") : t("restore")}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {deletedTickets.map((ticket) => {
+                    const showDeletionDate = ticket.deleted_at;
+                    const dateToShow = showDeletionDate ? ticket.deleted_at : ticket.created_date;
+                    const isFallbackDate = !showDeletionDate;
+                    const formattedDate = formatDateWithWeekday(dateToShow, i18n.language === 'pt' ? ptBR : undefined);
+                    
+                    return (
+                      <TableRow key={ticket.id}>
+                        <TableCell className="font-medium">{ticket.code}</TableCell>
+                        <TableCell>
+                          {ticket.status === "PENDING" ? (
+                            <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
+                              <ClockIcon className="mr-1 h-3 w-3" /> {t("pending")}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-green-100 text-green-800">
+                              <CheckCircleIcon className="mr-1 h-3 w-3" /> {t("ready")}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>{ticket.created_by}</TableCell>
+                        <TableCell className="flex items-center gap-2">
+                          <CalendarIcon className="h-4 w-4 text-gray-500" />
+                          <span>{formattedDate}</span>
+                          {isFallbackDate && (
+                            <Badge variant="secondary" className="text-xs">
+                              {t("created")}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>{getPendingDuration(ticket, t)}</TableCell> {/* Exibe o tempo pendente */}
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRestoreTicket(ticket.id)}
+                            disabled={actionLoading === ticket.id}
+                          >
+                            <Undo2Icon className="mr-2 h-4 w-4" />
+                            {actionLoading === ticket.id ? t("restoring") : t("restore")}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
