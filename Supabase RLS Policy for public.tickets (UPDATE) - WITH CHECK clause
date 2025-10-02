@@ -1,4 +1,4 @@
-with check (
+(
     -- Admin pode sempre atualizar qualquer linha
     (auth.uid() IN (SELECT id FROM profiles WHERE user_role = 'admin'::text))
     OR
