@@ -8,6 +8,6 @@ OR
     -- 1. O utilizador autenticado tem o papel de 'restaurante'
     (SELECT user_role FROM profiles WHERE id = auth.uid()) = 'restaurante'::text
     AND
-    -- 2. O NEW.restaurant_id corresponde ao restaurant_id do utilizador (obtido pela função)
-    NEW.restaurant_id = public.get_user_restaurant_id()
+    -- 2. O NEW.restaurant_id corresponde ao restaurant_id do utilizador
+    NEW.restaurant_id = (SELECT restaurant_id FROM profiles WHERE id = auth.uid())
 )
