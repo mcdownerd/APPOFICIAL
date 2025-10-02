@@ -196,7 +196,7 @@ const EstafetaPage = () => {
                 placeholder="XXXX"
                 maxLength={4}
                 value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4))}
                 className="text-center text-2xl font-mono tracking-widest border-estafeta focus:ring-estafeta-dark focus:border-estafeta-dark"
                 disabled={isSubmitting || (isPendingLimitEnabled && pendingTicketsCount >= 4)}
               />
