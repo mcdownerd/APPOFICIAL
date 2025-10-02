@@ -222,13 +222,13 @@ const AnaliseTempoPage = () => {
 
   // Query para dados com filtros
   const { data: analysisData, isLoading, error: queryError, refetch } = useQuery<AnalysisData, Error>({
-    queryKey: ["analysis", dateRange, selectedRestaurant], // selectedPeriod is now implicitly handled by dateRange
+    queryKey: ["analysis", dateRange, selectedRestaurant, user?.restaurant_id, isAdmin], // Add user?.restaurant_id and isAdmin to queryKey
     queryFn: async () => {
       let allTickets: Ticket[] = [];
       if (isAdmin) {
         // Admin agora puxa TODOS os tickets (ativos e soft-deleted)
         allTickets = await TicketAPI.filter({ soft_deleted: undefined }, "-created_date");
-      } else if (user?.restaurant_id) {
+      } else if (user?.user_role === "restaurante" && user.restaurant_id) {
         // Restaurante agora puxa TODOS os tickets (ativos e soft-deleted) associados ao seu restaurant_id
         allTickets = await TicketAPI.filter({ restaurant_id: user.restaurant_id, soft_deleted: undefined }, "-created_date");
       }

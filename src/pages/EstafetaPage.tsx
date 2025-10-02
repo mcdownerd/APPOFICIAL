@@ -100,13 +100,14 @@ const EstafetaPage = () => {
 
   const fetchPendingTicketsCount = useCallback(async () => {
     try {
-      const pendingTickets = await TicketAPI.filter({ status: "PENDING", soft_deleted: false });
+      // Filter pending tickets by the current user's restaurant_id
+      const pendingTickets = await TicketAPI.filter({ status: "PENDING", soft_deleted: false, restaurant_id: user?.restaurant_id });
       setPendingTicketsCount(pendingTickets.length);
     } catch (error) {
       console.error("Failed to fetch pending tickets count:", error);
       showError(t("pendingTicketsCountFailed"));
     }
-  }, [t]);
+  }, [t, user?.restaurant_id]);
 
   useEffect(() => {
     fetchRecentTickets();
@@ -134,6 +135,10 @@ const EstafetaPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!code || code.length !== 4 || isSubmitting) return;
+    if (!user?.restaurant_id) {
+      showError(t("userNotAssignedToRestaurant")); // New translation key needed
+      return;
+    }
 
     if (isPendingLimitEnabled && pendingTicketsCount >= 4) {
       showError(t("pendingLimitReached"));
@@ -142,7 +147,7 @@ const EstafetaPage = () => {
 
     setIsSubmitting(true);
     try {
-      await TicketAPI.create({ code });
+      await TicketAPI.create({ code, restaurant_id: user.restaurant_id }); // Pass restaurant_id
       showSuccess(t("codeSentSuccessfully", { code }));
       setCode("");
       fetchRecentTickets();
@@ -162,7 +167,7 @@ const EstafetaPage = () => {
   };
 
   const isCodeValid = code.length === 4 && /^[A-Z0-9]{4}$/.test(code);
-  const canSubmit = isCodeValid && !isSubmitting && (isPendingLimitEnabled ? pendingTicketsCount < 4 : true);
+  const canSubmit = isCodeValid && !isSubmitting && (isPendingLimitEnabled ? pendingTicketsCount < 4 : true) && !!user?.restaurant_id;
 
   return (
     <motion.div
@@ -176,8 +181,6 @@ const EstafetaPage = () => {
             <TruckIcon className="h-8 w-8" />
           </div>
           <h2 className="text-3xl font-bold text-gray-800">{t("courierCenter")}</h2>
-          {/* Removido: <p className="text-gray-600">{t("sendDeliveryCodesToCounter")}</p> */}
-          {/* Removido: {user && <p className="text-sm text-gray-500">{t("welcomeUser", { userName: user.full_name })}</p>} */}
         </div>
 
         <Card className="w-full max-w-md">
@@ -198,12 +201,17 @@ const EstafetaPage = () => {
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4))}
                 className="text-center text-2xl font-mono tracking-widest border-estafeta focus:ring-estafeta-dark focus:border-estafeta-dark"
-                disabled={isSubmitting || (isPendingLimitEnabled && pendingTicketsCount >= 4)}
+                disabled={isSubmitting || (isPendingLimitEnabled && pendingTicketsCount >= 4) || !user?.restaurant_id}
               />
               <p className="text-sm text-gray-500 text-center">{t("fourCharactersHint")}</p>
               {isPendingLimitEnabled && pendingTicketsCount >= 4 && (
                 <p className="text-sm text-red-600 text-center font-medium">
                   {t("pendingLimitReached")}
+                </p>
+              )}
+              {!user?.restaurant_id && (
+                <p className="text-sm text-red-600 text-center font-medium">
+                  {t("userNotAssignedToRestaurant")}
                 </p>
               )}
               <Button

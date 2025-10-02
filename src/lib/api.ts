@@ -229,16 +229,17 @@ export const TicketAPI = {
     return TicketAPI.filter({}, order, limit);
   },
 
-  create: async (payload: { code: string }): Promise<Ticket> => {
+  create: async (payload: { code: string; restaurant_id?: string }): Promise<Ticket> => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) throw new Error("User not authenticated.");
 
-    // Check for duplicate active code
+    // Check for duplicate active code within the same restaurant
     const { data: existing } = await supabase
       .from('tickets')
       .select('id')
       .eq('code', payload.code.toUpperCase())
       .eq('soft_deleted', false)
+      .eq('restaurant_id', payload.restaurant_id || null) // Filter by restaurant_id
       .maybeSingle();
 
     if (existing) {
@@ -254,6 +255,7 @@ export const TicketAPI = {
         created_by: session.user.id,
         created_by_email: session.user.email,
         created_by_ip: '127.0.0.1', // Use real IP in production
+        restaurant_id: payload.restaurant_id || null, // Save restaurant_id
       })
       .select()
       .single();
@@ -273,7 +275,7 @@ export const TicketAPI = {
       deleted_by: null,
       created_date: data.created_date,
       created_by: data.created_by_email || '',
-      restaurant_id: undefined,
+      restaurant_id: data.restaurant_id,
     };
   },
 
@@ -333,7 +335,7 @@ const MAX_REQUESTS = 3;
 let requestCount = 0;
 
 const originalTicketCreate = TicketAPI.create;
-TicketAPI.create = async (payload: { code: string }): Promise<Ticket> => {
+TicketAPI.create = async (payload: { code: string; restaurant_id?: string }): Promise<Ticket> => {
   const now = Date.now();
   if (now - lastCreateTime > RATE_LIMIT_INTERVAL) {
     requestCount = 0;

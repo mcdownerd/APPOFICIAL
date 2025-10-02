@@ -141,5 +141,10 @@
   "all": "All",
   "applyFilters": "Apply Filters",
   "export": "Export",
-  "failedToLoadRestaurants": "Failed to load restaurant list."
+  "failedToLoadRestaurants": "Failed to load restaurant list.",
+  "userNotAssignedToRestaurant": "Your account is not assigned to a restaurant. Please contact an administrator.",
+  "userRestaurantIdUpdated": "User restaurant ID updated successfully.",
+  "failedToUpdateUserRestaurantId": "Failed to update user restaurant ID.",
+  "selectRestaurantId": "Select Restaurant ID",
+  "none": "None"
 }

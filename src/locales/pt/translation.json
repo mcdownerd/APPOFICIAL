@@ -141,5 +141,10 @@
   "all": "Todos",
   "applyFilters": "Aplicar Filtros",
   "export": "Exportar",
-  "failedToLoadRestaurants": "Falha ao carregar lista de restaurantes."
+  "failedToLoadRestaurants": "Falha ao carregar lista de restaurantes.",
+  "userNotAssignedToRestaurant": "Sua conta não está atribuída a um restaurante. Por favor, entre em contato com um administrador.",
+  "userRestaurantIdUpdated": "ID do restaurante do usuário atualizado com sucesso.",
+  "failedToUpdateUserRestaurantId": "Falha ao atualizar ID do restaurante do usuário.",
+  "selectRestaurantId": "Selecionar ID do Restaurante",
+  "none": "Nenhum"
 }

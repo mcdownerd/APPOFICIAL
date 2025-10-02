@@ -87,6 +87,7 @@ const HistoricoPage = () => {
       if (isAdmin) {
         tickets = await TicketAPI.filter({ soft_deleted: true }, "-deleted_at");
       } else if (user?.user_role === "restaurante" && user.restaurant_id) {
+        // Restaurante vê tickets removidos associados ao seu restaurant_id
         tickets = await TicketAPI.filter({ soft_deleted: true, restaurant_id: user.restaurant_id }, "-deleted_at");
       } else {
         tickets = [];

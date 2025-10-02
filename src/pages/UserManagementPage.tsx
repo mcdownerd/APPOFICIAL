@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input"; // Import Input component
 import { UsersIcon, CheckCircleIcon, XCircleIcon, RefreshCcwIcon, UserCogIcon } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -34,12 +35,22 @@ const UserManagementPage = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [restaurantIds, setRestaurantIds] = useState<string[]>([]); // State to hold unique restaurant IDs
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
       const fetchedUsers = await UserAPI.filter({}, "-created_date"); // Fetch all users, newest first
       setUsers(fetchedUsers);
+
+      // Extract unique restaurant_ids from fetched users
+      const uniqueIds = Array.from(new Set(
+        fetchedUsers
+          .map(u => u.restaurant_id)
+          .filter((id): id is string => id !== undefined && id !== null)
+      ));
+      setRestaurantIds(uniqueIds.sort());
+
     } catch (error) {
       console.error("Failed to fetch users:", error);
       showError(t("failedToLoadUsers"));
@@ -90,6 +101,24 @@ const UserManagementPage = () => {
     }
   };
 
+  const handleUpdateRestaurantId = async (userId: string, newRestaurantId: string | null) => {
+    if (!isAdmin) {
+      showError(t("permissionDenied"));
+      return;
+    }
+    setActionLoading(userId);
+    try {
+      await UserAPI.update(userId, { restaurant_id: newRestaurantId === "" ? null : newRestaurantId });
+      showSuccess(t("userRestaurantIdUpdated")); // New translation key
+      fetchUsers(); // Refresh list
+    } catch (error) {
+      console.error("Failed to update user restaurant ID:", error);
+      showError(t("failedToUpdateUserRestaurantId")); // New translation key
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const getStatusBadge = (status: UserStatus) => {
     switch (status) {
       case "PENDING":
@@ -100,19 +129,6 @@ const UserManagementPage = () => {
         return <Badge variant="outline" className="bg-red-100 text-red-800">{t("rejected")}</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
-    }
-  };
-
-  const getRoleBadge = (role: UserRole) => {
-    switch (role) {
-      case "admin":
-        return <Badge className="bg-blue-600 text-white">{t("admin")}</Badge>;
-      case "restaurante":
-        return <Badge className="bg-purple-600 text-white">{t("restaurant")}</Badge>;
-      case "estafeta":
-        return <Badge className="bg-orange-600 text-white">{t("courier")}</Badge>;
-      default:
-        return <Badge variant="secondary">{role}</Badge>;
     }
   };
 
@@ -185,7 +201,31 @@ const UserManagementPage = () => {
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell>{user.restaurant_id || "N/A"}</TableCell> {/* Exibe o ID do restaurante */}
+                      <TableCell>
+                        {(user.user_role === "restaurante" || user.user_role === "estafeta") ? (
+                          <Select
+                            value={user.restaurant_id || ""}
+                            onValueChange={(value: string) => handleUpdateRestaurantId(user.id, value)}
+                            disabled={actionLoading === user.id}
+                          >
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue placeholder={t("selectRestaurantId")} /> {/* New translation key */}
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">{t("none")}</SelectItem> {/* New translation key */}
+                              {restaurantIds.map(id => (
+                                <SelectItem key={id} value={id}>{id}</SelectItem>
+                              ))}
+                              {/* Option to add a new restaurant ID if not in the list */}
+                              {!restaurantIds.includes(user.restaurant_id || "") && user.restaurant_id && (
+                                <SelectItem value={user.restaurant_id}>{user.restaurant_id} (current)</SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          user.restaurant_id || "N/A"
+                        )}
+                      </TableCell>
                       <TableCell>{getStatusBadge(user.status)}</TableCell>
                       <TableCell>
                         {format(parseISO(user.created_date), "dd/MM/yyyy HH:mm", { locale: i18n.language === 'pt' ? ptBR : undefined })}

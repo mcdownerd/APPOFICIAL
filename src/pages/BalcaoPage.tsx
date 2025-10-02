@@ -39,10 +39,8 @@ export default function BalcaoPage() {
         // Admin vê todos os tickets ativos
         fetchedTickets = await TicketAPI.filter({ soft_deleted: false }, "created_date");
       } else if (user.user_role === "restaurante" && user.restaurant_id) {
-        // Restaurante vê tickets PENDING sem restaurant_id E tickets CONFIRMADO com seu restaurant_id
-        const pendingTickets = await TicketAPI.filter({ soft_deleted: false, status: "PENDING", restaurant_id: undefined }, "created_date");
-        const confirmedTickets = await TicketAPI.filter({ soft_deleted: false, status: "CONFIRMADO", restaurant_id: user.restaurant_id }, "created_date");
-        fetchedTickets = [...pendingTickets, ...confirmedTickets];
+        // Restaurante vê tickets PENDING e CONFIRMADO associados ao seu restaurant_id
+        fetchedTickets = await TicketAPI.filter({ soft_deleted: false, restaurant_id: user.restaurant_id }, "created_date");
       } else {
         // Outros papéis (estafeta) não veem tickets aqui
         fetchedTickets = [];
@@ -117,7 +115,7 @@ export default function BalcaoPage() {
       await TicketAPI.update(ticket.id, { // Passar id como primeiro argumento
         status: 'CONFIRMADO',
         acknowledged_by: user.id,
-        restaurant_id: user.restaurant_id // Atribuir o ticket ao restaurante que o confirmou
+        // restaurant_id is already set by the courier, no need to update here
       });
       
       showSuccess(t('ticketConfirmedSuccessfully'));
