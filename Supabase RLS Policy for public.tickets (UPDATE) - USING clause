@@ -1,23 +1,17 @@
 (
-    (
-        EXISTS (
-            SELECT 1
-            FROM profiles
-            WHERE
-                (profiles.id = auth.uid())
-                AND (profiles.user_role = 'restaurante'::text)
-                AND (profiles.restaurant_id = tickets.restaurant_id)
-        )
-        AND (tickets.soft_deleted = FALSE)
-    )
-    OR
-    (
-        EXISTS (
-            SELECT 1
-            FROM profiles
-            WHERE
-                (profiles.id = auth.uid())
-                AND (profiles.user_role = 'admin'::text)
-        )
+    -- Admin pode sempre atualizar qualquer linha
+    (SELECT user_role FROM profiles WHERE id = auth.uid()) = 'admin'::text
+)
+OR
+(
+    -- Restaurante pode atualizar tickets que pertencem ao seu restaurante,
+    -- independentemente do estado soft_deleted.
+    EXISTS (
+        SELECT 1
+        FROM profiles
+        WHERE
+            (profiles.id = auth.uid())
+            AND (profiles.user_role = 'restaurante'::text)
+            AND (profiles.restaurant_id = tickets.restaurant_id)
     )
 )
