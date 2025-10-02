@@ -8,8 +8,8 @@ import { showError } from "@/utils/toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { RefreshCwIcon, TrendingUpIcon, ClockIcon, AlertCircleIcon, BarChart3Icon, DownloadIcon } from "lucide-react";
-import { format, parseISO, differenceInMinutes, subDays, addDays, startOfDay, endOfDay } from "date-fns";
+import { RefreshCwIcon, TrendingUpIcon, ClockIcon, AlertCircleIcon, BarChart3Icon, DownloadIcon, CheckCircleIcon } from "lucide-react"; // Added CheckCircleIcon
+import { format, parseISO, differenceInMinutes, subDays, addDays, startOfDay, endOfDay, isWithinInterval } from "date-fns"; // Added isWithinInterval
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query"; // Usando React Query para cache
@@ -37,22 +37,25 @@ interface HourlyData {
   avgPending?: number; // Opcional para futuro gráfico
 }
 
+// Type for shadcn/ui DateRange (common pattern)
+type DateRange = { from: Date | undefined; to: Date | undefined };
+
 // Componente para Date Range Picker simplificado
-const DateRangePicker = ({ dateRange, onChange }: { dateRange: Date[]; onChange: (range: Date[]) => void }) => {
+const DateRangePicker = ({ dateRange, onChange }: { dateRange: DateRange; onChange: (range: DateRange) => void }) => {
   const { t } = useTranslation();
   return (
     <Popover>
       <PopoverTrigger asChild>
         <Button variant="outline" className="w-[280px] justify-start text-left font-normal">
           <CalendarIcon className="mr-2 h-4 w-4" />
-          {dateRange[0]?.toLocaleDateString() ?? t("startDate")} - {dateRange[1]?.toLocaleDateString() ?? t("endDate")}
+          {dateRange.from?.toLocaleDateString() ?? t("startDate")} - {dateRange.to?.toLocaleDateString() ?? t("endDate")}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           mode="range"
           selected={dateRange}
-          onSelect={onChange}
+          onSelect={onChange} // Now matches SelectRangeEventHandler: (range: DateRange) => void
           numberOfMonths={2}
           toDate={new Date()}
           fromDate={subDays(new Date(), 365)} // Máximo 1 ano atrás
@@ -62,9 +65,19 @@ const DateRangePicker = ({ dateRange, onChange }: { dateRange: Date[]; onChange:
   );
 };
 
-// Função para calcular KPIs
-const calculateKPIs = (tickets: Ticket[]): AnalysisData => {
-  if (tickets.length === 0) {
+// Função para calcular KPIs (agora com filtro client-side para datas)
+const calculateKPIs = (tickets: Ticket[], dateRange?: DateRange): AnalysisData => {
+  // Client-side date filtering since API doesn't support range objects
+  let filteredTickets = tickets;
+  if (dateRange?.from && dateRange?.to) {
+    const startDate = startOfDay(dateRange.from);
+    const endDate = endOfDay(dateRange.to);
+    filteredTickets = tickets.filter(ticket => 
+      isWithinInterval(parseISO(ticket.created_date), { start: startDate, end: endDate })
+    );
+  }
+
+  if (filteredTickets.length === 0) {
     return {
       totalOrders: 0,
       avgPendingTime: 0,
@@ -84,7 +97,7 @@ const calculateKPIs = (tickets: Ticket[]): AnalysisData => {
     hourlyCounts[i.toString().padStart(2, '0')] = 0;
   }
 
-  tickets.forEach((ticket) => {
+  filteredTickets.forEach((ticket) => {
     const createdDate = parseISO(ticket.created_date);
     const hour = format(createdDate, "HH", { locale: ptBR });
     hourlyCounts[hour]++;
@@ -112,8 +125,8 @@ const calculateKPIs = (tickets: Ticket[]): AnalysisData => {
     }
   });
 
-  const avgPendingTime = totalPendingMinutes / tickets.length;
-  const confirmationRate = confirmedCount / tickets.length * 100;
+  const avgPendingTime = totalPendingMinutes / filteredTickets.length;
+  const confirmationRate = confirmedCount / filteredTickets.length * 100;
 
   // Encontrar horário pico
   let peakHour = "00";
@@ -131,7 +144,7 @@ const calculateKPIs = (tickets: Ticket[]): AnalysisData => {
   }));
 
   return {
-    totalOrders: tickets.length,
+    totalOrders: filteredTickets.length,
     avgPendingTime: Math.round(avgPendingTime),
     peakHour: `${peakHour}h`,
     peakCount,
@@ -157,38 +170,30 @@ const KPIcard = ({ title, value, subtitle, icon: Icon, color = "blue" }: { title
 const AnaliseTempoPage = () => {
   const { user, isAdmin } = useAuth();
   const { t } = useTranslation();
-  const [dateRange, setDateRange] = useState<Date[]>([subDays(new Date(), 7), new Date()]);
+  const [dateRange, setDateRange] = useState<DateRange>({ from: subDays(new Date(), 7), to: new Date() }); // Changed to DateRange object
   const [selectedPeriod, setSelectedPeriod] = useState("week"); // hoje, week, month
   const [selectedRestaurant, setSelectedRestaurant] = useState("all"); // all ou restaurant_id
   const [error, setError] = useState<string | null>(null);
 
-  // Query para dados com filtros
-  const { data: analysisData, isLoading, refetch } = useQuery({
+  // Query para dados com filtros (fetch all, filter client-side for dates)
+  const { data: analysisData, isLoading, refetch } = useQuery<AnalysisData, Error>({
     queryKey: ["analysis", dateRange, selectedPeriod, selectedRestaurant],
     queryFn: async () => {
-      const startDate = startOfDay(dateRange[0]);
-      const endDate = endOfDay(dateRange[1]);
       let tickets: Ticket[] = [];
 
       if (isAdmin) {
-        tickets = await TicketAPI.filter(
-          { created_date: { gte: format(startDate, "yyyy-MM-dd'T'HH:mm:ss"), lte: format(endDate, "yyyy-MM-dd'T'HH:mm:ss") } },
-          "-created_date"
-        );
+        tickets = await TicketAPI.filter({}, "-created_date"); // Fetch all for admin
       } else if (user?.restaurant_id) {
         tickets = await TicketAPI.filter(
-          {
-            created_date: { gte: format(startDate, "yyyy-MM-dd'T'HH:mm:ss"), lte: format(endDate, "yyyy-MM-dd'T'HH:mm:ss") },
-            restaurant_id: user.restaurant_id,
-          },
+          { restaurant_id: user.restaurant_id },
           "-created_date"
         );
       }
 
-      return calculateKPIs(tickets);
+      return calculateKPIs(tickets, dateRange); // Client-side filtering and calculation
     },
     retry: 2,
-    onError: (err: any) => {
+    onError: (err: Error) => { // Typed as Error
       setError(err.message || t("failedToLoadTimeAnalysis"));
       showError(t("failedToLoadTimeAnalysis"));
     },
@@ -312,7 +317,7 @@ const AnaliseTempoPage = () => {
             <Button onClick={handleApplyFilters} variant="default">
               {t("applyFilters")}
             </Button>
-            <Button onClick={refetch} variant="outline" disabled={isLoading}>
+            <Button onClick={() => refetch()} variant="outline" disabled={isLoading}> {/* Wrapped refetch */}
               <RefreshCwIcon className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
               {t("refresh")}
             </Button>
@@ -373,7 +378,7 @@ const AnaliseTempoPage = () => {
               {t("totalOrdersCreatedEachHour")}
             </CardDescription>
           </div>
-          <Button variant="outline" size="icon" onClick={refetch} disabled={isLoading}>
+          <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isLoading}> {/* Wrapped refetch */}
             <RefreshCwIcon className={cn("h-4 w-4", isLoading && "animate-spin")} />
           </Button>
         </CardHeader>
