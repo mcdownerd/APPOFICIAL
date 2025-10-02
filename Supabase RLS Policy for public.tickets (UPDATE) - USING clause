@@ -4,14 +4,8 @@
 )
 OR
 (
-    -- Restaurante pode atualizar tickets que pertencem ao seu restaurante,
-    -- independentemente do estado soft_deleted.
-    EXISTS (
-        SELECT 1
-        FROM profiles
-        WHERE
-            (profiles.id = auth.uid())
-            AND (profiles.user_role = 'restaurante'::text)
-            AND (profiles.restaurant_id = tickets.restaurant_id)
-    )
+    -- Para o papel 'restaurante', a cláusula USING é agora TRUE.
+    -- A validação de que o ticket pertence ao restaurante do utilizador
+    -- é agora tratada exclusivamente pelo trigger BEFORE UPDATE.
+    (SELECT user_role FROM profiles WHERE id = auth.uid()) = 'restaurante'::text
 )
