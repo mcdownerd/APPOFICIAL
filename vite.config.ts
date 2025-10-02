@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import dyadComponentTagger from "@dyad-sh/react-vite-component-tagger";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { VitePWA } from 'vite-plugin-pwa'; // Import VitePWA
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(() => ({
   server: {
@@ -76,6 +76,9 @@ export default defineConfig(() => ({
             },
           },
         ],
+        // Ensure all navigation requests fallback to index.html
+        navigateFallback: 'index.html',
+        navigateFallbackAllowlist: [/^.*$/],
       },
     }),
   ],
