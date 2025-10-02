@@ -226,9 +226,11 @@ const AnaliseTempoPage = () => {
     queryFn: async () => {
       let allTickets: Ticket[] = [];
       if (isAdmin) {
-        allTickets = await TicketAPI.list("-created_date");
+        // Admin agora puxa TODOS os tickets (ativos e soft-deleted)
+        allTickets = await TicketAPI.filter({ soft_deleted: undefined }, "-created_date");
       } else if (user?.restaurant_id) {
-        allTickets = await TicketAPI.filter({ restaurant_id: user.restaurant_id }, "-created_date");
+        // Restaurante agora puxa TODOS os tickets (ativos e soft-deleted) associados ao seu restaurant_id
+        allTickets = await TicketAPI.filter({ restaurant_id: user.restaurant_id, soft_deleted: undefined }, "-created_date");
       }
 
       // Client-side date filtering
