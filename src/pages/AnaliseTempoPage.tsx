@@ -37,8 +37,8 @@ interface HourlyData {
   avgPending?: number; // Opcional para futuro gráfico
 }
 
-// Type for DateRange (from shadcn/ui Calendar)
-type DateRange = { from?: Date; to?: Date };
+// Type for DateRange (from shadcn/ui Calendar) - matching react-day-picker's required properties
+type DateRange = { from: Date; to: Date };
 
 // Componente para Date Range Picker simplificado
 const DateRangePicker = ({ dateRange, onChange }: { dateRange: DateRange; onChange: (range: DateRange | undefined) => void }) => {
@@ -48,7 +48,7 @@ const DateRangePicker = ({ dateRange, onChange }: { dateRange: DateRange; onChan
       <PopoverTrigger asChild>
         <Button variant="outline" className="w-[280px] justify-start text-left font-normal">
           <CalendarIcon className="mr-2 h-4 w-4" />
-          {dateRange.from?.toLocaleDateString() ?? t("startDate")} - {dateRange.to?.toLocaleDateString() ?? t("endDate")}
+          {dateRange.from.toLocaleDateString()} - {dateRange.to.toLocaleDateString()}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
