@@ -301,15 +301,23 @@ export const TicketAPI = {
       updatePayload.deleted_by_email = session.user.email;
     }
 
-    const { data, error } = await supabase
+    let supabaseQuery = supabase
       .from('tickets')
       .update(updatePayload)
-      .eq('id', id)
+      .eq('id', id);
+
+    // If the payload contains a restaurant_id, add it to the query.
+    // This is crucial for multi-tenancy and RLS.
+    if (payload.restaurant_id !== undefined) {
+      supabaseQuery = supabaseQuery.eq('restaurant_id', payload.restaurant_id);
+    }
+
+    const { data, error } = await supabaseQuery
       .select()
       .single();
 
     if (error) throw error;
-    if (!data) throw new Error("Ticket not found");
+    if (!data) throw new Error("Ticket not found or user does not have permission to update it.");
 
     return {
       id: data.id,

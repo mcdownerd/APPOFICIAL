@@ -24,7 +24,7 @@ export default function BalcaoPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set());
+  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set()); // Corrigido aqui
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   const doubleClickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -115,7 +115,7 @@ export default function BalcaoPage() {
       await TicketAPI.update(ticket.id, { // Passar id como primeiro argumento
         status: 'CONFIRMADO',
         acknowledged_by: user.id,
-        // restaurant_id is already set by the courier, no need to update here
+        restaurant_id: ticket.restaurant_id, // Pass the ticket's restaurant_id
       });
       
       showSuccess(t('ticketConfirmedSuccessfully'));
@@ -140,7 +140,8 @@ export default function BalcaoPage() {
     try {
       await TicketAPI.update(ticket.id, { // Passar id como primeiro argumento
         soft_deleted: true,
-        deleted_by: user.id
+        deleted_by: user.id,
+        restaurant_id: ticket.restaurant_id, // Pass the ticket's restaurant_id
       });
       
       showSuccess(t('ticketRemovedSuccessfully'));
