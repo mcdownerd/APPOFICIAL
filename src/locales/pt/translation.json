@@ -111,5 +111,10 @@
   "authErrorOccurred": "Ocorreu um erro de autenticação.",
   "pendingLimitSettings": "Configurações de Limite de Pendentes",
   "enablePendingLimit": "Ativar Limite de Pendentes (Máx. 4)",
-  "pendingLimitDescription": "Quando ativado, estafetas só podem enviar novos códigos se houver menos de 4 pedidos pendentes no sistema."
+  "pendingLimitDescription": "Quando ativado, estafetas só podem enviar novos códigos se houver menos de 4 pedidos pendentes no sistema.",
+  "loadingTickets": "Carregando tickets...",
+  "clickToConfirm": "Clique para confirmar",
+  "noActiveTickets": "Nenhum ticket ativo",
+  "awaitingNewCodes": "Aguardando novos códigos dos estafetas.",
+  "activeTicketsDescription": "{{count}} ticket{{count === 1 ? '' : 's'}} ativo{{count === 1 ? '' : 's'}}."
 }

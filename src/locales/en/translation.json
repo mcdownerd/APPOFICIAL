@@ -111,5 +111,10 @@
   "authErrorOccurred": "An authentication error occurred.",
   "pendingLimitSettings": "Pending Limit Settings",
   "enablePendingLimit": "Enable Pending Limit (Max 4)",
-  "pendingLimitDescription": "When enabled, couriers can only send new codes if there are less than 4 pending orders in the system."
+  "pendingLimitDescription": "When enabled, couriers can only send new codes if there are less than 4 pending orders in the system.",
+  "loadingTickets": "Loading tickets...",
+  "clickToConfirm": "Click to confirm",
+  "noActiveTickets": "No active tickets",
+  "awaitingNewCodes": "Awaiting new codes from couriers.",
+  "activeTicketsDescription": "{{count}} active ticket{{count === 1 ? '' : 's'}}."
 }
