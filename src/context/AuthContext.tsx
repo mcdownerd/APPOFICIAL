@@ -1,252 +1,203 @@
-"use client";
-
-import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useCallback,
+} from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { User, UserRole, UserStatus } from "@/lib/types";
-import { showError } from "@/utils/toast";
+import { User, UserAPI, UserRole, UserStatus, signInWithPassword, signUp, signOut as supabaseSignOut } from "@/lib/api";
+import { showSuccess, showError } from "@/utils/toast";
 import { useTranslation } from "react-i18next";
+
+export type { UserRole };
 
 interface AuthContextType {
   user: User | null;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (fullName: string, email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
   isApproved: boolean;
   isPending: boolean;
   isRejected: boolean;
-  isLoading: boolean;
-  hasRole: (roles: UserRole[]) => boolean;
+  isAdmin: boolean;
+  isRestaurante: boolean;
   isEstafeta: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, fullName: string, role: UserRole) => Promise<void>;
-  logout: () => Promise<void>;
-  updateUserStatus: (userId: string, status: UserStatus) => Promise<void>;
-  updateUserRole: (userId: string, role: UserRole) => Promise<void>;
+  hasRole: (roles: UserRole[]) => boolean;
+  canAccess: (path: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const rolePaths: Record<UserRole, string[]> = {
+  admin: ["/analise-tempo", "/balcao", "/estafeta", "/historico", "/admin/users"],
+  restaurante: ["/balcao", "/historico"],
+  estafeta: ["/estafeta"],
+};
+
 export const SessionContextProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isApproved, setIsApproved] = useState(false);
-  const [isPending, setIsPending] = useState(false);
-  const [isRejected, setIsRejected] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Start as true
   const { t } = useTranslation();
 
   useEffect(() => {
-    // Fetch initial session
+    let isMounted = true; // Flag to prevent state updates on unmounted component
+
+    const loadUser = async (sessionUser: any, event?: string) => {
+      if (!isMounted) return;
+      setIsLoading(true); // Set loading to true at the start of user loading attempt
+      try {
+        if (sessionUser) {
+          const currentUser = await UserAPI.me();
+          if (isMounted) {
+            setUser(currentUser);
+            if (currentUser && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
+              showSuccess(t("welcomeUser", { userName: currentUser.full_name }));
+            }
+          }
+        } else {
+          if (isMounted) {
+            setUser(null);
+            if (event === 'SIGNED_OUT') {
+              showSuccess(t("sessionEnded"));
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+        if (isMounted) {
+          showError(t("failedToLoadUserProfile"));
+          setUser(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false); // Ensure loading is set to false after user loading attempt
+        }
+      }
+    };
+
+    // Handle initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setUser(session.user as User);
+      if (isMounted) {
+        loadUser(session?.user);
       }
-      setIsLoading(false);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN') {
-        const userProfile = await fetchUserProfile(session?.user?.id);
-        setUser(userProfile);
-      } else if (event === 'SIGNED_OUT') {
+    }).catch(error => {
+      console.error("Error getting initial session:", error);
+      if (isMounted) {
+        showError(t("authErrorOccurred"));
         setUser(null);
-        setIsApproved(false);
-        setIsPending(false);
-        setIsRejected(false);
+        setIsLoading(false); // Ensure loading is false even if initial session fetch fails
       }
-      setIsLoading(false);
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return;
+      loadUser(session?.user, event);
+    });
 
-  useEffect(() => {
-    if (user) {
-      updateAuthStatus(user);
-    }
-  }, [user]);
+    return () => {
+      isMounted = false; // Cleanup: set flag to false
+      subscription.unsubscribe();
+    };
+  }, [t]);
 
-  const updateAuthStatus = useCallback((currentUser: User) => {
-    switch (currentUser.status) {
-      case UserStatus.ACTIVE:
-        setIsApproved(true);
-        setIsPending(false);
-        setIsRejected(false);
-        break;
-      case UserStatus.PENDING:
-        setIsApproved(false);
-        setIsPending(true);
-        setIsRejected(false);
-        break;
-      case UserStatus.REJECTED:
-        setIsApproved(false);
-        setIsPending(false);
-        setIsRejected(true);
-        break;
-      default:
-        setIsApproved(false);
-        setIsPending(false);
-        setIsRejected(false);
-    }
-  }, []);
-
-  const fetchUserProfile = useCallback(async (userId: string): Promise<User> => {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (error) {
-      showError(t("failedToLoadUserProfile"));
-      throw error;
-    }
-
-    if (!data) {
-      throw new Error(t("userNotFound"));
-    }
-
-    return data as User;
-  }, [supabase, t]);
-
-  const login = useCallback(async (email: string, password: string) => {
+  const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      if (!data.user) throw new Error(t("loginFailed"));
-
-      const userProfile = await fetchUserProfile(data.user.id);
-      setUser(userProfile);
-      updateAuthStatus(userProfile);
+      await UserAPI.login(email, password);
     } catch (error) {
       showError(t("loginFailed"));
       throw error;
     } finally {
       setIsLoading(false);
     }
-  }, [supabase, fetchUserProfile, updateAuthStatus, t]);
+  };
 
-  const signup = useCallback(async (email: string, password: string, fullName: string, role: UserRole) => {
+  const register = async (fullName: string, email: string, password: string) => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password });
-      if (error) throw error;
-      if (!data.user) throw new Error(t("registrationFailed"));
+      await UserAPI.register(fullName, email, password);
+    } catch (error: any) {
+      if (error.message?.includes('already registered')) {
+        showError(t("emailAlreadyExists"));
+      } else {
+        showError(t("registrationFailed"));
+      }
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      // Insert user profile with pending status
-      const { error: profileError } = await supabase
-        .from('users')
-        .insert({
-          id: data.user.id,
-          email,
-          full_name: fullName,
-          role,
-          status: UserStatus.PENDING, // Default to pending
-        });
-
-      if (profileError) throw profileError;
-
-      showError(t("accountCreatedPending", { userName: fullName }));
+  const logout = async () => {
+    setIsLoading(true);
+    try {
+      await supabaseSignOut();
     } catch (error) {
-      showError(t("registrationFailed"));
-      throw<dyad-problem-report summary="50 problems">
-<problem file="src/context/AuthContext.tsx" line="4" column="45" code="2307">Cannot find module '@supabase/auth-helpers-nextjs' or its corresponding type declarations.</problem>
-<problem file="src/pages/Index.tsx" line="24" column="34" code="2339">Property 'user_role' does not exist on type 'User'.</problem>
-<problem file="src/pages/Login.tsx" line="23" column="30" code="2339">Property 'user_role' does not exist on type 'User'.</problem>
-<problem file="src/pages/Login.tsx" line="24" column="30" code="2339">Property 'user_role' does not exist on type 'User'.</problem>
-<problem file="src/pages/RegisterPage.tsx" line="25" column="30" code="2339">Property 'user_role' does not exist on type 'User'.</problem>
-<problem file="src/pages/RegisterPage.tsx" line="26" column="30" code="2339">Property 'user_role' does not exist on type 'User'.</problem>
-<problem file="src/components/Layout.tsx" line="86" column="36" code="2339">Property 'user_role' does not exist on type 'User'.</problem>
-<problem file="src/components/Layout.tsx" line="132" column="25" code="2339">Property 'user_role' does not exist on type 'User'.</problem>
-<problem file="src/components/Layout.tsx" line="151" column="36" code="2339">Property 'user_role' does not exist on type 'User'.</problem>
-<problem file="src/components/Layout.tsx" line="156" column="34" code="2339">Property 'user_role' does not exist on type 'User'.</problem>
-<problem file="src/components/AuthGuard.tsx" line="3" column="19" code="2459">Module '&quot;@/context/AuthContext&quot;' declares 'UserRole' locally, but it is not exported.</problem>
-<problem file="src/components/AuthGuard.tsx" line="17" column="79" code="2339">Property 'user_role' does not exist on type 'User'.</problem>
-<problem file="src/lib/api.ts" line="6" column="10" code="1205">Re-exporting a type when 'isolatedModules' is enabled requires using 'export type'.</problem>
-<problem file="src/lib/api.ts" line="6" column="38" code="1205">Re-exporting a type when 'isolatedModules' is enabled requires using 'export type'.</problem>
-<problem file="src/pages/BalcaoPage.tsx" line="7" column="11" code="2552">Cannot find name 'TicketAPI'. Did you mean 'ticketId'?</problem>
-<problem file="src/pages/BalcaoPage.tsx" line="7" column="43" code="2304">Cannot find name 'user'.</problem>
-<problem file="src/pages/BalcaoPage.tsx" line="8" column="5" code="2304">Cannot find name 'showSuccess'.</problem>
-<problem file="src/pages/BalcaoPage.tsx" line="8" column="17" code="2304">Cannot find name 't'.</problem>
-<problem file="src/pages/BalcaoPage.tsx" line="9" column="5" code="2304">Cannot find name 'fetchTickets'.</problem>
-<problem file="src/pages/BalcaoPage.tsx" line="11" column="5" code="2304">Cannot find name 'showError'.</problem>
-<problem file="src/pages/BalcaoPage.tsx" line="11" column="15" code="2304">Cannot find name 't'.</problem>
-<problem file="src/pages/BalcaoPage.tsx" line="16" column="16" code="2304">Cannot find name 't'.</problem>
-<problem file="src/pages/BalcaoPage.tsx" line="19" column="11" code="2304">Cannot find name 'TicketAPI'.</problem>
-<problem file="src/pages/BalcaoPage.tsx" line="19" column="42" code="2304">Cannot find name 'user'.</problem>
-<problem file="src/pages/BalcaoPage.tsx" line="20" column="5" code="2304">Cannot find name 'showSuccess'.</problem>
-<problem file="src/pages/BalcaoPage.tsx" line="20" column="17" code="2304">Cannot find name 't'.</problem>
-<problem file="src/pages/BalcaoPage.tsx" line="21" column="5" code="2304">Cannot find name 'fetchTickets'.</problem>
-<problem file="src/pages/BalcaoPage.tsx" line="23" column="5" code="2304">Cannot find name 'showError'.</problem>
-<problem file="src/pages/BalcaoPage.tsx" line="23" column="15" code="2304">Cannot find name 't'.</problem>
-<problem file="src/pages/AnaliseTempoPage.tsx" line="6" column="35" code="2304">Cannot find name 'useState'.</problem>
-<problem file="src/pages/AnaliseTempoPage.tsx" line="7" column="9" code="2304">Cannot find name 'subDays'.</problem>
-<problem file="src/pages/AnaliseTempoPage.tsx" line="16" column="17" code="2304">Cannot find name 'useTranslation'.</problem>
-<problem file="src/pages/AnaliseTempoPage.tsx" line="18" column="6" code="2304">Cannot find name 'Popover'.</problem>
-<problem file="src/pages/AnaliseTempoPage.tsx" line="19" column="8" code="2304">Cannot find name 'PopoverTrigger'.</problem>
-<problem file="src/pages/AnaliseTempoPage.tsx" line="20" column="10" code="2304">Cannot find name 'Button'.</problem>
-<problem file="src/pages/AnaliseTempoPage.tsx" line="21" column="12" code="2304">Cannot find name 'CalendarIcon'.</problem>
-<problem file="src/pages/AnaliseTempoPage.tsx" line="23" column="11" code="2304">Cannot find name 'Button'.</problem>
-<problem file="src/pages/AnaliseTempoPage.tsx" line="24" column="9" code="2304">Cannot find name 'PopoverTrigger'.</problem>
-<problem file="src/pages/AnaliseTempoPage.tsx" line="25" column="8" code="2304">Cannot find name 'PopoverContent'.</problem>
-<problem file="src/pages/AnaliseTempoPage.tsx" line="26" column="10" code="2304">Cannot find name 'Calendar'.</problem>
-<problem file="src/pages/AnaliseTempoPage.tsx" line="32" column="21" code="2304">Cannot find name 'subDays'.</problem>
-<problem file="src/pages/AnaliseTempoPage.tsx" line="34" column="9" code="2304">Cannot find name 'PopoverContent'.</problem>
-<problem file="src/pages/AnaliseTempoPage.tsx" line="35" column="7" code="2304">Cannot find name 'Popover'.</problem>
-<problem file="src/pages/AnaliseTempoPage.tsx" line="40" column="19" code="2304">Cannot find name 'startOfDay'.</problem>
-<problem file="src/pages/AnaliseTempoPage.tsx" line="41" column="17" code="2304">Cannot find name 'endOfDay'.</problem>
-<problem file="src/App.tsx" line="15" column="8" code="1192">Module '&quot;C:/Users/william/dyad-apps/MEU APP-copy/src/pages/BalcaoPage&quot;' has no default export.</problem>
-<problem file="src/App.tsx" line="16" column="8" code="1192">Module '&quot;C:/Users/william/dyad-apps/MEU APP-copy/src/pages/HistoricoPage&quot;' has no default export.</problem>
-<problem file="src/App.tsx" line="17" column="8" code="1192">Module '&quot;C:/Users/william/dyad-apps/MEU APP-copy/src/pages/AnaliseTempoPage&quot;' has no default export.</problem>
-<problem file="src/App.tsx" line="18" column="8" code="1192">Module '&quot;C:/Users/william/dyad-apps/MEU APP-copy/src/pages/UserManagementPage&quot;' has no default export.</problem>
-<problem file="src/App.tsx" line="39" column="24" code="2786">'EstafetaPage' cannot be used as a JSX component.
-  Its type '() =&gt; void' is not a valid JSX element type.
-    Type '() =&gt; void' is not assignable to type '(props: any, deprecatedLegacyContext?: any) =&gt; ReactNode'.
-      Type 'void' is not assignable to type 'ReactNode'.</problem>
-</dyad-problem-report><dyad-write path="src/lib/types.ts" description="Fix User interface: change user_role to role, ensure full_name, export types properly.">
-export interface User {
-  id: string;
-  full_name: string;
-  email: string;
-  role: UserRole;
-  status: UserStatus;
-  restaurant_id?: string;
-  // Outros campos...
-}
+      showError(t("failedToLogout"));
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-export type { User };
+  const isAuthenticated = !!user;
+  const isApproved = user?.status === "APPROVED";
+  const isPending = user?.status === "PENDING";
+  const isRejected = user?.status === "REJECTED";
 
-export enum UserRole {
-  ADMIN = 'admin',
-  RESTAURANTE = 'restaurante',
-  ESTAFETA = 'estafeta',
-}
+  const isAdmin = user?.user_role === "admin";
+  const isRestaurante = user?.user_role === "restaurante";
+  const isEstafeta = user?.user_role === "estafeta";
 
-export type { UserRole };
+  const hasRole = useCallback(
+    (roles: UserRole[]) => {
+      return isAuthenticated && isApproved && user ? roles.includes(user.user_role) : false;
+    },
+    [user, isAuthenticated, isApproved],
+  );
 
-export enum UserStatus {
-  ACTIVE = 'ACTIVE',
-  PENDING = 'PENDING',
-  REJECTED = 'REJECTED',
-  INACTIVE = 'INACTIVE',
-}
+  const canAccess = useCallback(
+    (path: string) => {
+      if (!isAuthenticated || !isApproved || !user) return false;
+      const allowedPaths = rolePaths[user.user_role as UserRole];
+      return allowedPaths && allowedPaths.includes(path);
+    },
+    [user, isAuthenticated, isApproved],
+  );
 
-export type { UserStatus };
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        login,
+        register,
+        logout,
+        isAuthenticated,
+        isApproved,
+        isPending,
+        isRejected,
+        isAdmin,
+        isRestaurante,
+        isEstafeta,
+        hasRole,
+        canAccess,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
 
-export interface Ticket {
-  id: string;
-  code: string;
-  customer_name: string;
-  delivery_address: string;
-  estafeta_id?: string;
-  restaurant_id?: string;
-  created_by?: string;
-  acknowledged_by?: string;
-  deleted_by?: string;
-  status: 'PENDING' | 'CONFIRMADO';
-  created_date: string;
-  acknowledged_at?: string;
-  deleted_at?: string;
-  soft_deleted?: boolean;
-}
-
-export type { Ticket };
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within a SessionContextProvider");
+  }
+  return context;
+};
