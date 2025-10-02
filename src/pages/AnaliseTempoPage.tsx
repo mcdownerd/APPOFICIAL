@@ -3,19 +3,19 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
-import { TicketAPI, Ticket } from "@/lib/api";
+import { TicketAPI, Ticket, UserAPI } from "@/lib/api"; // Import UserAPI
 import { showError } from "@/utils/toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { RefreshCwIcon, TrendingUpIcon, ClockIcon, AlertCircleIcon, BarChart3Icon, DownloadIcon, CheckCircleIcon } from "lucide-react";
-import { format, parseISO, differenceInMinutes, subDays, addDays, startOfDay, endOfDay } from "date-fns";
+import { format, parseISO, differenceInMinutes, subDays, addDays, startOfDay, endOfDay, startOfWeek, startOfMonth, endOfMonth } from "date-fns"; // Added startOfWeek, startOfMonth, endOfMonth
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
-import { useQuery } from "@tanstack/react-query"; // Usando React Query para cache
-import { Skeleton } from "@/components/ui/skeleton"; // Para loading
-import { Alert, AlertDescription } from "@/components/ui/alert"; // Para error
-import { Calendar } from "@/components/ui/calendar"; // Para DatePicker
+import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { CalendarIcon, ChevronDownIcon } from "lucide-react";
@@ -38,7 +38,7 @@ interface HourlyData {
 }
 
 // Type for DateRange (from shadcn/ui Calendar) - matching react-day-picker's required properties
-type DateRange = { from: Date; to: Date };
+type DateRange = { from: Date | undefined; to: Date | undefined }; // Made from/to optional
 
 // Componente para Date Range Picker simplificado
 const DateRangePicker = ({ dateRange, onChange }: { dateRange: DateRange; onChange: (range: DateRange | undefined) => void }) => {
@@ -48,7 +48,15 @@ const DateRangePicker = ({ dateRange, onChange }: { dateRange: DateRange; onChan
       <PopoverTrigger asChild>
         <Button variant="outline" className="w-[280px] justify-start text-left font-normal">
           <CalendarIcon className="mr-2 h-4 w-4" />
-          {dateRange.from.toLocaleDateString()} - {dateRange.to.toLocaleDateString()}
+          {dateRange.from ? (
+            dateRange.to ? (
+              `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}`
+            ) : (
+              format(dateRange.from, "dd/MM/yyyy")
+            )
+          ) : (
+            <span>{t("pickADate")}</span>
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
@@ -66,7 +74,7 @@ const DateRangePicker = ({ dateRange, onChange }: { dateRange: DateRange; onChan
 };
 
 // Função para calcular KPIs
-const calculateKPIs = (tickets: Ticket[]): AnalysisData => {
+const calculateKPIs = (tickets: Ticket[], t: any): AnalysisData => {
   if (tickets.length === 0) {
     return {
       totalOrders: 0,
@@ -115,8 +123,8 @@ const calculateKPIs = (tickets: Ticket[]): AnalysisData => {
     }
   });
 
-  const avgPendingTime = totalPendingMinutes / tickets.length;
-  const confirmationRate = confirmedCount / tickets.length * 100;
+  const avgPendingTime = tickets.length > 0 ? totalPendingMinutes / tickets.length : 0;
+  const confirmationRate = tickets.length > 0 ? (confirmedCount / tickets.length) * 100 : 0;
 
   // Encontrar horário pico
   let peakHour = "00";
@@ -161,13 +169,60 @@ const AnaliseTempoPage = () => {
   const { user, isAdmin } = useAuth();
   const { t } = useTranslation();
   const [dateRange, setDateRange] = useState<DateRange>({ from: subDays(new Date(), 7), to: new Date() });
-  const [selectedPeriod, setSelectedPeriod] = useState("week"); // hoje, week, month
+  const [selectedPeriod, setSelectedPeriod] = useState("week"); // today, week, month, custom
   const [selectedRestaurant, setSelectedRestaurant] = useState("all"); // all ou restaurant_id
+  const [availableRestaurants, setAvailableRestaurants] = useState<{ id: string; name: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // Query para dados com filtros (fetch all and filter client-side since API lacks range support)
+  // Effect to update dateRange when selectedPeriod changes
+  useEffect(() => {
+    const today = new Date();
+    let newFrom: Date | undefined;
+    let newTo: Date | undefined;
+
+    switch (selectedPeriod) {
+      case "today":
+        newFrom = startOfDay(today);
+        newTo = endOfDay(today);
+        break;
+      case "week":
+        newFrom = startOfWeek(today, { weekStartsOn: 0 }); // Sunday as start of week
+        newTo = endOfDay(today);
+        break;
+      case "month":
+        newFrom = startOfMonth(today);
+        newTo = endOfDay(today);
+        break;
+      case "custom":
+        // Do nothing, dateRange is managed by the picker
+        return;
+      default:
+        break;
+    }
+    setDateRange({ from: newFrom, to: newTo });
+  }, [selectedPeriod]);
+
+  // Fetch available restaurants for admin filter
+  useEffect(() => {
+    const fetchRestaurants = async () => {
+      if (isAdmin) {
+        try {
+          const restaurantUsers = await UserAPI.filter({ user_role: "restaurante", status: "APPROVED" });
+          const uniqueRestaurantIds = Array.from(new Set(restaurantUsers.map(u => u.restaurant_id).filter(Boolean) as string[]));
+          const restaurants = uniqueRestaurantIds.map(id => ({ id, name: `Restaurante ${id.substring(0, 4)}` })); // Simple naming
+          setAvailableRestaurants(restaurants);
+        } catch (err) {
+          console.error("Failed to fetch restaurant users:", err);
+          showError(t("failedToLoadRestaurants"));
+        }
+      }
+    };
+    fetchRestaurants();
+  }, [isAdmin, t]);
+
+  // Query para dados com filtros
   const { data: analysisData, isLoading, error: queryError, refetch } = useQuery<AnalysisData, Error>({
-    queryKey: ["analysis", dateRange, selectedPeriod, selectedRestaurant],
+    queryKey: ["analysis", dateRange, selectedRestaurant], // selectedPeriod is now implicitly handled by dateRange
     queryFn: async () => {
       let allTickets: Ticket[] = [];
       if (isAdmin) {
@@ -177,22 +232,24 @@ const AnaliseTempoPage = () => {
       }
 
       // Client-side date filtering
-      const startDate = dateRange.from ? startOfDay(dateRange.from) : subDays(new Date(), 7);
-      const endDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(new Date());
+      const startDate = dateRange.from ? startOfDay(dateRange.from) : null;
+      const endDate = dateRange.to ? endOfDay(dateRange.to) : null;
+
       const filteredTickets = allTickets.filter((ticket) => {
         const created = parseISO(ticket.created_date);
-        return created >= startDate && created <= endDate;
+        let passesDateFilter = true;
+        if (startDate && created < startDate) passesDateFilter = false;
+        if (endDate && created > endDate) passesDateFilter = false;
+        return passesDateFilter;
       });
 
       // Restaurant filter for admins
       if (isAdmin && selectedRestaurant !== "all") {
-        // Assuming selectedRestaurant is restaurant_id; filter accordingly
-        // If you have a list of restaurants, map IDs here
         const filteredByRestaurant = filteredTickets.filter((ticket) => ticket.restaurant_id === selectedRestaurant);
-        return calculateKPIs(filteredByRestaurant);
+        return calculateKPIs(filteredByRestaurant, t);
       }
 
-      return calculateKPIs(filteredTickets);
+      return calculateKPIs(filteredTickets, t);
     },
     retry: 2,
   });
@@ -204,6 +261,11 @@ const AnaliseTempoPage = () => {
       showError(t("failedToLoadTimeAnalysis"));
     }
   }, [queryError, t]);
+
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    setDateRange(range || { from: undefined, to: undefined });
+    setSelectedPeriod("custom"); // Set to custom when date range is manually changed
+  };
 
   const handleApplyFilters = () => {
     refetch();
@@ -250,7 +312,7 @@ const AnaliseTempoPage = () => {
         <BarChart3Icon className="h-12 w-12 text-muted-foreground" />
         <h3 className="text-lg font-medium">{t("noDataAvailable")}</h3>
         <p className="text-sm text-muted-foreground text-center max-w-md">
-          {t("noDataDescription", { period: selectedPeriod })}
+          {t("noDataDescription", { period: t(selectedPeriod) })}
         </p>
         <Button onClick={handleApplyFilters} variant="outline">
           {t("adjustFilters")}
@@ -294,7 +356,7 @@ const AnaliseTempoPage = () => {
       <Card className="p-4">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-            <DateRangePicker dateRange={dateRange} onChange={setDateRange} />
+            <DateRangePicker dateRange={dateRange} onChange={handleDateRangeChange} />
             <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder={t("selectPeriod")} />
@@ -303,6 +365,7 @@ const AnaliseTempoPage = () => {
                 <SelectItem value="today">{t("today")}</SelectItem>
                 <SelectItem value="week">{t("week")}</SelectItem>
                 <SelectItem value="month">{t("month")}</SelectItem>
+                <SelectItem value="custom">{t("custom")}</SelectItem>
               </SelectContent>
             </Select>
             {isAdmin && (
@@ -312,8 +375,9 @@ const AnaliseTempoPage = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t("all")}</SelectItem>
-                  {/* Aqui você pode mapear restaurantes se houver lista */}
-                  <SelectItem value="restaurant1">Restaurante 1</SelectItem>
+                  {availableRestaurants.map(r => (
+                    <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}
@@ -346,7 +410,7 @@ const AnaliseTempoPage = () => {
           <KPIcard
             title={t("totalOrders")}
             value={analysisData.totalOrders}
-            subtitle={t("thisPeriod", { period: selectedPeriod })}
+            subtitle={t("thisPeriod", { period: t(selectedPeriod) })}
             icon={BarChart3Icon}
             color="blue"
           />
