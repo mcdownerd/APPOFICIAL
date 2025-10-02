@@ -4,7 +4,7 @@
 )
 OR
 (
-    -- Para outros papéis (assumindo 'restaurante' devido à cláusula USING),
-    -- o NEW.restaurant_id deve corresponder ao restaurant_id do utilizador.
-    NEW.restaurant_id = (SELECT restaurant_id FROM profiles WHERE id = auth.uid())
+    -- Para o papel 'restaurante', a cláusula WITH CHECK é efetivamente TRUE.
+    -- A validação de NEW.restaurant_id é agora tratada pelo trigger BEFORE UPDATE.
+    TRUE
 )
