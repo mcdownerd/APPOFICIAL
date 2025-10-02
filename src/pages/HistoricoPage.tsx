@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { HistoryIcon, RefreshCcwIcon, Undo2Icon, CheckCircleIcon, ClockIcon, Trash2Icon } from "lucide-react";
+import { HistoryIcon, RefreshCwIcon, Undo2Icon, CheckCircleIcon, ClockIcon, Trash2Icon } from "lucide-react";
 import { format, parseISO, differenceInMinutes, differenceInHours, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next"; // Import useTranslation
@@ -123,7 +123,7 @@ const HistoricoPage = () => {
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-2xl font-bold">{t("removedTickets")}</CardTitle>
           <Button variant="outline" size="icon" onClick={fetchDeletedTickets} disabled={loading}>
-            <RefreshCcwIcon className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+            <RefreshCwIcon className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
             <span className="sr-only">{t("refresh")}</span>
           </Button>
         </CardHeader>
@@ -165,7 +165,7 @@ const HistoricoPage = () => {
                       <TableCell>{ticket.created_by}</TableCell>
                       <TableCell>
                         {ticket.deleted_at
-                          ? format(parseISO(ticket.deleted_at), "dd/MM/yyyy HH:mm", { locale: i18n.language === 'pt' ? ptBR : undefined })
+                          ? format(parseISO(ticket.deleted_at), "dd/MM/yyyy (EEEE) HH:mm", { locale: i18n.language === 'pt' ? ptBR : undefined })
                           : "N/A"}
                       </TableCell>
                       <TableCell>{getPendingDuration(ticket, t)}</TableCell> {/* Exibe o tempo pendente */}
