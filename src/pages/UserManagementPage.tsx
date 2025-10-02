@@ -108,7 +108,8 @@ const UserManagementPage = () => {
     }
     setActionLoading(userId);
     try {
-      await UserAPI.update(userId, { restaurant_id: newRestaurantId === "" ? null : newRestaurantId });
+      // If newRestaurantId is "unassigned", set it to null for the database
+      await UserAPI.update(userId, { restaurant_id: newRestaurantId === "unassigned" ? null : newRestaurantId });
       showSuccess(t("userRestaurantIdUpdated")); // New translation key
       fetchUsers(); // Refresh list
     } catch (error) {
@@ -204,7 +205,7 @@ const UserManagementPage = () => {
                       <TableCell>
                         {(user.user_role === "restaurante" || user.user_role === "estafeta") ? (
                           <Select
-                            value={user.restaurant_id || ""}
+                            value={user.restaurant_id || "unassigned"} // Use "unassigned" for null restaurant_id
                             onValueChange={(value: string) => handleUpdateRestaurantId(user.id, value)}
                             disabled={actionLoading === user.id}
                           >
@@ -212,7 +213,7 @@ const UserManagementPage = () => {
                               <SelectValue placeholder={t("selectRestaurantId")} /> {/* New translation key */}
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">{t("none")}</SelectItem> {/* New translation key */}
+                              <SelectItem value="unassigned">{t("none")}</SelectItem> {/* Use "unassigned" as value */}
                               {restaurantIds.map(id => (
                                 <SelectItem key={id} value={id}>{id}</SelectItem>
                               ))}
