@@ -4,10 +4,7 @@
 )
 OR
 (
-    -- Restaurante pode atualizar se:
-    -- 1. O utilizador autenticado tem o papel de 'restaurante'
+    -- Restaurante pode atualizar se o seu papel for 'restaurante'.
+    -- A validação de NEW.restaurant_id é agora feita pelo trigger.
     (SELECT user_role FROM profiles WHERE id = auth.uid()) = 'restaurante'::text
-    AND
-    -- 2. O NEW.restaurant_id corresponde ao restaurant_id do utilizador
-    NEW.restaurant_id = (SELECT restaurant_id FROM profiles WHERE id = auth.uid())
 )
