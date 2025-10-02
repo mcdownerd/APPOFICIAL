@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dev-dist # Adicionado para ignorar arquivos gerados pelo PWA em desenvolvimento
 *.local
 
 # Editor directories and files
