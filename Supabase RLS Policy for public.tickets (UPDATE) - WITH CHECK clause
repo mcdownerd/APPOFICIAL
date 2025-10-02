@@ -1,22 +1,13 @@
-(
-    (
-        EXISTS (
-            SELECT 1
-            FROM profiles
-            WHERE
-                (profiles.id = auth.uid())
-                AND (profiles.user_role = 'restaurante'::text)
-                AND (profiles.restaurant_id = NEW.restaurant_id)
-        )
-    )
+with check (
+    -- Admin pode sempre atualizar qualquer linha
+    (auth.uid() IN (SELECT id FROM profiles WHERE user_role = 'admin'::text))
     OR
     (
-        EXISTS (
-            SELECT 1
-            FROM profiles
-            WHERE
-                (profiles.id = auth.uid())
-                AND (profiles.user_role = 'admin'::text)
-        )
+        -- Restaurante pode atualizar se:
+        -- 1. O utilizador autenticado tem o papel de 'restaurante'
+        (auth.uid() IN (SELECT id FROM profiles WHERE user_role = 'restaurante'::text))
+        AND
+        -- 2. O restaurant_id da NOVA linha (NEW.restaurant_id) corresponde ao restaurant_id do utilizador
+        (NEW.restaurant_id = (SELECT restaurant_id FROM profiles WHERE id = auth.uid() AND user_role = 'restaurante'::text))
     )
 )
