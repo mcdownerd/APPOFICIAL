@@ -43,7 +43,6 @@ type DateRange = { from?: Date; to?: Date };
 // Componente para Date Range Picker simplificado
 const DateRangePicker = ({ dateRange, onChange }: { dateRange: DateRange; onChange: (range: DateRange | undefined) => void }) => {
   const { t } = useTranslation();
-  const dates = dateRange.from && dateRange.to ? [dateRange.from, dateRange.to] : [];
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -55,7 +54,7 @@ const DateRangePicker = ({ dateRange, onChange }: { dateRange: DateRange; onChan
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           mode="range"
-          selected={dates}
+          selected={dateRange}
           onSelect={onChange}
           numberOfMonths={2}
           toDate={new Date()}
