@@ -16,48 +16,53 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { HistoryIcon, RefreshCwIcon, Undo2Icon, CheckCircleIcon, ClockIcon, Trash2Icon, CalendarIcon } from "lucide-react";
-import { format, parseISO, differenceInMinutes, differenceInHours, differenceInDays, isPast } from "date-fns";
+import { HistoryIcon, RefreshCwIcon, Undo2Icon, CheckCircleIcon, ClockIcon, CalendarIcon, ArrowUpDown } from "lucide-react";
+import { format, parseISO, differenceInMinutes, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useTranslation } from "react-i18next"; // Import useTranslation
+import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
+
+// Interface para o estado de ordenação
+interface SortConfig {
+  key: 'code' | 'status' | 'created_by' | 'deleted_at' | 'pendingTime';
+  direction: 'asc' | 'desc';
+}
+
+// Estende a interface Ticket para incluir o valor numérico do tempo pendente para ordenação
+interface TicketWithPendingTime extends Ticket {
+  pendingTimeValue: number;
+}
 
 // Função auxiliar para calcular e formatar a duração do tempo pendente
-const getPendingDuration = (ticket: Ticket, t: any): string => { // Pass t as argument
+const getPendingDuration = (ticket: Ticket, t: any): { display: string; value: number } => {
   const createdDate = parseISO(ticket.created_date);
   let endDate: Date | null = null;
 
-  // O tempo pendente termina quando o ticket é CONFIRMADO ou, se for soft-deleted enquanto pendente, na data de exclusão.
-  // Priorizamos a data de CONFIRMADO se existir, pois é a resolução do estado pendente.
   if (ticket.status === "CONFIRMADO" && ticket.acknowledged_at) {
     endDate = parseISO(ticket.acknowledged_at);
   } else if (ticket.soft_deleted && ticket.deleted_at) {
-    // Se foi soft-deleted e não foi CONFIRMADO, o tempo pendente termina na exclusão.
     endDate = parseISO(ticket.deleted_at);
   } else if (ticket.soft_deleted && !ticket.deleted_at) {
-    // Fallback: se soft_deleted mas sem deleted_at, usa data de criação + tempo estimado ou atual
     endDate = new Date(); // Tempo até agora
   }
 
-  if (!endDate) {
-    return t("lessThanOneMin"); // Fallback para tempo muito curto
+  const totalMinutes = endDate ? differenceInMinutes(endDate, createdDate) : 0;
+  const absoluteMinutes = Math.max(0, totalMinutes); // Garante que o valor seja não-negativo
+
+  if (absoluteMinutes < 1) {
+    return { display: t("lessThanOneMin"), value: absoluteMinutes };
   }
 
-  const totalMinutes = differenceInMinutes(endDate, createdDate);
-
-  if (totalMinutes < 1) {
-    return t("lessThanOneMin");
-  }
-
-  const days = Math.floor(totalMinutes / (24 * 60));
-  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
-  const minutes = totalMinutes % 60;
+  const days = Math.floor(absoluteMinutes / (24 * 60));
+  const hours = Math.floor((absoluteMinutes % (24 * 60)) / 60);
+  const minutes = absoluteMinutes % 60;
 
   let parts: string[] = [];
   if (days > 0) parts.push(`${days}d`);
   if (hours > 0) parts.push(`${hours}h`);
   if (minutes > 0) parts.push(`${minutes}min`);
 
-  return parts.length > 0 ? parts.join(" ") : "0min";
+  return { display: parts.length > 0 ? parts.join(" ") : "0min", value: absoluteMinutes };
 };
 
 // Função para formatar data com dia da semana
@@ -67,36 +72,81 @@ const formatDateWithWeekday = (dateString: string, locale: any) => {
 };
 
 const HistoricoPage = () => {
-  const { user, isAdmin } = useAuth(); // Obter isAdmin do contexto
-  const { t, i18n } = useTranslation(); // Use translation hook
-  const [deletedTickets, setDeletedTickets] = useState<Ticket[]>([]);
+  const { user, isAdmin } = useAuth();
+  const { t, i18n } = useTranslation();
+  const [deletedTickets, setDeletedTickets] = useState<TicketWithPendingTime[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  // Estado para a configuração de ordenação, padrão para 'Removido Em' decrescente
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'deleted_at', direction: 'desc' });
 
   const fetchDeletedTickets = useCallback(async () => {
     setLoading(true);
     try {
       let tickets: Ticket[];
       if (isAdmin) {
-        // Admin vê todos os tickets removidos
         tickets = await TicketAPI.filter({ soft_deleted: true }, "-deleted_at");
       } else if (user?.user_role === "restaurante" && user.restaurant_id) {
-        // Restaurante vê apenas os tickets removidos que foram CONFIRMADO por ele
         tickets = await TicketAPI.filter({ soft_deleted: true, restaurant_id: user.restaurant_id }, "-deleted_at");
       } else {
-        tickets = []; // Outros usuários não veem tickets aqui
+        tickets = [];
       }
-      setDeletedTickets(tickets);
+
+      // Adiciona o valor numérico do tempo pendente para ordenação
+      const ticketsWithPendingTime: TicketWithPendingTime[] = tickets.map(ticket => ({
+        ...ticket,
+        pendingTimeValue: getPendingDuration(ticket, t).value,
+      }));
+
+      // Aplica a ordenação no lado do cliente
+      if (sortConfig) {
+        ticketsWithPendingTime.sort((a, b) => {
+          let aValue: any;
+          let bValue: any;
+
+          switch (sortConfig.key) {
+            case 'pendingTime':
+              aValue = a.pendingTimeValue;
+              bValue = b.pendingTimeValue;
+              break;
+            case 'deleted_at':
+              aValue = a.deleted_at ? parseISO(a.deleted_at).getTime() : 0;
+              bValue = b.deleted_at ? parseISO(b.deleted_at).getTime() : 0;
+              break;
+            case 'created_by':
+              aValue = a.created_by || '';
+              bValue = b.created_by || '';
+              break;
+            case 'status':
+              aValue = a.status;
+              bValue = b.status;
+              break;
+            case 'code':
+              aValue = a.code;
+              bValue = b.code;
+              break;
+            default:
+              aValue = 0;
+              bValue = 0;
+          }
+
+          if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+        });
+      }
+
+      setDeletedTickets(ticketsWithPendingTime);
     } catch (error) {
       console.error("Failed to fetch deleted tickets:", error);
       showError(t("failedToLoadHistory"));
     } finally {
       setLoading(false);
     }
-  }, [user, isAdmin, t]);
+  }, [user, isAdmin, t, sortConfig]); // Adiciona sortConfig às dependências
 
   useEffect(() => {
-    fetchDeletedTickets(); // Fetch initially
+    fetchDeletedTickets();
   }, [fetchDeletedTickets]);
 
   const handleRestoreTicket = async (ticketId: string) => {
@@ -108,7 +158,7 @@ const HistoricoPage = () => {
     try {
       await TicketAPI.update(ticketId, { soft_deleted: false });
       showSuccess(t("ticketRestoredSuccessfully"));
-      fetchDeletedTickets(); // Refresh list
+      fetchDeletedTickets();
     } catch (error) {
       console.error("Failed to restore ticket:", error);
       showError(t("failedToRestoreTicket"));
@@ -117,11 +167,20 @@ const HistoricoPage = () => {
     }
   };
 
+  const handleSort = (key: SortConfig['key']) => {
+    setSortConfig(prevConfig => {
+      if (prevConfig?.key === key) {
+        return { ...prevConfig, direction: prevConfig.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' }; // Padrão para ascendente ao mudar de coluna
+    });
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6" // Removido max-w-6xl mx-auto
+      className="space-y-6"
     >
       <div className="flex items-center gap-4">
         <HistoryIcon className="h-8 w-8 text-blue-600" />
@@ -148,11 +207,36 @@ const HistoricoPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{t("code")}</TableHead>
-                    <TableHead>{t("status")}</TableHead>
-                    <TableHead>{t("createdBy")}</TableHead>
-                    <TableHead>{t("removedAt")}</TableHead>
-                    <TableHead>{t("pendingTime")}</TableHead> {/* Nova coluna */}
+                    <TableHead>
+                      <Button variant="ghost" onClick={() => handleSort('code')} className="p-0 h-auto">
+                        {t("code")}
+                        <ArrowUpDown className={cn("ml-2 h-4 w-4", sortConfig?.key === 'code' && sortConfig.direction === 'desc' && 'rotate-180')} />
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" onClick={() => handleSort('status')} className="p-0 h-auto">
+                        {t("status")}
+                        <ArrowUpDown className={cn("ml-2 h-4 w-4", sortConfig?.key === 'status' && sortConfig.direction === 'desc' && 'rotate-180')} />
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" onClick={() => handleSort('created_by')} className="p-0 h-auto">
+                        {t("createdBy")}
+                        <ArrowUpDown className={cn("ml-2 h-4 w-4", sortConfig?.key === 'created_by' && sortConfig.direction === 'desc' && 'rotate-180')} />
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" onClick={() => handleSort('deleted_at')} className="p-0 h-auto">
+                        {t("removedAt")}
+                        <ArrowUpDown className={cn("ml-2 h-4 w-4", sortConfig?.key === 'deleted_at' && sortConfig.direction === 'desc' && 'rotate-180')} />
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" onClick={() => handleSort('pendingTime')} className="p-0 h-auto">
+                        {t("pendingTime")}
+                        <ArrowUpDown className={cn("ml-2 h-4 w-4", sortConfig?.key === 'pendingTime' && sortConfig.direction === 'desc' && 'rotate-180')} />
+                      </Button>
+                    </TableHead>
                     <TableHead className="text-right">{t("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -187,7 +271,7 @@ const HistoricoPage = () => {
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell>{getPendingDuration(ticket, t)}</TableCell> {/* Exibe o tempo pendente */}
+                        <TableCell>{getPendingDuration(ticket, t).display}</TableCell>
                         <TableCell className="text-right">
                           <Button
                             variant="outline"
