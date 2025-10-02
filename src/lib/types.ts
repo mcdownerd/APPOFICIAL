@@ -9,13 +9,15 @@ export interface User {
 }
 
 export enum UserRole {
-  ADMIN = 'ADMIN',
-  RESTAURANTE = 'RESTAURANTE',
-  ESTAFETA = 'ESTAFETA',
+  ADMIN = 'admin',
+  RESTAURANTE = 'restaurante',
+  ESTAFETA = 'estafeta',
 }
 
 export enum UserStatus {
   ACTIVE = 'ACTIVE',
+  PENDING = 'PENDING',
+  REJECTED = 'REJECTED',
   INACTIVE = 'INACTIVE',
 }
 
