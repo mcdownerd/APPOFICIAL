@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useSettings } from "@/context/SettingsContext";
 import { TicketAPI, Ticket } from "@/lib/api";
@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TruckIcon, ClockIcon, CheckCircleIcon, SendIcon } from "lucide-react";
 import { motion } from "framer-motion";
-import { parseISO, addMinutes, isPast } from "date-fns";
+import { parseISO } from "date-fns"; // Removed addMinutes, isPast
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 
@@ -24,16 +24,6 @@ const EstafetaPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingTicketsCount, setPendingTicketsCount] = useState(0);
 
-  const displayTimeoutRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-
-  const removeTicketFromRecentDisplay = useCallback((ticketId: string) => {
-    setRecentTickets((prevTickets) => prevTickets.filter((t) => t.id !== ticketId));
-    if (displayTimeoutRefs.current[ticketId]) {
-      clearTimeout(displayTimeoutRefs.current[ticketId]);
-      delete displayTimeoutRefs.current[ticketId];
-    }
-  }, []);
-
   const fetchRecentTickets = useCallback(async () => {
     if (!user) return;
     try {
@@ -43,40 +33,15 @@ const EstafetaPage = () => {
         "-created_date",
       );
 
-      const now = new Date();
-      const ticketsToProcess: Ticket[] = [];
+      const ticketsToDisplay: Ticket[] = [];
 
       allUserTickets.forEach(ticket => {
-        if (ticket.soft_deleted && ticket.deleted_at) {
-          const deletedAt = parseISO(ticket.deleted_at);
-          const oneMinuteLater = addMinutes(deletedAt, 1);
-
-          if (!isPast(oneMinuteLater)) {
-            ticketsToProcess.push(ticket);
-            if (!displayTimeoutRefs.current[ticket.id]) {
-              const delay = oneMinuteLater.getTime() - now.getTime();
-              if (delay > 0) {
-                displayTimeoutRefs.current[ticket.id] = setTimeout(() => {
-                  removeTicketFromRecentDisplay(ticket.id);
-                }, delay);
-              }
-            }
-          } else {
-            if (displayTimeoutRefs.current[ticket.id]) {
-              clearTimeout(displayTimeoutRefs.current[ticket.id]);
-              delete displayTimeoutRefs.current[ticket.id];
-            }
-          }
-        } else if (!ticket.soft_deleted) { // Include both PENDING and CONFIRMADO active tickets
-          ticketsToProcess.push(ticket);
-          if (displayTimeoutRefs.current[ticket.id]) {
-            clearTimeout(displayTimeoutRefs.current[ticket.id]);
-            delete displayTimeoutRefs.current[ticket.id];
-          }
-        }
+        // Always display all tickets (active and soft-deleted) in the recent list
+        ticketsToDisplay.push(ticket);
       });
 
-      ticketsToProcess.sort((a, b) => {
+      ticketsToDisplay.sort((a, b) => {
+        // Sort logic remains the same, prioritizing soft-deleted first, then by date
         if (a.soft_deleted && !b.soft_deleted) return -1;
         if (!a.soft_deleted && b.soft_deleted) return 1;
 
@@ -91,12 +56,12 @@ const EstafetaPage = () => {
         return createdDateB - createdDateA;
       });
       
-      setRecentTickets(ticketsToProcess.slice(0, 7));
+      setRecentTickets(ticketsToDisplay.slice(0, 7));
     } catch (error) {
       console.error("Failed to fetch recent tickets:", error);
       showError(t("failedToLoadRecentTickets"));
     }
-  }, [user, t, removeTicketFromRecentDisplay]);
+  }, [user, t]);
 
   const fetchPendingTicketsCount = useCallback(async () => {
     try {
@@ -125,18 +90,11 @@ const EstafetaPage = () => {
     };
   }, [fetchPendingTicketsCount]);
 
-  useEffect(() => {
-    return () => {
-      Object.values(displayTimeoutRefs.current).forEach(clearTimeout);
-      displayTimeoutRefs.current = {};
-    };
-  }, [recentTickets]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!code || code.length !== 4 || isSubmitting) return;
     if (!user?.restaurant_id) {
-      showError(t("userNotAssignedToRestaurant")); // New translation key needed
+      showError(t("userNotAssignedToRestaurant"));
       return;
     }
 
@@ -147,7 +105,7 @@ const EstafetaPage = () => {
 
     setIsSubmitting(true);
     try {
-      await TicketAPI.create({ code, restaurant_id: user.restaurant_id }); // Pass restaurant_id
+      await TicketAPI.create({ code, restaurant_id: user.restaurant_id });
       showSuccess(t("codeSentSuccessfully", { code }));
       setCode("");
       fetchRecentTickets();
