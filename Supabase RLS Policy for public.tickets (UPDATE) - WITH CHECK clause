@@ -1,10 +1,7 @@
 (
-    -- Admin pode sempre atualizar qualquer linha
     (SELECT user_role FROM profiles WHERE id = auth.uid()) = 'admin'::text
 )
 OR
 (
-    -- Para o papel 'restaurante', a cláusula WITH CHECK é efetivamente TRUE.
-    -- A validação de NEW.restaurant_id é agora tratada pelo trigger BEFORE UPDATE.
     TRUE
 )
