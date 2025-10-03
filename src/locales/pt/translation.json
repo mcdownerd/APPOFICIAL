@@ -119,7 +119,6 @@
   "activeTicketsDescription_one": "{{count}} ticket ativo.",
   "activeTicketsDescription_other": "{{count}} tickets ativos.",
   "totalOrders": "Total de Pedidos",
-  "thisPeriod": "Neste período ({{period}})",
   "avgPendingTime": "Tempo Médio Pendente",
   "highPendingAlert": "Tempo pendente alto!",
   "goodPending": "Bom tempo pendente.",
@@ -146,5 +145,8 @@
   "userRestaurantIdUpdated": "ID do restaurante do usuário atualizado com sucesso.",
   "failedToUpdateUserRestaurantId": "Falha ao atualizar ID do restaurante do usuário.",
   "selectRestaurantId": "Selecionar ID do Restaurante",
-  "none": "Nenhum"
+  "none": "Nenhum",
+  "restaurantIdMissing": "ID do Restaurante Ausente",
+  "assignRestaurantIdMessage": "Sua conta de restaurante não está atribuída a um ID de restaurante. Por favor, peça a um administrador para atribuir um através da página de Gerenciamento de Usuários.",
+  "refreshPage": "Atualizar Página"
 }

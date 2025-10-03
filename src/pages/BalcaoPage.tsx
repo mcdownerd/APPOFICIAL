@@ -24,14 +24,19 @@ export default function BalcaoPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set()); // Corrigido aqui
+  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set());
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   const doubleClickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const DOUBLE_CLICK_THRESHOLD = 500; // milliseconds
 
   const loadTickets = useCallback(async () => {
-    if (!user) return;
+    // Adicionado: Se não for admin e o utilizador restaurante não tiver restaurant_id, não carrega tickets
+    if (!user || (!isAdmin && user.user_role === "restaurante" && !user.restaurant_id)) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     setRefreshing(true);
     try {
       let fetchedTickets: Ticket[] = [];
@@ -190,6 +195,26 @@ export default function BalcaoPage() {
           <span className="text-gray-700">{t('loadingTickets')}</span>
         </div>
       </div>
+    );
+  }
+
+  // Novo: Exibe uma mensagem se o utilizador restaurante não tiver um restaurant_id
+  if (!isAdmin && user?.user_role === "restaurante" && !user.restaurant_id) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-center p-4"
+      >
+        <UtensilsCrossedIcon className="h-16 w-16 text-red-500 mb-4" />
+        <h3 className="text-2xl font-bold text-gray-800">{t("restaurantIdMissing")}</h3>
+        <p className="text-lg text-gray-600">
+          {t("assignRestaurantIdMessage")}
+        </p>
+        <Button onClick={() => window.location.reload()} className="mt-4">
+          {t("refreshPage")}
+        </Button>
+      </motion.div>
     );
   }
 

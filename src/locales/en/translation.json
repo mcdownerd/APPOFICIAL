@@ -146,5 +146,8 @@
   "userRestaurantIdUpdated": "User restaurant ID updated successfully.",
   "failedToUpdateUserRestaurantId": "Failed to update user restaurant ID.",
   "selectRestaurantId": "Select Restaurant ID",
-  "none": "None"
+  "none": "None",
+  "restaurantIdMissing": "Restaurant ID Missing",
+  "assignRestaurantIdMessage": "Your restaurant account is not assigned to a restaurant ID. Please ask an administrator to assign one via the User Management page.",
+  "refreshPage": "Refresh Page"
 }
