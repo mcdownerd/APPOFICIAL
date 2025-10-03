@@ -39,10 +39,10 @@ const getRoleTheme = (role: string | undefined) => {
         bg: "from-amber-50 to-orange-100",
         text: "text-orange-800",
       };
-    case "restaurante":
+    case "restaurante": // Alterado para corresponder ao tema do admin
       return {
-        bg: "from-purple-50 to-pink-100",
-        text: "text-pink-800",
+        bg: "from-blue-50 to-indigo-100",
+        text: "text-indigo-800",
       };
     case "admin":
       return {
