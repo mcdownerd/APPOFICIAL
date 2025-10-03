@@ -119,7 +119,8 @@ export default function BalcaoPage() {
     try {
       await TicketAPI.update(ticket.id, { // Passar id como primeiro argumento
         status: 'CONFIRMADO',
-        acknowledged_by: user.id,
+        acknowledged_by_user_id: user.id, // Use new field
+        acknowledged_by_user_email: user.email, // Use new field
         restaurant_id: ticket.restaurant_id, // Pass the ticket's restaurant_id
       });
       
@@ -145,7 +146,8 @@ export default function BalcaoPage() {
     try {
       await TicketAPI.update(ticket.id, { // Passar id como primeiro argumento
         soft_deleted: true,
-        deleted_by: user.id,
+        deleted_by_user_id: user.id, // Use new field
+        deleted_by_user_email: user.email, // Use new field
         restaurant_id: ticket.restaurant_id, // Pass the ticket's restaurant_id
       });
       
@@ -183,7 +185,7 @@ export default function BalcaoPage() {
       clickable: true,
       clickText: pendingDelete === ticket.id 
         ? t('clickAgainToRemove')
-        : t('removeTicket') // Changed from 'clickToRemove' to 'removeTicket'
+        : t('removeTicket')
     };
   };
 
@@ -227,9 +229,9 @@ export default function BalcaoPage() {
       {/* Header with refresh button */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-gray-800">{t('ordersCounter')}</h2> {/* Changed title */}
+          <h2 className="text-3xl font-bold text-gray-800">{t('ordersCounter')}</h2>
           <p className="text-muted-foreground">
-            {t('activeTicketsDescription', { count: tickets.length })} {/* New translation key */}
+            {t('activeTicketsDescription', { count: tickets.length })}
           </p>
         </div>
         
@@ -286,7 +288,7 @@ export default function BalcaoPage() {
         </motion.div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          <AnimatePresence> {/* Wrap with AnimatePresence for exit animations */}
+          <AnimatePresence>
             {tickets.map((ticket, index) => {
               const status = getTicketStatus(ticket);
               const StatusIcon = status.icon;
@@ -296,33 +298,33 @@ export default function BalcaoPage() {
               return (
                 <motion.div
                   key={ticket.id}
-                  layout // Enable layout animations
+                  layout
                   initial={{ opacity: 0, scale: 0.9, y: 20 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.8, y: -20 }} // Exit animation
+                  exit={{ opacity: 0, scale: 0.8, y: -20 }}
                   transition={{ duration: 0.3, delay: index * 0.05 }}
                   className="group"
                 >
                   <Card 
                     className={cn(
-                      "h-full cursor-pointer transition-all duration-200 border-2", // Added border-2
-                      status.cardClass, // Apply card specific background/border
+                      "h-full cursor-pointer transition-all duration-200 border-2",
+                      status.cardClass,
                       status.clickable ? 'hover:shadow-lg hover:scale-105' : '',
-                      isPendingDelete ? 'ring-4 ring-red-500 shadow-xl' : 'hover-lift', // Stronger ring for pending delete
-                      isProcessing ? 'opacity-60 cursor-not-allowed' : '', // Slightly more opaque
+                      isPendingDelete ? 'ring-4 ring-red-500 shadow-xl' : 'hover-lift',
+                      isProcessing ? 'opacity-60 cursor-not-allowed' : '',
                       "flex flex-col"
                     )}
                     onClick={() => !isProcessing && handleTicketClick(ticket)}
                   >
-                    <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between"> {/* Reduced padding */}
+                    <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">
                       <div className="text-center">
-                        <p className="text-4xl font-mono font-extrabold tracking-wider text-gray-900"> {/* Reduced font size */}
+                        <p className="text-4xl font-mono font-extrabold tracking-wider text-gray-900">
                           {ticket.code}
                         </p>
                       </div>
                       
                       <div className="flex justify-center">
-                        <Badge className={cn("px-3 py-1 text-sm font-semibold", status.className)}> {/* Reduced badge padding/font */}
+                        <Badge className={cn("px-3 py-1 text-sm font-semibold", status.className)}>
                           {isProcessing ? (
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                           ) : (
@@ -334,13 +336,13 @@ export default function BalcaoPage() {
                       
                       {status.clickable && !isProcessing && (
                         <div className="text-center mt-2">
-                          <p className={cn("text-xs font-medium", isPendingDelete ? 'text-red-700' : 'text-muted-foreground')}> {/* Reduced font size */}
+                          <p className={cn("text-xs font-medium", isPendingDelete ? 'text-red-700' : 'text-muted-foreground')}>
                             {status.clickText}
                           </p>
                         </div>
                       )}
                       
-                      <div className="text-center text-xs text-muted-foreground space-y-1 mt-auto pt-3 border-t border-gray-200/50"> {/* Reduced padding */}
+                      <div className="text-center text-xs text-muted-foreground space-y-1 mt-auto pt-3 border-t border-gray-200/50">
                         <p>
                           {t('created')}: {format(parseISO(ticket.created_date), 'HH:mm', { locale: i18n.language === 'pt' ? ptBR : undefined })}
                         </p>
@@ -350,8 +352,6 @@ export default function BalcaoPage() {
                           </p>
                         )}
                       </div>
-
-                      {/* Removed explicit remove button for CONFIRMADO tickets, as double-click handles it */}
                     </CardContent>
                   </Card>
                 </motion.div>

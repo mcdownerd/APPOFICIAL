@@ -346,7 +346,7 @@ const AnaliseTempoPage = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-7xl mx-auto space-y-6 p-4 lg:p-6 w-full" // Centralizado e com padding responsivo
+      className="max-w-7xl mx-auto space-y-6 p-4 lg:p-6 w-full"
     >
       {/* Header */}
       <div className="flex items-center gap-4">
@@ -441,7 +441,7 @@ const AnaliseTempoPage = () => {
       ) : null}
 
       {/* Main Graph Card */}
-      <Card className="p-6 lg:p-8"> {/* Mais padding */}
+      <Card className="p-6 lg:p-8">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div>
             <CardTitle className="text-2xl font-bold">{t("ordersByHourOfDay")}</CardTitle>
@@ -457,7 +457,7 @@ const AnaliseTempoPage = () => {
           {isLoading ? (
             <Skeleton className="h-[300px] w-full rounded-md" />
           ) : analysisData ? (
-            <div className="h-[300px] sm:h-[350px] lg:h-[400px] w-full"> {/* Altura responsiva */}
+            <div className="h-[300px] sm:h-[350px] lg:h-[400px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={analysisData.hourlyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />

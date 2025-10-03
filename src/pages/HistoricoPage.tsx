@@ -17,14 +17,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { HistoryIcon, RefreshCwIcon, Undo2Icon, CheckCircleIcon, ClockIcon, CalendarIcon, ArrowUpDown } from "lucide-react";
-import { format, parseISO, differenceInMinutes, isPast } from "date-fns";
+import { format, parseISO, differenceInMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
 // Interface para o estado de ordenação
 interface SortConfig {
-  key: 'code' | 'status' | 'created_by' | 'deleted_at' | 'pendingTime';
+  key: 'code' | 'status' | 'created_by_user_email' | 'deleted_at' | 'pendingTime'; // Use new field
   direction: 'asc' | 'desc';
 }
 
@@ -114,9 +114,9 @@ const HistoricoPage = () => {
               aValue = a.deleted_at ? parseISO(a.deleted_at).getTime() : 0;
               bValue = b.deleted_at ? parseISO(b.deleted_at).getTime() : 0;
               break;
-            case 'created_by':
-              aValue = a.created_by || '';
-              bValue = b.created_by || '';
+            case 'created_by_user_email': // Use new field
+              aValue = a.created_by_user_email || '';
+              bValue = b.created_by_user_email || '';
               break;
             case 'status':
               aValue = a.status;
@@ -144,7 +144,7 @@ const HistoricoPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, isAdmin, t, sortConfig]); // Adiciona sortConfig às dependências
+  }, [user, isAdmin, t, sortConfig]);
 
   useEffect(() => {
     fetchDeletedTickets();
@@ -157,7 +157,7 @@ const HistoricoPage = () => {
     }
     setActionLoading(ticketId);
     try {
-      await TicketAPI.update(ticketId, { soft_deleted: false });
+      await TicketAPI.update(ticketId, { soft_deleted: false, restaurant_id: deletedTickets.find(t => t.id === ticketId)?.restaurant_id });
       showSuccess(t("ticketRestoredSuccessfully"));
       fetchDeletedTickets();
     } catch (error) {
@@ -221,9 +221,9 @@ const HistoricoPage = () => {
                       </Button>
                     </TableHead>
                     <TableHead>
-                      <Button variant="ghost" onClick={() => handleSort('created_by')} className="p-0 h-auto">
+                      <Button variant="ghost" onClick={() => handleSort('created_by_user_email')} className="p-0 h-auto">
                         {t("createdBy")}
-                        <ArrowUpDown className={cn("ml-2 h-4 w-4", sortConfig?.key === 'created_by' && sortConfig.direction === 'desc' && 'rotate-180')} />
+                        <ArrowUpDown className={cn("ml-2 h-4 w-4", sortConfig?.key === 'created_by_user_email' && sortConfig.direction === 'desc' && 'rotate-180')} />
                       </Button>
                     </TableHead>
                     <TableHead>
@@ -262,7 +262,7 @@ const HistoricoPage = () => {
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell>{ticket.created_by}</TableCell>
+                        <TableCell>{ticket.created_by_user_email}</TableCell>
                         <TableCell className="flex items-center gap-2">
                           <CalendarIcon className="h-4 w-4 text-gray-500" />
                           <span>{formattedDate}</span>

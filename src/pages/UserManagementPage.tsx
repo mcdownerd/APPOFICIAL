@@ -23,27 +23,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input"; // Import Input component
+import { Input } from "@/components/ui/input";
 import { UsersIcon, CheckCircleIcon, XCircleIcon, RefreshCcwIcon, UserCogIcon } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useTranslation } from "react-i18next"; // Import useTranslation
+import { useTranslation } from "react-i18next";
 
 const UserManagementPage = () => {
   const { user: currentUser, isAdmin } = useAuth();
-  const { t, i18n } = useTranslation(); // Use translation hook
+  const { t, i18n } = useTranslation();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [restaurantIds, setRestaurantIds] = useState<string[]>([]); // State to hold unique restaurant IDs
+  const [restaurantIds, setRestaurantIds] = useState<string[]>([]);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const fetchedUsers = await UserAPI.filter({}, "-created_date"); // Fetch all users, newest first
+      const fetchedUsers = await UserAPI.filter({}, "-created_date");
       setUsers(fetchedUsers);
 
-      // Extract unique restaurant_ids from fetched users
       const uniqueIds = Array.from(new Set(
         fetchedUsers
           .map(u => u.restaurant_id)
@@ -74,7 +73,7 @@ const UserManagementPage = () => {
     try {
       await UserAPI.update(userId, { status });
       showSuccess(t("userStatusUpdated", { status }));
-      fetchUsers(); // Refresh list
+      fetchUsers();
     } catch (error) {
       console.error("Failed to update user status:", error);
       showError(t("failedToUpdateUserStatus"));
@@ -92,7 +91,7 @@ const UserManagementPage = () => {
     try {
       await UserAPI.update(userId, { user_role: role });
       showSuccess(t("userRoleUpdated", { role }));
-      fetchUsers(); // Refresh list
+      fetchUsers();
     } catch (error) {
       console.error("Failed to update user role:", error);
       showError(t("failedToUpdateUserRole"));
@@ -108,13 +107,12 @@ const UserManagementPage = () => {
     }
     setActionLoading(userId);
     try {
-      // If newRestaurantId is "unassigned", set it to null for the database
       await UserAPI.update(userId, { restaurant_id: newRestaurantId === "unassigned" ? null : newRestaurantId });
-      showSuccess(t("userRestaurantIdUpdated")); // New translation key
-      fetchUsers(); // Refresh list
+      showSuccess(t("userRestaurantIdUpdated"));
+      fetchUsers();
     } catch (error) {
       console.error("Failed to update user restaurant ID:", error);
-      showError(t("failedToUpdateUserRestaurantId")); // New translation key
+      showError(t("failedToUpdateUserRestaurantId"));
     } finally {
       setActionLoading(null);
     }
@@ -145,7 +143,7 @@ const UserManagementPage = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6 w-full" // Adicionado w-full
+      className="space-y-6 w-full"
     >
       <div className="flex items-center gap-4">
         <UsersIcon className="h-8 w-8 text-blue-600" />
@@ -175,7 +173,7 @@ const UserManagementPage = () => {
                     <TableHead>{t("fullName")}</TableHead>
                     <TableHead>{t("email")}</TableHead>
                     <TableHead>{t("role")}</TableHead>
-                    <TableHead>{t("restaurantId")}</TableHead> {/* Nova coluna */}
+                    <TableHead>{t("restaurantId")}</TableHead>
                     <TableHead>{t("status")}</TableHead>
                     <TableHead>{t("createdAt")}</TableHead>
                     <TableHead className="text-right">{t("actions")}</TableHead>
@@ -190,7 +188,7 @@ const UserManagementPage = () => {
                         <Select
                           value={user.user_role}
                           onValueChange={(value: UserRole) => handleUpdateUserRole(user.id, value)}
-                          disabled={actionLoading === user.id || user.id === currentUser?.id} // Prevent changing own role
+                          disabled={actionLoading === user.id || user.id === currentUser?.id}
                         >
                           <SelectTrigger className="w-[140px]">
                             <SelectValue placeholder={t("selectRole")} />
@@ -205,19 +203,18 @@ const UserManagementPage = () => {
                       <TableCell>
                         {(user.user_role === "restaurante" || user.user_role === "estafeta") ? (
                           <Select
-                            value={user.restaurant_id || "unassigned"} // Use "unassigned" for null restaurant_id
+                            value={user.restaurant_id || "unassigned"}
                             onValueChange={(value: string) => handleUpdateRestaurantId(user.id, value)}
                             disabled={actionLoading === user.id}
                           >
                             <SelectTrigger className="w-[180px]">
-                              <SelectValue placeholder={t("selectRestaurantId")} /> {/* New translation key */}
+                              <SelectValue placeholder={t("selectRestaurantId")} />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="unassigned">{t("none")}</SelectItem> {/* Use "unassigned" as value */}
+                              <SelectItem value="unassigned">{t("none")}</SelectItem>
                               {restaurantIds.map(id => (
                                 <SelectItem key={id} value={id}>{id}</SelectItem>
                               ))}
-                              {/* Option to add a new restaurant ID if not in the list */}
                               {!restaurantIds.includes(user.restaurant_id || "") && user.restaurant_id && (
                                 <SelectItem value={user.restaurant_id}>{user.restaurant_id} (current)</SelectItem>
                               )}
@@ -242,7 +239,7 @@ const UserManagementPage = () => {
                             <CheckCircleIcon className="mr-2 h-4 w-4" /> {t("approve")}
                           </Button>
                         )}
-                        {user.status !== "REJECTED" && user.id !== currentUser?.id && ( // Prevent rejecting self
+                        {user.status !== "REJECTED" && user.id !== currentUser?.id && (
                           <Button
                             variant="destructive"
                             size="sm"

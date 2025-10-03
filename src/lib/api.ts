@@ -24,12 +24,15 @@ export interface Ticket {
   status: TicketStatus;
   created_by_ip: string;
   acknowledged_at: string | null;
-  acknowledged_by: string | null;
+  acknowledged_by_user_id: string | null; // User ID (UUID)
+  acknowledged_by_user_email: string | null; // User Email
   soft_deleted: boolean;
   deleted_at: string | null;
-  deleted_by: string | null;
+  deleted_by_user_id: string | null; // User ID (UUID)
+  deleted_by_user_email: string | null; // User Email
   created_date: string;
-  created_by: string;
+  created_by_user_id: string; // User ID (UUID)
+  created_by_user_email: string; // User Email
   restaurant_id?: string;
 }
 
@@ -182,19 +185,19 @@ export const TicketAPI = {
       .from('tickets')
       .select('*');
     
-    // Apply default soft_deleted: false ONLY if 'soft_deleted' is NOT explicitly provided in query
-    // This ensures that if soft_deleted is not in the query, we only get active tickets.
-    // If soft_deleted is explicitly provided (even as true or false), we respect that.
-    if (!query.hasOwnProperty('soft_deleted')) {
-      supabaseQuery = supabaseQuery.eq('soft_deleted', false);
-    }
-
     // Apply filters
     for (const [key, value] of Object.entries(query)) {
-      // Only apply filter if the key is not 'soft_deleted' or if 'soft_deleted' was explicitly provided
-      // This prevents applying 'soft_deleted: false' twice or overriding an explicit 'soft_deleted: true'
-      if (value !== undefined && (key !== 'soft_deleted' || query.hasOwnProperty('soft_deleted'))) {
-        supabaseQuery = supabaseQuery.eq(key, value);
+      // Map new interface fields to database column names
+      let dbKey = key;
+      if (key === 'acknowledged_by_user_id') dbKey = 'acknowledged_by';
+      if (key === 'acknowledged_by_user_email') dbKey = 'acknowledged_by_email';
+      if (key === 'deleted_by_user_id') dbKey = 'deleted_by';
+      if (key === 'deleted_by_user_email') dbKey = 'deleted_by_email';
+      if (key === 'created_by_user_id') dbKey = 'created_by';
+      if (key === 'created_by_user_email') dbKey = 'created_by_email';
+
+      if (value !== undefined) {
+        supabaseQuery = supabaseQuery.eq(dbKey, value);
       }
     }
 
@@ -214,12 +217,15 @@ export const TicketAPI = {
       status: ticket.status === "ACKED" ? "CONFIRMADO" : ticket.status, // Convert ACKED to CONFIRMADO
       created_by_ip: ticket.created_by_ip,
       acknowledged_at: ticket.acknowledged_at || null,
-      acknowledged_by: ticket.acknowledged_by_email || null,
+      acknowledged_by_user_id: ticket.acknowledged_by || null, // Map to new field
+      acknowledged_by_user_email: ticket.acknowledged_by_email || null, // Map to new field
       soft_deleted: ticket.soft_deleted,
       deleted_at: ticket.deleted_at || null,
-      deleted_by: ticket.deleted_by_email || null,
+      deleted_by_user_id: ticket.deleted_by || null, // Map to new field
+      deleted_by_user_email: ticket.deleted_by_email || null, // Map to new field
       created_date: ticket.created_date,
-      created_by: ticket.created_by_email || '',
+      created_by_user_id: ticket.created_by || '', // Map to new field
+      created_by_user_email: ticket.created_by_email || '', // Map to new field
       restaurant_id: ticket.restaurant_id,
     }));
   },
@@ -252,8 +258,8 @@ export const TicketAPI = {
       .from('tickets')
       .insert({
         code: payload.code.toUpperCase(),
-        created_by: session.user.id,
-        created_by_email: session.user.email,
+        created_by: session.user.id, // Use user ID
+        created_by_email: session.user.email, // Use user email
         created_by_ip: '127.0.0.1', // Use real IP in production
         restaurant_id: payload.restaurant_id || null, // Save restaurant_id
       })
@@ -269,12 +275,15 @@ export const TicketAPI = {
       status: data.status === "ACKED" ? "CONFIRMADO" : data.status, // Convert ACKED to CONFIRMADO
       created_by_ip: data.created_by_ip,
       acknowledged_at: null,
-      acknowledged_by: null,
+      acknowledged_by_user_id: null,
+      acknowledged_by_user_email: null,
       soft_deleted: false,
       deleted_at: null,
-      deleted_by: null,
+      deleted_by_user_id: null,
+      deleted_by_user_email: null,
       created_date: data.created_date,
-      created_by: data.created_by_email || '',
+      created_by_user_id: data.created_by || '',
+      created_by_user_email: data.created_by_email || '',
       restaurant_id: data.restaurant_id,
     };
   },
@@ -288,17 +297,43 @@ export const TicketAPI = {
       updated_at: new Date().toISOString() 
     };
 
+    // Map new interface fields to database column names for update
+    if (payload.acknowledged_by_user_id !== undefined) {
+      updatePayload.acknowledged_by = payload.acknowledged_by_user_id;
+      delete updatePayload.acknowledged_by_user_id;
+    }
+    if (payload.acknowledged_by_user_email !== undefined) {
+      updatePayload.acknowledged_by_email = payload.acknowledged_by_user_email;
+      delete updatePayload.acknowledged_by_user_email;
+    }
+    if (payload.deleted_by_user_id !== undefined) {
+      updatePayload.deleted_by = payload.deleted_by_user_id;
+      delete updatePayload.deleted_by_user_id;
+    }
+    if (payload.deleted_by_user_email !== undefined) {
+      updatePayload.deleted_by_email = payload.deleted_by_user_email;
+      delete updatePayload.deleted_by_user_email;
+    }
+    if (payload.created_by_user_id !== undefined) {
+      updatePayload.created_by = payload.created_by_user_id;
+      delete updatePayload.created_by_user_id;
+    }
+    if (payload.created_by_user_email !== undefined) {
+      updatePayload.created_by_email = payload.created_by_user_email;
+      delete updatePayload.created_by_user_email;
+    }
+
     // Convert CONFIRMADO back to ACKED for database if needed
     if (updatePayload.status === "CONFIRMADO") {
       updatePayload.status = "ACKED";
       updatePayload.acknowledged_at = new Date().toISOString();
-      updatePayload.acknowledged_by = session.user.id;
-      updatePayload.acknowledged_by_email = session.user.email;
+      updatePayload.acknowledged_by = session.user.id; // Use user ID
+      updatePayload.acknowledged_by_email = session.user.email; // Use user email
     }
     if (updatePayload.soft_deleted === true) {
       updatePayload.deleted_at = new Date().toISOString();
-      updatePayload.deleted_by = session.user.id;
-      updatePayload.deleted_by_email = session.user.email;
+      updatePayload.deleted_by = session.user.id; // Use user ID
+      updatePayload.deleted_by_email = session.user.email; // Use user email
     }
 
     let supabaseQuery = supabase
@@ -328,12 +363,15 @@ export const TicketAPI = {
       status: data.status === "ACKED" ? "CONFIRMADO" : data.status, // Convert ACKED to CONFIRMADO
       created_by_ip: data.created_by_ip,
       acknowledged_at: data.acknowledged_at || null,
-      acknowledged_by: data.acknowledged_by_email || null,
+      acknowledged_by_user_id: data.acknowledged_by || null,
+      acknowledged_by_user_email: data.acknowledged_by_email || null,
       soft_deleted: data.soft_deleted,
       deleted_at: data.deleted_at || null,
-      deleted_by: data.deleted_by_email || null,
+      deleted_by_user_id: data.deleted_by || null,
+      deleted_by_user_email: data.deleted_by_email || null,
       created_date: data.created_date,
-      created_by: data.created_by_email || '',
+      created_by_user_id: data.created_by || '',
+      created_by_user_email: data.created_by_email || '',
       restaurant_id: data.restaurant_id,
     };
   },

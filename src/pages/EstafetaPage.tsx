@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TruckIcon, ClockIcon, CheckCircleIcon, SendIcon } from "lucide-react";
 import { motion } from "framer-motion";
-import { parseISO } from "date-fns"; // Removed addMinutes, isPast
+import { parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 
@@ -29,7 +29,7 @@ const EstafetaPage = () => {
     try {
       // Fetch all tickets by the user, including soft-deleted ones
       const allUserTickets = await TicketAPI.filter(
-        { created_by: user.id, soft_deleted: undefined }, // `undefined` means don't filter by soft_deleted, get all
+        { created_by_user_id: user.id, soft_deleted: undefined }, // Use created_by_user_id
         "-created_date",
       );
 
