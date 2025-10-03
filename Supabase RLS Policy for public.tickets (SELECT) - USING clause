@@ -1,10 +1,8 @@
 (
-    -- Admin pode sempre ver qualquer linha
     (SELECT user_role FROM profiles WHERE id = auth.uid()) = 'admin'::text
 )
 OR
 (
-    -- Restaurante pode ver todos os tickets (ativos e soft-deleted) que pertencem ao seu restaurante
     (SELECT user_role FROM profiles WHERE id = auth.uid()) = 'restaurante'::text
     AND EXISTS (
         SELECT 1

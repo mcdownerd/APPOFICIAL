@@ -1,11 +1,7 @@
 (
-    -- Admin pode sempre atualizar qualquer linha
     (SELECT user_role FROM profiles WHERE id = auth.uid()) = 'admin'::text
 )
 OR
 (
-    -- Para o papel 'restaurante', a cláusula USING é agora TRUE.
-    -- A validação de que o ticket pertence ao restaurante do utilizador
-    -- é agora tratada exclusivamente pelo trigger BEFORE UPDATE.
     (SELECT user_role FROM profiles WHERE id = auth.uid()) = 'restaurante'::text
 )
