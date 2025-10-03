@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TruckIcon, ClockIcon, CheckCircleIcon, SendIcon } from "lucide-react";
 import { motion } from "framer-motion";
-import { parseISO } from "date-fns";
+import { parseISO, isPast, addMinutes } from "date-fns"; // Importar isPast e addMinutes
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 
@@ -34,9 +34,26 @@ const EstafetaPage = () => {
       );
 
       const ticketsToDisplay: Ticket[] = [];
+      const now = new Date();
 
       allUserTickets.forEach(ticket => {
-        // Always display all tickets (active and soft-deleted) in the recent list
+        if (ticket.soft_deleted) {
+          // Se o ticket foi soft-deleted, verificar se já passou 1 minuto desde deleted_at
+          if (ticket.deleted_at) {
+            const deletedAtDate = parseISO(ticket.deleted_at);
+            const oneMinuteAfterDeletion = addMinutes(deletedAtDate, 1);
+            if (isPast(oneMinuteAfterDeletion)) {
+              // Se já passou 1 minuto desde a exclusão, não incluir na lista
+              return; 
+            }
+          } else {
+            // Se soft_deleted é true mas deleted_at é null (caso improvável), 
+            // podemos optar por não mostrar ou mostrar por um tempo padrão.
+            // Por simplicidade, vamos ignorar se deleted_at for null para tickets soft_deleted.
+            return;
+          }
+        }
+        // Incluir tickets que não foram soft-deleted ou que foram soft-deleted há menos de 1 minuto
         ticketsToDisplay.push(ticket);
       });
 
