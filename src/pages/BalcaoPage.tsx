@@ -212,6 +212,11 @@ export default function BalcaoPage() {
     };
   };
 
+  // Determine the currently selected restaurant name for display
+  const currentRestaurantName = isAdmin && selectedRestaurant !== "all"
+    ? availableRestaurants.find(r => r.id === selectedRestaurant)?.name || selectedRestaurant
+    : null;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -251,7 +256,12 @@ export default function BalcaoPage() {
       {/* Header with refresh button and restaurant selector */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-gray-800">{t('ordersCounter')}</h2>
+          <h2 className="text-3xl font-bold text-gray-800">
+            {t('ordersCounter')}
+            {currentRestaurantName && (
+              <span className="ml-2 text-blue-600">({currentRestaurantName})</span>
+            )}
+          </h2>
           <p className="text-muted-foreground">
             {t('activeTicketsDescription', { count: tickets.length })}
           </p>
