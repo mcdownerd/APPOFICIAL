@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion'; // Import AnimatePresence
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, Trash2Icon, UtensilsCrossedIcon, SettingsIcon } from 'lucide-react';
-import { TicketAPI, Ticket } from '@/lib/api';
+import { TicketAPI, Ticket, UserAPI } from '@/lib/api'; // Import UserAPI
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { useSettings } from "@/context/SettingsContext";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
 
 export default function BalcaoPage() {
   const { user, isAdmin } = useAuth();
@@ -26,12 +27,31 @@ export default function BalcaoPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set());
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const [selectedRestaurant, setSelectedRestaurant] = useState<string>("all"); // 'all' or a specific restaurant_id
+  const [availableRestaurants, setAvailableRestaurants] = useState<{ id: string; name: string }[]>([]);
 
   const doubleClickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const DOUBLE_CLICK_THRESHOLD = 500; // milliseconds
 
+  // Fetch available restaurants for admin filter
+  useEffect(() => {
+    const fetchRestaurants = async () => {
+      if (isAdmin) {
+        try {
+          const restaurantUsers = await UserAPI.filter({ user_role: "restaurante", status: "APPROVED" });
+          const uniqueRestaurantIds = Array.from(new Set(restaurantUsers.map(u => u.restaurant_id).filter(Boolean) as string[]));
+          const restaurants = uniqueRestaurantIds.map(id => ({ id, name: `Restaurante ${id.substring(0, 4)}` })); // Simple naming
+          setAvailableRestaurants(restaurants);
+        } catch (err) {
+          console.error("Failed to fetch restaurant users:", err);
+          showError(t("failedToLoadRestaurants"));
+        }
+      }
+    };
+    fetchRestaurants();
+  }, [isAdmin, t]);
+
   const loadTickets = useCallback(async () => {
-    // Adicionado: Se não for admin e o utilizador restaurante não tiver restaurant_id, não carrega tickets
     if (!user || (!isAdmin && user.user_role === "restaurante" && !user.restaurant_id)) {
       setLoading(false);
       setRefreshing(false);
@@ -40,14 +60,17 @@ export default function BalcaoPage() {
     setRefreshing(true);
     try {
       let fetchedTickets: Ticket[] = [];
+      const filter: Partial<Ticket> = { soft_deleted: false };
+
       if (isAdmin) {
-        // Admin vê todos os tickets ativos
-        fetchedTickets = await TicketAPI.filter({ soft_deleted: false }, "created_date");
+        if (selectedRestaurant !== "all") {
+          filter.restaurant_id = selectedRestaurant;
+        }
+        fetchedTickets = await TicketAPI.filter(filter, "created_date");
       } else if (user.user_role === "restaurante" && user.restaurant_id) {
-        // Restaurante vê tickets PENDING e CONFIRMADO associados ao seu restaurant_id
-        fetchedTickets = await TicketAPI.filter({ soft_deleted: false, restaurant_id: user.restaurant_id }, "created_date");
+        filter.restaurant_id = user.restaurant_id;
+        fetchedTickets = await TicketAPI.filter(filter, "created_date");
       } else {
-        // Outros papéis (estafeta) não veem tickets aqui
         fetchedTickets = [];
       }
       setTickets(fetchedTickets);
@@ -58,7 +81,7 @@ export default function BalcaoPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, isAdmin, t]);
+  }, [user, isAdmin, t, selectedRestaurant]); // Add selectedRestaurant to dependencies
 
   useEffect(() => {
     loadTickets();
@@ -117,11 +140,11 @@ export default function BalcaoPage() {
     setProcessingTickets(prev => new Set(prev).add(ticket.id));
     
     try {
-      await TicketAPI.update(ticket.id, { // Passar id como primeiro argumento
+      await TicketAPI.update(ticket.id, {
         status: 'CONFIRMADO',
-        acknowledged_by_user_id: user.id, // Use new field
-        acknowledged_by_user_email: user.email, // Use new field
-        restaurant_id: ticket.restaurant_id, // Pass the ticket's restaurant_id
+        acknowledged_by_user_id: user.id,
+        acknowledged_by_user_email: user.email,
+        restaurant_id: ticket.restaurant_id,
       });
       
       showSuccess(t('ticketConfirmedSuccessfully'));
@@ -144,11 +167,11 @@ export default function BalcaoPage() {
     setProcessingTickets(prev => new Set(prev).add(ticket.id));
     
     try {
-      await TicketAPI.update(ticket.id, { // Passar id como primeiro argumento
+      await TicketAPI.update(ticket.id, {
         soft_deleted: true,
-        deleted_by_user_id: user.id, // Use new field
-        deleted_by_user_email: user.email, // Use new field
-        restaurant_id: ticket.restaurant_id, // Pass the ticket's restaurant_id
+        deleted_by_user_id: user.id,
+        deleted_by_user_email: user.email,
+        restaurant_id: ticket.restaurant_id,
       });
       
       showSuccess(t('ticketRemovedSuccessfully'));
@@ -178,7 +201,7 @@ export default function BalcaoPage() {
     }
     
     return {
-      label: t('acknowledged'), // Changed from 'ready' to 'acknowledged' for clarity
+      label: t('acknowledged'),
       icon: CheckCircleIcon,
       className: 'bg-green-100 text-green-800 border-green-200',
       cardClass: 'border-green-300 bg-green-50',
@@ -200,7 +223,6 @@ export default function BalcaoPage() {
     );
   }
 
-  // Novo: Exibe uma mensagem se o utilizador restaurante não tiver um restaurant_id
   if (!isAdmin && user?.user_role === "restaurante" && !user.restaurant_id) {
     return (
       <motion.div
@@ -226,8 +248,8 @@ export default function BalcaoPage() {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6"
     >
-      {/* Header with refresh button */}
-      <div className="flex items-center justify-between">
+      {/* Header with refresh button and restaurant selector */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold text-gray-800">{t('ordersCounter')}</h2>
           <p className="text-muted-foreground">
@@ -235,15 +257,30 @@ export default function BalcaoPage() {
           </p>
         </div>
         
-        <Button
-          onClick={loadTickets}
-          variant="outline"
-          disabled={refreshing}
-          className="space-x-2"
-        >
-          <RefreshCcwIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-          <span>{t('refresh')}</span>
-        </Button>
+        <div className="flex items-center gap-4">
+          {isAdmin && (
+            <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder={t("selectRestaurant")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("all")}</SelectItem>
+                {availableRestaurants.map(r => (
+                  <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Button
+            onClick={loadTickets}
+            variant="outline"
+            disabled={refreshing}
+            className="space-x-2"
+          >
+            <RefreshCcwIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <span>{t('refresh')}</span>
+          </Button>
+        </div>
       </div>
 
       {/* Pending Limit Settings Card */}

@@ -148,5 +148,7 @@
   "none": "Nenhum",
   "restaurantIdMissing": "ID do Restaurante Ausente",
   "assignRestaurantIdMessage": "Sua conta de restaurante não está atribuída a um ID de restaurante. Por favor, peça a um administrador para atribuir um através da página de Gerenciamento de Usuários.",
-  "refreshPage": "Atualizar Página"
+  "refreshPage": "Atualizar Página",
+  "created": "Criado",
+  "confirmed": "Confirmado"
 }
