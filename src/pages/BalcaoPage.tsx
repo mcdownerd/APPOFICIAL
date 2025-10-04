@@ -217,6 +217,13 @@ export default function BalcaoPage() {
     ? availableRestaurants.find(r => r.id === selectedRestaurant)?.name || selectedRestaurant
     : null;
 
+  // Helper to get restaurant name for a ticket
+  const getRestaurantNameForTicket = (restaurantId: string | undefined) => {
+    if (!restaurantId) return t("none");
+    const restaurant = availableRestaurants.find(r => r.id === restaurantId);
+    return restaurant ? restaurant.name : `Restaurante ${restaurantId.substring(0, 4)}`;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -380,6 +387,12 @@ export default function BalcaoPage() {
                           {status.label}
                         </Badge>
                       </div>
+
+                      {ticket.restaurant_id && (isAdmin || (user?.user_role === "restaurante" && selectedRestaurant === "all")) && (
+                        <div className="text-center text-sm text-gray-600 mt-2">
+                          <p className="font-medium">{t("restaurantName")}: {getRestaurantNameForTicket(ticket.restaurant_id)}</p>
+                        </div>
+                      )}
                       
                       {status.clickable && !isProcessing && (
                         <div className="text-center mt-2">

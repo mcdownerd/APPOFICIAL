@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
-import { TicketAPI, Ticket } from "@/lib/api";
+import { TicketAPI, Ticket, UserAPI } from "@/lib/api"; // Import UserAPI
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,13 +24,14 @@ import { cn } from "@/lib/utils";
 
 // Interface para o estado de ordenação
 interface SortConfig {
-  key: 'code' | 'status' | 'created_by_user_email' | 'deleted_at' | 'pendingTime'; // Use new field
+  key: 'code' | 'status' | 'created_by_user_email' | 'deleted_at' | 'pendingTime' | 'restaurantName'; // Added 'restaurantName'
   direction: 'asc' | 'desc';
 }
 
 // Estende a interface Ticket para incluir o valor numérico do tempo pendente para ordenação
 interface TicketWithPendingTime extends Ticket {
   pendingTimeValue: number;
+  restaurantNameDisplay: string; // Added for display and sorting
 }
 
 // Função auxiliar para calcular e formatar a duração do tempo pendente
@@ -42,7 +43,7 @@ const getPendingDuration = (ticket: Ticket, t: any): { display: string; value: n
     endDate = parseISO(ticket.acknowledged_at);
   } else if (ticket.soft_deleted && ticket.deleted_at) {
     endDate = parseISO(ticket.deleted_at);
-  } else if (ticket.soft_deleted && !ticket.deleted_at) {
+  } else if (ticket.soft_deleted) {
     endDate = new Date(); // Tempo até agora
   }
 
@@ -77,8 +78,31 @@ const HistoricoPage = () => {
   const [deletedTickets, setDeletedTickets] = useState<TicketWithPendingTime[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [availableRestaurants, setAvailableRestaurants] = useState<{ id: string; name: string }[]>([]);
   // Estado para a configuração de ordenação, padrão para 'Removido Em' decrescente
   const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'deleted_at', direction: 'desc' });
+
+  // Fetch available restaurants for display
+  useEffect(() => {
+    const fetchRestaurants = async () => {
+      try {
+        const restaurantUsers = await UserAPI.filter({ user_role: "restaurante", status: "APPROVED" });
+        const uniqueRestaurantIds = Array.from(new Set(restaurantUsers.map(u => u.restaurant_id).filter(Boolean) as string[]));
+        const restaurants = uniqueRestaurantIds.map(id => ({ id, name: `Restaurante ${id.substring(0, 4)}` })); // Simple naming
+        setAvailableRestaurants(restaurants);
+      } catch (err) {
+        console.error("Failed to fetch restaurant users for history:", err);
+        showError(t("failedToLoadRestaurants"));
+      }
+    };
+    fetchRestaurants();
+  }, [t]);
+
+  const getRestaurantNameForTicket = useCallback((restaurantId: string | undefined) => {
+    if (!restaurantId) return t("none");
+    const restaurant = availableRestaurants.find(r => r.id === restaurantId);
+    return restaurant ? restaurant.name : `Restaurante ${restaurantId.substring(0, 4)}`;
+  }, [availableRestaurants, t]);
 
   const fetchDeletedTickets = useCallback(async () => {
     setLoading(true);
@@ -93,10 +117,11 @@ const HistoricoPage = () => {
         tickets = [];
       }
 
-      // Adiciona o valor numérico do tempo pendente para ordenação
+      // Adiciona o valor numérico do tempo pendente e o nome do restaurante para ordenação
       const ticketsWithPendingTime: TicketWithPendingTime[] = tickets.map(ticket => ({
         ...ticket,
         pendingTimeValue: getPendingDuration(ticket, t).value,
+        restaurantNameDisplay: getRestaurantNameForTicket(ticket.restaurant_id),
       }));
 
       // Aplica a ordenação no lado do cliente
@@ -126,6 +151,10 @@ const HistoricoPage = () => {
               aValue = a.code;
               bValue = b.code;
               break;
+            case 'restaurantName':
+              aValue = a.restaurantNameDisplay;
+              bValue = b.restaurantNameDisplay;
+              break;
             default:
               aValue = 0;
               bValue = 0;
@@ -144,7 +173,7 @@ const HistoricoPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, isAdmin, t, sortConfig]);
+  }, [user, isAdmin, t, sortConfig, getRestaurantNameForTicket]);
 
   useEffect(() => {
     fetchDeletedTickets();
@@ -221,6 +250,12 @@ const HistoricoPage = () => {
                       </Button>
                     </TableHead>
                     <TableHead>
+                      <Button variant="ghost" onClick={() => handleSort('restaurantName')} className="p-0 h-auto">
+                        {t("restaurantName")}
+                        <ArrowUpDown className={cn("ml-2 h-4 w-4", sortConfig?.key === 'restaurantName' && sortConfig.direction === 'desc' && 'rotate-180')} />
+                      </Button>
+                    </TableHead>
+                    <TableHead>
                       <Button variant="ghost" onClick={() => handleSort('created_by_user_email')} className="p-0 h-auto">
                         {t("createdBy")}
                         <ArrowUpDown className={cn("ml-2 h-4 w-4", sortConfig?.key === 'created_by_user_email' && sortConfig.direction === 'desc' && 'rotate-180')} />
@@ -262,6 +297,7 @@ const HistoricoPage = () => {
                             </Badge>
                           )}
                         </TableCell>
+                        <TableCell>{ticket.restaurantNameDisplay}</TableCell> {/* Display restaurant name */}
                         <TableCell>{ticket.created_by_user_email}</TableCell>
                         <TableCell className="flex items-center gap-2">
                           <CalendarIcon className="h-4 w-4 text-gray-500" />
