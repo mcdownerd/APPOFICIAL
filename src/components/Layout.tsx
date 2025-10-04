@@ -236,8 +236,11 @@ export const Layout = () => {
             )}
           </div>
         </header>
-        <main className="flex-1 p-4 lg:p-6 w-full"> {/* Adicionado w-full aqui */}
+        <main className="flex-1 p-4 lg:p-6 w-full flex flex-col"> {/* Adicionado flex flex-col aqui */}
           <Outlet />
+          <footer className="mt-auto pt-6 text-center text-sm text-muted-foreground">
+            {t("developedBy")}
+          </footer>
         </main>
       </div>
     </div>

@@ -2,7 +2,7 @@
   "deliveryFlow": "DeliveryFlow",
   "loginToYourAccount": "Login to your account",
   "email": "Email",
-  "password": "Password",
+  "password": "Your password",
   "yourPassword": "Your password",
   "showPassword": "Show password",
   "hidePassword": "Hide password",
@@ -152,5 +152,6 @@
   "refreshPage": "Refresh Page",
   "created": "Created",
   "confirmed": "Confirmed",
-  "restaurantName": "Restaurant"
+  "restaurantName": "Restaurant",
+  "developedBy": "Developed by Ownerd"
 }
