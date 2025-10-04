@@ -387,12 +387,6 @@ export default function BalcaoPage() {
                           {status.label}
                         </Badge>
                       </div>
-
-                      {ticket.restaurant_id && (isAdmin || (user?.user_role === "restaurante" && selectedRestaurant === "all")) && (
-                        <div className="text-center text-sm text-gray-600 mt-2">
-                          <p className="font-medium">{t("restaurantName")}: {getRestaurantNameForTicket(ticket.restaurant_id)}</p>
-                        </div>
-                      )}
                       
                       {status.clickable && !isProcessing && (
                         <div className="text-center mt-2">
