@@ -28,7 +28,7 @@ const navItems: NavItem[] = [
   { name: "sendCodes", path: "/estafeta", icon: TruckIcon, roles: ["estafeta", "admin"] },
   { name: "counter", path: "/balcao", icon: UtensilsCrossedIcon, roles: ["restaurante", "admin"] },
   { name: "history", path: "/historico", icon: HistoryIcon, roles: ["restaurante", "admin"] },
-  { name: "timeAnalysis", path: "/analise-tempo", icon: BarChart3Icon, roles: ["admin"] },
+  { name: "timeAnalysis", path: "/analise-tempo", icon: BarChart3Icon, roles: ["admin", "restaurante"] }, // Adicionado 'restaurante'
   { name: "manageUsers", path: "/admin/users", icon: UsersIcon, roles: ["admin"] },
 ];
 

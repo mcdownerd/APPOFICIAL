@@ -59,7 +59,7 @@ const App = () => (
                 <Route
                   path="analise-tempo"
                   element={
-                    <AuthGuard allowedRoles={["admin"]}>
+                    <AuthGuard allowedRoles={["admin", "restaurante"]}> {/* Adicionado 'restaurante' */}
                       <AnaliseTempoPage />
                     </AuthGuard>
                   }
