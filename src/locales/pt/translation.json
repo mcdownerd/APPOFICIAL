@@ -81,7 +81,7 @@
   "failedToLoadHistory": "Falha ao carregar histórico de tickets.",
   "lessThanOneMin": "menos de 1 min",
   "timeAnalysisOfOrders": "Análise de Tempo de Pedidos",
-  "ordersByHourDoDia": "Pedidos por Hora do Dia",
+  "ordersByHourOfDay": "Pedidos por Hora do Dia",
   "refresh": "Atualizar",
   "totalOrdersCreatedEachHour": "Quantidade total de pedidos criados em cada hora do dia, agregados de todos os dados disponíveis.",
   "orders": "Pedidos",
@@ -150,5 +150,6 @@
   "assignRestaurantIdMessage": "Sua conta de restaurante não está atribuída a um ID de restaurante. Por favor, peça a um administrador para atribuir um através da página de Gerenciamento de Usuários.",
   "refreshPage": "Atualizar Página",
   "created": "Criado",
-  "confirmed": "Confirmado"
+  "confirmed": "Confirmado",
+  "restaurantName": "Restaurante"
 }

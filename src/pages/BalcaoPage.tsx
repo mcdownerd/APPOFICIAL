@@ -25,7 +25,7 @@ export default function BalcaoPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set()); // Corrigido aqui
+  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set());
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [selectedRestaurant, setSelectedRestaurant] = useState<string>("all"); // 'all' or a specific restaurant_id
   const [availableRestaurants, setAvailableRestaurants] = useState<{ id: string; name: string }[]>([]);
@@ -217,6 +217,13 @@ export default function BalcaoPage() {
     ? availableRestaurants.find(r => r.id === selectedRestaurant)?.name || selectedRestaurant
     : null;
 
+  // Helper to get restaurant name for a ticket
+  const getRestaurantNameForTicket = (restaurantId: string | undefined) => {
+    if (!restaurantId) return t("none");
+    const restaurant = availableRestaurants.find(r => r.id === restaurantId);
+    return restaurant ? restaurant.name : `Restaurante ${restaurantId.substring(0, 4)}`;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -363,7 +370,7 @@ export default function BalcaoPage() {
                     )}
                     onClick={() => !isProcessing && handleTicketClick(ticket)}
                   >
-                    <CardContent className="p-4 space-y-3 flex-1 flex col justify-between">
+                    <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">
                       <div className="text-center">
                         <p className="text-4xl font-mono font-extrabold tracking-wider text-gray-900">
                           {ticket.code}
@@ -380,6 +387,12 @@ export default function BalcaoPage() {
                           {status.label}
                         </Badge>
                       </div>
+
+                      {ticket.restaurant_id && (isAdmin || (user?.user_role === "restaurante" && selectedRestaurant === "all")) && (
+                        <div className="text-center text-sm text-gray-600 mt-2">
+                          <p className="font-medium">{t("restaurantName")}: {getRestaurantNameForTicket(ticket.restaurant_id)}</p>
+                        </div>
+                      )}
                       
                       {status.clickable && !isProcessing && (
                         <div className="text-center mt-2">
