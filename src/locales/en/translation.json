@@ -151,6 +151,5 @@
   "assignRestaurantIdMessage": "Your restaurant account is not assigned to a restaurant ID. Please ask an administrator to assign one via the User Management page.",
   "refreshPage": "Refresh Page",
   "created": "Created",
-  "confirmed": "Confirmed",
-  "restaurantName": "Restaurant"
+  "confirmed": "Confirmed"
 }
