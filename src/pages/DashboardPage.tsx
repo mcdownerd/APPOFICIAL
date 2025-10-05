@@ -210,9 +210,10 @@ export default function DashboardPage() {
   };
 
   // Lógica de confirmação/remoção de tickets (adaptada do BalcaoPage)
+  // Esta função agora só permite ações para Admin e Restaurante
   const handleTicketClick = async (ticket: Ticket) => {
-    if (!user) {
-      showError(t("userNotAuthenticated"));
+    if (!user || isEstafeta) { // Estafetas não podem clicar para ações
+      showError(t("permissionDenied"));
       return;
     }
     if (processingTickets.has(ticket.id)) return;
@@ -248,7 +249,10 @@ export default function DashboardPage() {
   };
 
   const handleAcknowledge = async (ticket: Ticket) => {
-    if (!user || processingTickets.has(ticket.id)) return;
+    if (!user || isEstafeta || processingTickets.has(ticket.id)) { // Estafetas não podem confirmar
+      showError(t("permissionDenied"));
+      return;
+    }
 
     setProcessingTickets(prev => new Set(prev).add(ticket.id));
     
@@ -275,7 +279,10 @@ export default function DashboardPage() {
   };
 
   const handleSoftDelete = async (ticket: Ticket) => {
-    if (!user || processingTickets.has(ticket.id)) return;
+    if (!user || isEstafeta || processingTickets.has(ticket.id)) { // Estafetas não podem remover
+      showError(t("permissionDenied"));
+      return;
+    }
 
     setProcessingTickets(prev => new Set(prev).add(ticket.id));
     
@@ -308,8 +315,8 @@ export default function DashboardPage() {
         icon: ClockIcon,
         className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
         cardClass: 'border-yellow-300 bg-yellow-50',
-        clickable: true,
-        clickText: t('clickToConfirm')
+        clickable: !isEstafeta, // Estafeta não pode clicar
+        clickText: isEstafeta ? t('viewStatusOnly') : t('clickToConfirm') // Texto diferente para estafeta
       };
     }
     
@@ -318,10 +325,10 @@ export default function DashboardPage() {
       icon: CheckCircleIcon,
       className: 'bg-green-100 text-green-800 border-green-200',
       cardClass: 'border-green-300 bg-green-50',
-      clickable: true,
-      clickText: pendingDelete === ticket.id 
-        ? t('clickAgainToRemove')
-        : t('removeTicket')
+      clickable: !isEstafeta, // Estafeta não pode clicar
+      clickText: isEstafeta 
+        ? t('viewStatusOnly') 
+        : (pendingDelete === ticket.id ? t('clickAgainToRemove') : t('removeTicket'))
     };
   };
 
@@ -571,32 +578,34 @@ export default function DashboardPage() {
                 >
                   <Card 
                     className={cn(
-                      "h-full cursor-pointer transition-all duration-200 border-2 relative", // Adicionado relative
+                      "h-full transition-all duration-200 border-2 relative",
                       status.cardClass,
-                      status.clickable ? 'hover:shadow-lg hover:scale-105' : '',
+                      status.clickable ? 'hover:shadow-lg hover:scale-105 cursor-pointer' : 'cursor-default', // Cursor default para não clicável
                       isPendingDelete ? 'ring-4 ring-red-500 shadow-xl' : 'hover-lift',
                       isProcessing ? 'opacity-60 cursor-not-allowed' : '',
                       "flex flex-col"
                     )}
-                    onClick={() => !isProcessing && handleTicketClick(ticket)}
+                    onClick={() => !isProcessing && status.clickable && handleTicketClick(ticket)} // Apenas clica se for clicável
                   >
                     {/* Posição do ticket (1º, 2º, etc.) */}
                     <Badge className="absolute top-2 left-2 bg-yellow-200 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full">
                       {index + 1}º
                     </Badge>
-                    {/* Botão de remover (X) */}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute top-1 right-1 h-6 w-6 text-gray-500 hover:text-red-500"
-                      onClick={(e) => {
-                        e.stopPropagation(); // Previne o clique no cartão
-                        handleSoftDelete(ticket);
-                      }}
-                      disabled={isProcessing}
-                    >
-                      <Trash2Icon className="h-4 w-4" />
-                    </Button>
+                    {/* Botão de remover (X) - Visível apenas para Admin/Restaurante */}
+                    {(!isEstafeta || isAdmin || isRestaurante) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-1 right-1 h-6 w-6 text-gray-500 hover:text-red-500"
+                        onClick={(e) => {
+                          e.stopPropagation(); // Previne o clique no cartão
+                          handleSoftDelete(ticket);
+                        }}
+                        disabled={isProcessing || isEstafeta} // Desabilitado para estafeta
+                      >
+                        <Trash2Icon className="h-4 w-4" />
+                      </Button>
+                    )}
 
                     <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">
                       <div className="text-center mt-6"> {/* Ajuste para não sobrepor o badge */}
