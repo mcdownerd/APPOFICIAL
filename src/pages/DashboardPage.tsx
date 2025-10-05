@@ -23,9 +23,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input"; // Importar Input
+import { Input } from "@/components/ui/input";
 import { LayoutDashboardIcon, RefreshCwIcon, CheckCircleIcon, ClockIcon, CalendarIcon, ArrowUpDown, Loader2, Trash2Icon, UtensilsCrossedIcon, KeyIcon } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isPast, addMinutes } from "date-fns"; // Importar isPast e addMinutes
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
@@ -87,65 +87,67 @@ export default function DashboardPage() {
 
     setRefreshing(true);
     try {
-      let tickets: Ticket[] = [];
-      const filter: Partial<Ticket> = { status: "PENDING", soft_deleted: false }; // Apenas tickets PENDENTES e não deletados
+      let allTickets: Ticket[] = [];
+      const filter: Partial<Ticket> = { soft_deleted: undefined }; // Buscar todos os tickets (soft_deleted true/false)
 
       if (isAdmin) {
         if (selectedRestaurant !== "all") {
           filter.restaurant_id = selectedRestaurant;
         }
-        tickets = await TicketAPI.filter(filter, "created_date"); // Ordenar por data de criação ascendente para o balcão
+        allTickets = await TicketAPI.filter(filter, "-created_date"); // Ordenar por data de criação descendente
       } else if ((isRestaurante || isEstafeta) && user.restaurant_id) {
         filter.restaurant_id = user.restaurant_id;
-        tickets = await TicketAPI.filter(filter, "created_date"); // Ordenar por data de criação ascendente para o balcão
+        allTickets = await TicketAPI.filter(filter, "-created_date"); // Ordenar por data de criação descendente
       } else {
-        tickets = [];
+        allTickets = [];
       }
 
-      const ticketsWithRestaurantName: TicketWithRestaurantName[] = tickets.map(ticket => ({
-        ...ticket,
-        restaurantNameDisplay: getRestaurantNameForTicket(ticket.restaurant_id),
-      }));
+      const ticketsToDisplay: TicketWithRestaurantName[] = [];
+      const now = new Date();
 
-      // Apply client-side sorting (if needed for card view, but for counter, usually by creation date)
-      if (sortConfig) {
-        ticketsWithRestaurantName.sort((a, b) => {
-          let aValue: any;
-          let bValue: any;
-
-          switch (sortConfig.key) {
-            case 'code':
-              aValue = a.code;
-              bValue = b.code;
-              break;
-            case 'status':
-              aValue = a.status;
-              bValue = b.status;
-              break;
-            case 'created_by_user_email':
-              aValue = a.created_by_user_email || '';
-              bValue = b.created_by_user_email || '';
-              break;
-            case 'created_date':
-              aValue = parseISO(a.created_date).getTime();
-              bValue = parseISO(b.created_date).getTime();
-              break;
-            case 'restaurantName':
-              aValue = a.restaurantNameDisplay;
-              bValue = b.restaurantNameDisplay;
-              break;
-            default:
-              aValue = 0;
-              bValue = 0;
+      allTickets.forEach(ticket => {
+        if (ticket.soft_deleted) {
+          // Se o ticket foi soft-deleted, verificar se já passou 1 minuto desde deleted_at
+          if (ticket.deleted_at) {
+            const deletedAtDate = parseISO(ticket.deleted_at);
+            const oneMinuteAfterDeletion = addMinutes(deletedAtDate, 1);
+            if (isPast(oneMinuteAfterDeletion)) {
+              // Se já passou 1 minuto desde a exclusão, não incluir na lista
+              return; 
+            }
+          } else {
+            // Se soft_deleted é true mas deleted_at é null (caso improvável), 
+            // podemos optar por não mostrar ou mostrar por um tempo padrão.
+            // Por simplicidade, vamos ignorar se deleted_at for null para tickets soft_deleted.
+            return;
           }
-
-          if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-          if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-          return 0;
+        }
+        // Incluir tickets que não foram soft-deleted ou que foram soft-deleted há menos de 1 minuto
+        ticketsToDisplay.push({
+          ...ticket,
+          restaurantNameDisplay: getRestaurantNameForTicket(ticket.restaurant_id),
         });
-      }
+      });
 
-      setActiveTickets(ticketsWithRestaurantName);
+      // Ordenar: soft-deleted primeiro (mais recentes), depois pendentes (mais recentes)
+      ticketsToDisplay.sort((a, b) => {
+        if (a.soft_deleted && !b.soft_deleted) return -1; // Soft-deleted vem antes
+        if (!a.soft_deleted && b.soft_deleted) return 1; // Soft-deleted vem antes
+
+        if (a.soft_deleted && b.soft_deleted) {
+          // Ambos soft-deleted, ordenar pelo deleted_at mais recente
+          const deletedDateA = a.deleted_at ? parseISO(a.deleted_at).getTime() : 0;
+          const deletedDateB = b.deleted_at ? parseISO(b.deleted_at).getTime() : 0;
+          return deletedDateB - deletedDateA;
+        }
+
+        // Ambos pendentes, ordenar pelo created_date mais recente
+        const createdDateA = parseISO(a.created_date).getTime();
+        const createdDateB = parseISO(b.created_date).getTime();
+        return createdDateB - createdDateA;
+      });
+      
+      setActiveTickets(ticketsToDisplay);
     } catch (error) {
       console.error("Failed to fetch active tickets for dashboard:", error);
       showError(t("failedToLoadActiveTickets"));
@@ -153,7 +155,7 @@ export default function DashboardPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, isAdmin, isRestaurante, isEstafeta, isDashboardActivated, selectedRestaurant, t, sortConfig, getRestaurantNameForTicket]);
+  }, [user, isAdmin, isRestaurante, isEstafeta, isDashboardActivated, selectedRestaurant, t, getRestaurantNameForTicket]);
 
   useEffect(() => {
     // Só faz o fetch se o usuário não for estafeta ou se for estafeta e o painel estiver ativado
@@ -205,24 +207,22 @@ export default function DashboardPage() {
 
   // A função getTicketStatus é mantida, mas suas propriedades interativas não serão usadas na renderização
   const getTicketStatus = (ticket: Ticket) => {
-    if (ticket.status === 'PENDING') {
+    if (ticket.soft_deleted) {
       return {
-        label: t('pending'),
-        icon: ClockIcon,
-        className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-        cardClass: 'border-yellow-300 bg-yellow-50',
-        clickable: false, // Não clicável para este painel
-        clickText: '' // Texto de clique removido
+        label: t('ready'),
+        icon: CheckCircleIcon,
+        className: 'bg-green-100 text-green-800 border-green-200',
+        cardClass: 'border-green-300 bg-green-50',
+        codeBadgeClass: 'bg-green-200 text-green-900',
       };
     }
-    // Este bloco não deve ser alcançado, pois fetchActiveTickets filtra por PENDING
+    
     return {
-      label: t('acknowledged'),
-      icon: CheckCircleIcon,
-      className: 'bg-green-100 text-green-800 border-green-200',
-      cardClass: 'border-green-300 bg-green-50',
-      clickable: false,
-      clickText: ''
+      label: t('pending'),
+      icon: ClockIcon,
+      className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      cardClass: 'border-yellow-300 bg-yellow-50',
+      codeBadgeClass: 'bg-yellow-200 text-yellow-900',
     };
   };
 
@@ -470,11 +470,10 @@ export default function DashboardPage() {
                 >
                   <Card 
                     className={cn(
-                      "h-full transition-all duration-200 border-2 relative", // Removido cursor-pointer
+                      "h-full transition-all duration-200 border-2 relative",
                       status.cardClass,
                       "flex flex-col"
                     )}
-                    // Removido onClick
                   >
                     {/* Posição do ticket (1º, 2º, etc.) */}
                     <Badge className="absolute top-2 left-2 bg-yellow-200 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full">
@@ -487,7 +486,7 @@ export default function DashboardPage() {
                         <Badge 
                           className={cn(
                             "text-4xl font-mono font-extrabold tracking-wider px-4 py-2",
-                            "bg-yellow-200 text-yellow-900" // Estilo fixo para o código
+                            status.codeBadgeClass // Usa a classe dinâmica para o código
                           )}
                         >
                           {ticket.code}
