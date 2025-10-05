@@ -94,16 +94,19 @@ export default function DashboardPage() {
     setRefreshing(true);
     try {
       let tickets: Ticket[] = [];
-      const filter: Partial<Ticket> = { status: "PENDING", soft_deleted: false }; // Apenas tickets PENDENTES e não deletados
+      // Modificado para buscar tickets PENDING e CONFIRMADO
+      const filter: Partial<Ticket> = { soft_deleted: false }; 
 
       if (isAdmin) {
         if (selectedRestaurant !== "all") {
           filter.restaurant_id = selectedRestaurant;
         }
-        tickets = await TicketAPI.filter(filter, "created_date"); // Ordenar por data de criação ascendente para o balcão
+        // Para admin, buscar todos os tickets não deletados, independentemente do status
+        tickets = await TicketAPI.filter(filter, "created_date"); 
       } else if ((isRestaurante || isEstafeta) && user.restaurant_id) {
         filter.restaurant_id = user.restaurant_id;
-        tickets = await TicketAPI.filter(filter, "created_date"); // Ordenar por data de criação ascendente para o balcão
+        // Para restaurante/estafeta, buscar tickets não deletados do seu restaurante
+        tickets = await TicketAPI.filter(filter, "created_date"); 
       } else {
         tickets = [];
       }
@@ -125,6 +128,9 @@ export default function DashboardPage() {
               bValue = b.code;
               break;
             case 'status':
+              // Priorizar PENDING sobre CONFIRMADO
+              if (a.status === 'PENDING' && b.status === 'CONFIRMADO') return sortConfig.direction === 'asc' ? -1 : 1;
+              if (a.status === 'CONFIRMADO' && b.status === 'PENDING') return sortConfig.direction === 'asc' ? 1 : -1;
               aValue = a.status;
               bValue = b.status;
               break;
@@ -210,7 +216,6 @@ export default function DashboardPage() {
   };
 
   // Lógica de confirmação/remoção de tickets (adaptada do BalcaoPage)
-  // Esta função agora só permite ações para Admin e Restaurante
   const handleTicketClick = async (ticket: Ticket) => {
     if (!user || isEstafeta) { // Estafetas não podem clicar para ações
       showError(t("permissionDenied"));
@@ -321,7 +326,7 @@ export default function DashboardPage() {
     }
     
     return {
-      label: t('acknowledged'),
+      label: t('acknowledged'), // Usar 'acknowledged' para CONFIRMADO
       icon: CheckCircleIcon,
       className: 'bg-green-100 text-green-800 border-green-200',
       cardClass: 'border-green-300 bg-green-50',
