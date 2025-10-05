@@ -24,6 +24,13 @@ const EstafetaPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingTicketsCount, setPendingTicketsCount] = useState(0);
 
+  // DEBUG LOGS
+  useEffect(() => {
+    const localStorageValue = localStorage.getItem("deliveryflow_pending_limit_enabled");
+    console.log("EstafetaPage: isPendingLimitEnabled from Context:", isPendingLimitEnabled);
+    console.log("EstafetaPage: isPendingLimitEnabled from localStorage (direct read):", localStorageValue ? JSON.parse(localStorageValue) : 'not set');
+  }, [isPendingLimitEnabled]); // Re-run when context value changes
+
   const fetchRecentTickets = useCallback(async () => {
     if (!user) return;
     try {
