@@ -23,9 +23,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/components/ui/input"; // Importar Input
 import { LayoutDashboardIcon, RefreshCwIcon, CheckCircleIcon, ClockIcon, CalendarIcon, ArrowUpDown, Loader2, Trash2Icon, UtensilsCrossedIcon, KeyIcon } from "lucide-react";
-import { format, parseISO, isPast, addMinutes } from "date-fns"; // Importar isPast e addMinutes
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
@@ -85,7 +85,7 @@ export default function DashboardPage() {
   }, [availableRestaurants, t]);
 
   const fetchActiveTickets = useCallback(async () => {
-    if (!user || (isEstafeta && !isDashboardActivated)) {
+    if (!user || (isEstafeta && !isDashboardActivated)) { // Não carregar tickets se estafeta não ativou
       setLoading(false);
       setRefreshing(false);
       return;
@@ -94,64 +94,28 @@ export default function DashboardPage() {
     setRefreshing(true);
     try {
       let tickets: Ticket[] = [];
-      const filter: Partial<Ticket> = {}; // Buscar todos os tickets não deletados, independentemente do status
+      const filter: Partial<Ticket> = { status: "PENDING", soft_deleted: false }; // Apenas tickets PENDENTES e não deletados
 
       if (isAdmin) {
         if (selectedRestaurant !== "all") {
           filter.restaurant_id = selectedRestaurant;
         }
-        tickets = await TicketAPI.filter(filter, "created_date");
+        tickets = await TicketAPI.filter(filter, "created_date"); // Ordenar por data de criação ascendente para o balcão
       } else if ((isRestaurante || isEstafeta) && user.restaurant_id) {
         filter.restaurant_id = user.restaurant_id;
-        tickets = await TicketAPI.filter(filter, "created_date");
+        tickets = await TicketAPI.filter(filter, "created_date"); // Ordenar por data de criação ascendente para o balcão
       } else {
         tickets = [];
       }
 
-      const now = new Date();
-      const ticketsToDisplay: TicketWithRestaurantName[] = [];
+      const ticketsWithRestaurantName: TicketWithRestaurantName[] = tickets.map(ticket => ({
+        ...ticket,
+        restaurantNameDisplay: getRestaurantNameForTicket(ticket.restaurant_id),
+      }));
 
-      tickets.forEach(ticket => {
-        // Filtrar tickets soft-deleted que já passaram de 1 minuto
-        if (ticket.soft_deleted) {
-          if (ticket.deleted_at) {
-            const deletedAtDate = parseISO(ticket.deleted_at);
-            const oneMinuteAfterDeletion = addMinutes(deletedAtDate, 1);
-            if (isPast(oneMinuteAfterDeletion)) {
-              return; // Não incluir se já passou 1 minuto desde a exclusão
-            }
-          } else {
-            return; // Se soft_deleted é true mas deleted_at é null, ignorar
-          }
-        }
-
-        // Filtrar tickets CONFIRMADO que já passaram de 1 minuto
-        if (ticket.status === "CONFIRMADO") {
-          if (ticket.acknowledged_at) {
-            const acknowledgedAtDate = parseISO(ticket.acknowledged_at);
-            const oneMinuteAfterAcknowledgement = addMinutes(acknowledgedAtDate, 1);
-            if (isPast(oneMinuteAfterAcknowledgement)) {
-              return; // Não incluir se já passou 1 minuto desde a confirmação
-            }
-          } else {
-            // Se status é CONFIRMADO mas acknowledged_at é null (caso improvável),
-            // podemos optar por não mostrar ou mostrar por um tempo padrão.
-            // Por simplicidade, vamos ignorar se acknowledged_at for null para tickets CONFIRMADO.
-            return;
-          }
-        }
-        
-        // Incluir tickets que não foram soft-deleted há mais de 1 minuto,
-        // e tickets PENDING, e tickets CONFIRMADO há menos de 1 minuto.
-        ticketsToDisplay.push({
-          ...ticket,
-          restaurantNameDisplay: getRestaurantNameForTicket(ticket.restaurant_id),
-        });
-      });
-
-      // Ordenar os tickets restantes
+      // Apply client-side sorting (if needed for card view, but for counter, usually by creation date)
       if (sortConfig) {
-        ticketsToDisplay.sort((a, b) => {
+        ticketsWithRestaurantName.sort((a, b) => {
           let aValue: any;
           let bValue: any;
 
@@ -161,9 +125,6 @@ export default function DashboardPage() {
               bValue = b.code;
               break;
             case 'status':
-              // Priorizar PENDING sobre CONFIRMADO
-              if (a.status === 'PENDING' && b.status === 'CONFIRMADO') return sortConfig.direction === 'asc' ? -1 : 1;
-              if (a.status === 'CONFIRMADO' && b.status === 'PENDING') return sortConfig.direction === 'asc' ? 1 : -1;
               aValue = a.status;
               bValue = b.status;
               break;
@@ -190,7 +151,7 @@ export default function DashboardPage() {
         });
       }
 
-      setActiveTickets(ticketsToDisplay);
+      setActiveTickets(ticketsWithRestaurantName);
     } catch (error) {
       console.error("Failed to fetch active tickets for dashboard:", error);
       showError(t("failedToLoadActiveTickets"));
@@ -250,8 +211,8 @@ export default function DashboardPage() {
 
   // Lógica de confirmação/remoção de tickets (adaptada do BalcaoPage)
   const handleTicketClick = async (ticket: Ticket) => {
-    if (!user || isEstafeta) { // Estafetas não podem clicar para ações
-      showError(t("permissionDenied"));
+    if (!user) {
+      showError(t("userNotAuthenticated"));
       return;
     }
     if (processingTickets.has(ticket.id)) return;
@@ -287,10 +248,7 @@ export default function DashboardPage() {
   };
 
   const handleAcknowledge = async (ticket: Ticket) => {
-    if (!user || isEstafeta || processingTickets.has(ticket.id)) { // Estafetas não podem confirmar
-      showError(t("permissionDenied"));
-      return;
-    }
+    if (!user || processingTickets.has(ticket.id)) return;
 
     setProcessingTickets(prev => new Set(prev).add(ticket.id));
     
@@ -317,10 +275,7 @@ export default function DashboardPage() {
   };
 
   const handleSoftDelete = async (ticket: Ticket) => {
-    if (!user || isEstafeta || processingTickets.has(ticket.id)) { // Estafetas não podem remover
-      showError(t("permissionDenied"));
-      return;
-    }
+    if (!user || processingTickets.has(ticket.id)) return;
 
     setProcessingTickets(prev => new Set(prev).add(ticket.id));
     
@@ -353,20 +308,20 @@ export default function DashboardPage() {
         icon: ClockIcon,
         className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
         cardClass: 'border-yellow-300 bg-yellow-50',
-        clickable: !isEstafeta, // Estafeta não pode clicar
-        clickText: isEstafeta ? t('viewStatusOnly') : t('clickToConfirm') // Texto diferente para estafeta
+        clickable: true,
+        clickText: t('clickToConfirm')
       };
     }
     
     return {
-      label: t('acknowledged'), // Usar 'acknowledged' para CONFIRMADO
+      label: t('acknowledged'),
       icon: CheckCircleIcon,
       className: 'bg-green-100 text-green-800 border-green-200',
       cardClass: 'border-green-300 bg-green-50',
-      clickable: !isEstafeta, // Estafeta não pode clicar
-      clickText: isEstafeta 
-        ? t('viewStatusOnly') 
-        : (pendingDelete === ticket.id ? t('clickAgainToRemove') : t('removeTicket'))
+      clickable: true,
+      clickText: pendingDelete === ticket.id 
+        ? t('clickAgainToRemove')
+        : t('removeTicket')
     };
   };
 
@@ -616,34 +571,32 @@ export default function DashboardPage() {
                 >
                   <Card 
                     className={cn(
-                      "h-full transition-all duration-200 border-2 relative",
+                      "h-full cursor-pointer transition-all duration-200 border-2 relative", // Adicionado relative
                       status.cardClass,
-                      status.clickable ? 'hover:shadow-lg hover:scale-105 cursor-pointer' : 'cursor-default', // Cursor default para não clicável
+                      status.clickable ? 'hover:shadow-lg hover:scale-105' : '',
                       isPendingDelete ? 'ring-4 ring-red-500 shadow-xl' : 'hover-lift',
                       isProcessing ? 'opacity-60 cursor-not-allowed' : '',
                       "flex flex-col"
                     )}
-                    onClick={() => !isProcessing && status.clickable && handleTicketClick(ticket)} // Apenas clica se for clicável
+                    onClick={() => !isProcessing && handleTicketClick(ticket)}
                   >
                     {/* Posição do ticket (1º, 2º, etc.) */}
                     <Badge className="absolute top-2 left-2 bg-yellow-200 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full">
                       {index + 1}º
                     </Badge>
-                    {/* Botão de remover (X) - Visível apenas para Admin/Restaurante */}
-                    {(!isEstafeta || isAdmin || isRestaurante) && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute top-1 right-1 h-6 w-6 text-gray-500 hover:text-red-500"
-                        onClick={(e) => {
-                          e.stopPropagation(); // Previne o clique no cartão
-                          handleSoftDelete(ticket);
-                        }}
-                        disabled={isProcessing || isEstafeta} // Desabilitado para estafeta
-                      >
-                        <Trash2Icon className="h-4 w-4" />
-                      </Button>
-                    )}
+                    {/* Botão de remover (X) */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute top-1 right-1 h-6 w-6 text-gray-500 hover:text-red-500"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Previne o clique no cartão
+                        handleSoftDelete(ticket);
+                      }}
+                      disabled={isProcessing}
+                    >
+                      <Trash2Icon className="h-4 w-4" />
+                    </Button>
 
                     <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">
                       <div className="text-center mt-6"> {/* Ajuste para não sobrepor o badge */}

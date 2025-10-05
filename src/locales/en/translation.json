@@ -166,6 +166,5 @@
   "dashboardActivatedSuccessfully": "Dashboard activated successfully!",
   "failedToActivateDashboard": "Failed to activate dashboard. Please try again.",
   "dashboardAccessCode": "Dashboard Access Code",
-  "setAccessCode": "Set Access Code",
-  "viewStatusOnly": "View Status Only"
+  "setAccessCode": "Set Access Code"
 }
