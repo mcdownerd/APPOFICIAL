@@ -23,9 +23,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [isPendingLimitEnabled, setIsPendingLimitEnabled] = useState<boolean>(() => {
     try {
       const storedValue = localStorage.getItem(LOCAL_STORAGE_PENDING_LIMIT_KEY);
-      return storedValue ? JSON.parse(storedValue) : true;
+      const initialValue = storedValue ? JSON.parse(storedValue) : true;
+      console.log("SettingsContext: Initializing isPendingLimitEnabled from localStorage:", initialValue);
+      return initialValue;
     } catch (error) {
-      console.error("Failed to read pending limit from localStorage:", error);
+      console.error("SettingsContext: Failed to read pending limit from localStorage:", error);
       return true; // Fallback to true on error
     }
   });
@@ -34,14 +36,16 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     try {
       localStorage.setItem(LOCAL_STORAGE_PENDING_LIMIT_KEY, JSON.stringify(isPendingLimitEnabled));
+      console.log("SettingsContext: Saved isPendingLimitEnabled to localStorage:", isPendingLimitEnabled);
     } catch (error) {
-      console.error("Failed to save pending limit to localStorage:", error);
+      console.error("SettingsContext: Failed to save pending limit to localStorage:", error);
     }
   }, [isPendingLimitEnabled]);
 
   const togglePendingLimit = useCallback(() => {
+    console.log("SettingsContext: togglePendingLimit called. Current value:", isPendingLimitEnabled);
     setIsPendingLimitEnabled((prev) => !prev);
-  }, []);
+  }, [isPendingLimitEnabled]); // Adicionado isPendingLimitEnabled como dependência para o log
 
   return (
     <SettingsContext.Provider value={{ isPendingLimitEnabled, togglePendingLimit }}>
