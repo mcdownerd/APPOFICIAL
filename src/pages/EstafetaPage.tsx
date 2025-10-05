@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TruckIcon, ClockIcon, CheckCircleIcon, SendIcon } from "lucide-react";
+import { TruckIcon, ClockIcon, CheckCircleIcon, SendIcon } from 'lucide-react';
 import { motion } from "framer-motion";
 import { parseISO, isPast, addMinutes } from "date-fns"; // Importar isPast e addMinutes
 import { cn } from "@/lib/utils";
@@ -143,6 +143,12 @@ const EstafetaPage = () => {
 
   const isCodeValid = code.length === 4 && /^[A-Z0-9]{4}$/.test(code);
   const canSubmit = isCodeValid && !isSubmitting && (isPendingLimitEnabled ? pendingTicketsCount < 4 : true) && !!user?.restaurant_id;
+
+  // --- DEBUG LOGS ---
+  console.log("EstafetaPage: isPendingLimitEnabled", isPendingLimitEnabled);
+  console.log("EstafetaPage: pendingTicketsCount", pendingTicketsCount);
+  console.log("EstafetaPage: canSubmit", canSubmit);
+  // --- END DEBUG LOGS ---
 
   return (
     <motion.div
