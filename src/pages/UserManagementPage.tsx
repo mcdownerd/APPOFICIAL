@@ -118,6 +118,24 @@ const UserManagementPage = () => {
     }
   };
 
+  const handleUpdateDashboardAccessCode = async (userId: string, code: string) => {
+    if (!isAdmin) {
+      showError(t("permissionDenied"));
+      return;
+    }
+    setActionLoading(userId);
+    try {
+      await UserAPI.update(userId, { dashboard_access_code: code || null });
+      showSuccess(t("dashboardAccessCodeUpdated"));
+      fetchUsers();
+    } catch (error) {
+      console.error("Failed to update dashboard access code:", error);
+      showError(t("failedToUpdateDashboardAccessCode"));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const getStatusBadge = (status: UserStatus) => {
     switch (status) {
       case "PENDING":
@@ -174,6 +192,7 @@ const UserManagementPage = () => {
                     <TableHead>{t("email")}</TableHead>
                     <TableHead>{t("role")}</TableHead>
                     <TableHead>{t("restaurantId")}</TableHead>
+                    <TableHead>{t("dashboardAccessCode")}</TableHead> {/* Nova coluna */}
                     <TableHead>{t("status")}</TableHead>
                     <TableHead>{t("createdAt")}</TableHead>
                     <TableHead className="text-right">{t("actions")}</TableHead>
@@ -222,6 +241,20 @@ const UserManagementPage = () => {
                           </Select>
                         ) : (
                           user.restaurant_id || "N/A"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {user.user_role === "estafeta" ? (
+                          <Input
+                            type="text"
+                            value={user.dashboard_access_code || ""}
+                            onChange={(e) => handleUpdateDashboardAccessCode(user.id, e.target.value)}
+                            placeholder={t("setAccessCode")}
+                            className="w-[120px]"
+                            disabled={actionLoading === user.id}
+                          />
+                        ) : (
+                          "N/A"
                         )}
                       </TableCell>
                       <TableCell>{getStatusBadge(user.status)}</TableCell>

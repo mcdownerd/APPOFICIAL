@@ -14,6 +14,8 @@ export interface User {
   status: UserStatus;
   created_date: string; // ISO date string
   restaurant_id?: string;
+  dashboard_access_code?: string | null; // Nova coluna
+  dashboard_activated_at?: string | null; // Nova coluna
 }
 
 export type TicketStatus = "PENDING" | "CONFIRMADO"; // Alterado de "ACKNOWLEDGED" para "CONFIRMADO"
@@ -79,6 +81,8 @@ export const UserAPI = {
       status: data.status,
       created_date: data.created_date,
       restaurant_id: data.restaurant_id,
+      dashboard_access_code: data.dashboard_access_code, // Nova coluna
+      dashboard_activated_at: data.dashboard_activated_at, // Nova coluna
     };
   },
 
@@ -145,6 +149,8 @@ export const UserAPI = {
       status: profile.status,
       created_date: profile.created_date,
       restaurant_id: profile.restaurant_id,
+      dashboard_access_code: profile.dashboard_access_code, // Nova coluna
+      dashboard_activated_at: profile.dashboard_activated_at, // Nova coluna
     }));
   },
 
@@ -170,6 +176,8 @@ export const UserAPI = {
       status: data.status,
       created_date: data.created_date,
       restaurant_id: data.restaurant_id,
+      dashboard_access_code: data.dashboard_access_code, // Nova coluna
+      dashboard_activated_at: data.dashboard_activated_at, // Nova coluna
     };
   },
 };

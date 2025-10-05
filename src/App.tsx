@@ -76,7 +76,7 @@ const App = () => (
                 <Route // Esta é a rota para o DashboardPage
                   path="dashboard"
                   element={
-                    <AuthGuard allowedRoles={["admin", "restaurante"]}>
+                    <AuthGuard allowedRoles={["admin", "restaurante", "estafeta"]}> {/* Adicionado "estafeta" */}
                       <DashboardPage />
                     </AuthGuard>
                   }

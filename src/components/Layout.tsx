@@ -30,7 +30,7 @@ const navItems: NavItem[] = [
   { name: "history", path: "/historico", icon: HistoryIcon, roles: ["restaurante", "admin"] },
   { name: "timeAnalysis", path: "/analise-tempo", icon: BarChart3Icon, roles: ["admin"] },
   { name: "manageUsers", path: "/admin/users", icon: UsersIcon, roles: ["admin"] },
-  { name: "dashboard", path: "/dashboard", icon: LayoutDashboardIcon, roles: ["admin", "restaurante"] }, // Este item deve estar aqui
+  { name: "dashboard", path: "/dashboard", icon: LayoutDashboardIcon, roles: ["admin", "restaurante", "estafeta"] }, // Adicionado "estafeta"
 ];
 
 const getRoleTheme = (role: string | undefined) => {

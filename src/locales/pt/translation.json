@@ -155,5 +155,15 @@
   "restaurantName": "Restaurante",
   "dashboard": "Painel",
   "activeOrdersOverview": "Visão Geral de Pedidos Ativos",
-  "noActiveOrders": "Nenhum pedido ativo encontrado para este período."
+  "noActiveOrders": "Nenhum pedido ativo encontrado para este período.",
+  "activateDashboard": "Ativar Painel",
+  "enterActivationCodeForDashboard": "Insira o código de ativação fornecido pelo seu administrador para acessar o painel.",
+  "activationCode": "Código de Ativação",
+  "activate": "Ativar",
+  "pleaseEnterActivationCode": "Por favor, insira o código de ativação.",
+  "invalidActivationCode": "Código de ativação inválido.",
+  "dashboardActivatedSuccessfully": "Painel ativado com sucesso!",
+  "failedToActivateDashboard": "Falha ao ativar painel. Por favor, tente novamente.",
+  "dashboardAccessCode": "Código de Acesso do Painel",
+  "setAccessCode": "Definir Código de Acesso"
 }

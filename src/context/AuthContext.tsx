@@ -26,6 +26,8 @@ interface AuthContextType {
   isAdmin: boolean;
   isRestaurante: boolean;
   isEstafeta: boolean;
+  isDashboardActivated: boolean; // Nova propriedade
+  userDashboardAccessCode: string | null | undefined; // Nova propriedade
   hasRole: (roles: UserRole[]) => boolean;
   canAccess: (path: string) => boolean;
 }
@@ -33,9 +35,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const rolePaths: Record<UserRole, string[]> = {
-  admin: ["/analise-tempo", "/balcao", "/estafeta", "/historico", "/admin/users"],
-  restaurante: ["/balcao", "/historico"],
-  estafeta: ["/estafeta"],
+  admin: ["/analise-tempo", "/balcao", "/estafeta", "/historico", "/admin/users", "/dashboard"], // Adicionado /dashboard
+  restaurante: ["/balcao", "/historico", "/dashboard"], // Adicionado /dashboard
+  estafeta: ["/estafeta", "/dashboard"], // Adicionado /dashboard
 };
 
 export const SessionContextProvider = ({ children }: { children: ReactNode }) => {
@@ -153,6 +155,7 @@ export const SessionContextProvider = ({ children }: { children: ReactNode }) =>
   const isAdmin = user?.user_role === "admin";
   const isRestaurante = user?.user_role === "restaurante";
   const isEstafeta = user?.user_role === "estafeta";
+  const isDashboardActivated = isEstafeta ? !!user?.dashboard_activated_at : true; // Estafeta precisa de ativação
 
   const hasRole = useCallback(
     (roles: UserRole[]) => {
@@ -164,6 +167,12 @@ export const SessionContextProvider = ({ children }: { children: ReactNode }) =>
   const canAccess = useCallback(
     (path: string) => {
       if (!isAuthenticated || !isApproved || !user) return false;
+      
+      // Se for estafeta e tentar acessar o dashboard sem ativação, negar acesso
+      if (user.user_role === "estafeta" && path === "/dashboard" && !user.dashboard_activated_at) {
+        return false;
+      }
+
       const allowedPaths = rolePaths[user.user_role as UserRole];
       return allowedPaths && allowedPaths.includes(path);
     },
@@ -185,6 +194,8 @@ export const SessionContextProvider = ({ children }: { children: ReactNode }) =>
         isAdmin,
         isRestaurante,
         isEstafeta,
+        isDashboardActivated, // Nova propriedade
+        userDashboardAccessCode: user?.dashboard_access_code, // Nova propriedade
         hasRole,
         canAccess,
       }}

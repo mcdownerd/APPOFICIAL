@@ -156,5 +156,15 @@
   "restaurantName": "Restaurant",
   "dashboard": "Dashboard",
   "activeOrdersOverview": "Active Orders Overview",
-  "noActiveOrders": "No active orders found for this period."
+  "noActiveOrders": "No active orders found for this period.",
+  "activateDashboard": "Activate Dashboard",
+  "enterActivationCodeForDashboard": "Enter the activation code provided by your administrator to access the dashboard.",
+  "activationCode": "Activation Code",
+  "activate": "Activate",
+  "pleaseEnterActivationCode": "Please enter the activation code.",
+  "invalidActivationCode": "Invalid activation code.",
+  "dashboardActivatedSuccessfully": "Dashboard activated successfully!",
+  "failedToActivateDashboard": "Failed to activate dashboard. Please try again.",
+  "dashboardAccessCode": "Dashboard Access Code",
+  "setAccessCode": "Set Access Code"
 }
