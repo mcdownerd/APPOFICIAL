@@ -16,6 +16,7 @@ import BalcaoPage from "./pages/BalcaoPage";
 import HistoricoPage from "./pages/HistoricoPage";
 import AnaliseTempoPage from "./pages/AnaliseTempoPage";
 import UserManagementPage from "./pages/UserManagementPage";
+import DashboardPage from "./pages/DashboardPage"; // Certifique-se que DashboardPage está importado
 
 const queryClient = new QueryClient();
 
@@ -59,7 +60,7 @@ const App = () => (
                 <Route
                   path="analise-tempo"
                   element={
-                    <AuthGuard allowedRoles={["admin", "restaurante"]}> {/* Adicionado 'restaurante' */}
+                    <AuthGuard allowedRoles={["admin", "restaurante"]}>
                       <AnaliseTempoPage />
                     </AuthGuard>
                   }
@@ -69,6 +70,14 @@ const App = () => (
                   element={
                     <AuthGuard allowedRoles={["admin"]}>
                       <UserManagementPage />
+                    </AuthGuard>
+                  }
+                />
+                <Route // Esta é a rota para o DashboardPage
+                  path="dashboard"
+                  element={
+                    <AuthGuard allowedRoles={["admin", "restaurante"]}>
+                      <DashboardPage />
                     </AuthGuard>
                   }
                 />

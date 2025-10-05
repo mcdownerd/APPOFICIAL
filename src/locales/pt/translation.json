@@ -31,6 +31,7 @@
   "history": "Histórico",
   "timeAnalysis": "Análise de Tempo",
   "manageUsers": "Gerenciar Usuários",
+  "dashboard": "Painel",
   "sessionEnded": "Sessão terminada.",
   "loginFailed": "Falha no login. Tente novamente.",
   "userNotAuthenticated": "Usuário não autenticado.",
@@ -151,5 +152,8 @@
   "refreshPage": "Atualizar Página",
   "created": "Criado",
   "confirmed": "Confirmado",
-  "restaurantName": "Restaurante"
+  "restaurantName": "Restaurante",
+  "dashboard": "Painel",
+  "activeOrdersOverview": "Visão Geral de Pedidos Ativos",
+  "noActiveOrders": "Nenhum pedido ativo encontrado para este período."
 }

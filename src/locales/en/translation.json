@@ -31,6 +31,7 @@
   "history": "History",
   "timeAnalysis": "Time Analysis",
   "manageUsers": "Manage Users",
+  "dashboard": "Dashboard",
   "sessionEnded": "Session ended.",
   "loginFailed": "Login failed. Please try again.",
   "userNotAuthenticated": "User not authenticated.",
@@ -152,5 +153,8 @@
   "refreshPage": "Refresh Page",
   "created": "Created",
   "confirmed": "Confirmed",
-  "restaurantName": "Restaurant"
+  "restaurantName": "Restaurant",
+  "dashboard": "Dashboard",
+  "activeOrdersOverview": "Active Orders Overview",
+  "noActiveOrders": "No active orders found for this period."
 }
