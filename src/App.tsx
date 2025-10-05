@@ -7,7 +7,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import RegisterPage from "./pages/RegisterPage";
-import { SessionContextProvider } from "./context/AuthContext"; // Updated provider
+import { SessionContextProvider } from "./context/AuthContext";
 import { SettingsProvider } from "./context/SettingsContext";
 import { Layout } from "./components/Layout";
 import { AuthGuard } from "./components/AuthGuard";
@@ -16,7 +16,7 @@ import BalcaoPage from "./pages/BalcaoPage";
 import HistoricoPage from "./pages/HistoricoPage";
 import AnaliseTempoPage from "./pages/AnaliseTempoPage";
 import UserManagementPage from "./pages/UserManagementPage";
-import DashboardPage from "./pages/DashboardPage"; // Certifique-se que DashboardPage está importado
+import DashboardPage from "./pages/DashboardPage";
 
 const queryClient = new QueryClient();
 
@@ -27,7 +27,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <SettingsProvider>
-          <SessionContextProvider> {/* Use new Supabase provider */}
+          <SessionContextProvider>
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<RegisterPage />} />
@@ -73,10 +73,10 @@ const App = () => (
                     </AuthGuard>
                   }
                 />
-                <Route // Esta é a rota para o DashboardPage
+                <Route
                   path="dashboard"
                   element={
-                    <AuthGuard allowedRoles={["admin", "restaurante", "estafeta"]}> {/* Adicionado "estafeta" */}
+                    <AuthGuard allowedRoles={["admin"]}> {/* Apenas admin pode acessar o dashboard */}
                       <DashboardPage />
                     </AuthGuard>
                   }

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
-import { HomeIcon, TruckIcon, UtensilsCrossedIcon, BarChart3Icon, HistoryIcon, UsersIcon, LayoutDashboardIcon } from "lucide-react"; // Importar todos os ícones necessários
+import { HomeIcon, TruckIcon, UtensilsCrossedIcon, BarChart3Icon, HistoryIcon, UsersIcon, LayoutDashboardIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 const navItems = [
@@ -11,7 +11,7 @@ const navItems = [
   { path: "/historico", roles: ["restaurante", "admin"] },
   { path: "/analise-tempo", roles: ["admin"] },
   { path: "/admin/users", roles: ["admin"] },
-  { path: "/dashboard", roles: ["admin", "restaurante", "estafeta"] }, // Adicionado "estafeta"
+  { path: "/dashboard", roles: ["admin"] }, // Apenas admin
 ];
 
 const Index = () => {
