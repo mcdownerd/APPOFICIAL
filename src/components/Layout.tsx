@@ -16,6 +16,7 @@ import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useTranslation } from "react-i18next";
+import MainContentCard from "./MainContentCard"; // Importar o novo componente
 
 interface NavItem {
   name: string;
@@ -28,7 +29,7 @@ const navItems: NavItem[] = [
   { name: "sendCodes", path: "/estafeta", icon: TruckIcon, roles: ["estafeta", "admin"] },
   { name: "counter", path: "/balcao", icon: UtensilsCrossedIcon, roles: ["restaurante", "admin"] },
   { name: "history", path: "/historico", icon: HistoryIcon, roles: ["restaurante", "admin"] },
-  { name: "timeAnalysis", path: "/analise-tempo", icon: BarChart3Icon, roles: ["admin", "restaurante"] }, // Adicionado 'restaurante'
+  { name: "timeAnalysis", path: "/analise-tempo", icon: BarChart3Icon, roles: ["admin", "restaurante"] },
   { name: "manageUsers", path: "/admin/users", icon: UsersIcon, roles: ["admin"] },
 ];
 
@@ -39,7 +40,7 @@ const getRoleTheme = (role: string | undefined) => {
         bg: "from-amber-50 to-orange-100",
         text: "text-orange-800",
       };
-    case "restaurante": // Alterado para corresponder ao tema do admin
+    case "restaurante":
       return {
         bg: "from-blue-50 to-indigo-100",
         text: "text-indigo-800",
@@ -90,7 +91,6 @@ const SidebarContent = ({ onClose }: { onClose?: () => void }) => {
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex-1 overflow-y-auto p-4">
-        {/* Removed "DeliveryFlow" title from here, now in main header */}
         <nav className="space-y-2">
           {filteredNavItems.map((item) => (
             <Link
@@ -132,10 +132,8 @@ const SidebarContent = ({ onClose }: { onClose?: () => void }) => {
                 {t(user.user_role)}
               </Badge>
             </div>
-            {/* Removed logout button from here, now in main header */}
           </div>
         )}
-        {/* Removed LanguageSwitcher from here, now in main header */}
       </div>
     </div>
   );
@@ -170,7 +168,6 @@ export const Layout = () => {
   }
 
   if (!isAuthenticated) {
-    // Redirect to login if not authenticated
     navigate("/login", { replace: true });
     return null;
   }
@@ -236,11 +233,13 @@ export const Layout = () => {
             )}
           </div>
         </header>
-        <main className="flex-1 p-4 lg:p-6 w-full flex flex-col"> {/* Adicionado flex flex-col aqui */}
-          <Outlet />
-          <footer className="mt-auto pt-6 text-center text-sm text-muted-foreground">
-            {t("developedBy")}
-          </footer>
+        <main className="flex-1 w-full flex flex-col items-center p-4 lg:p-6"> {/* Ajustado para centralizar o cartão e adicionar padding ao redor */}
+          <MainContentCard> {/* Envolve o conteúdo principal e o rodapé */}
+            <Outlet />
+            <footer className="mt-auto pt-6 text-center text-sm text-muted-foreground">
+              {t("developedBy")}
+            </footer>
+          </MainContentCard>
         </main>
       </div>
     </div>

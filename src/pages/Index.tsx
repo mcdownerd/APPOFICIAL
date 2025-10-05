@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
 import { HomeIcon } from "lucide-react";
-import { useTranslation } from "react-i18next"; // Import useTranslation
+import { useTranslation } from "react-i18next";
 
 const navItems = [
   { path: "/estafeta", roles: ["estafeta", "admin"] },
@@ -15,7 +15,7 @@ const navItems = [
 
 const Index = () => {
   const { isAuthenticated, isApproved, user, isLoading } = useAuth();
-  const { t } = useTranslation(); // Use translation hook
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -30,16 +30,14 @@ const Index = () => {
   }, [isAuthenticated, isApproved, user, isLoading, navigate]);
 
   if (isLoading || !isAuthenticated || !isApproved || !user) {
-    return null; // O Layout já está lidando com os estados de carregamento, não autenticado, pendente e rejeitado.
+    return null;
   }
 
-  // Se o usuário está autenticado e aprovado, mas não foi redirecionado para uma página específica,
-  // exibe uma mensagem de boas-vindas genérica.
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col items-center justify-center min-h-[60vh] text-center p-4"
+      className="flex flex-col items-center justify-center text-center p-4"
     >
       <HomeIcon className="h-16 w-16 text-blue-500 mb-4" />
       <h1 className="text-4xl font-bold text-gray-800 mb-2">{t("welcomeToDeliveryFlow")}</h1>
