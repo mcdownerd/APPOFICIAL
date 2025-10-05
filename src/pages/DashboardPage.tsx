@@ -23,9 +23,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input"; // Importar Input
+import { Input } from "@/components/ui/input";
 import { LayoutDashboardIcon, RefreshCwIcon, CheckCircleIcon, ClockIcon, CalendarIcon, ArrowUpDown, Loader2, Trash2Icon, UtensilsCrossedIcon, KeyIcon } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isPast, addMinutes } from "date-fns"; // Importar isPast e addMinutes
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
@@ -85,7 +85,7 @@ export default function DashboardPage() {
   }, [availableRestaurants, t]);
 
   const fetchActiveTickets = useCallback(async () => {
-    if (!user || (isEstafeta && !isDashboardActivated)) { // Não carregar tickets se estafeta não ativou
+    if (!user || (isEstafeta && !isDashboardActivated)) {
       setLoading(false);
       setRefreshing(false);
       return;
@@ -94,31 +94,64 @@ export default function DashboardPage() {
     setRefreshing(true);
     try {
       let tickets: Ticket[] = [];
-      // Modificado para buscar tickets PENDING e CONFIRMADO
-      const filter: Partial<Ticket> = { soft_deleted: false }; 
+      const filter: Partial<Ticket> = {}; // Buscar todos os tickets não deletados, independentemente do status
 
       if (isAdmin) {
         if (selectedRestaurant !== "all") {
           filter.restaurant_id = selectedRestaurant;
         }
-        // Para admin, buscar todos os tickets não deletados, independentemente do status
-        tickets = await TicketAPI.filter(filter, "created_date"); 
+        tickets = await TicketAPI.filter(filter, "created_date");
       } else if ((isRestaurante || isEstafeta) && user.restaurant_id) {
         filter.restaurant_id = user.restaurant_id;
-        // Para restaurante/estafeta, buscar tickets não deletados do seu restaurante
-        tickets = await TicketAPI.filter(filter, "created_date"); 
+        tickets = await TicketAPI.filter(filter, "created_date");
       } else {
         tickets = [];
       }
 
-      const ticketsWithRestaurantName: TicketWithRestaurantName[] = tickets.map(ticket => ({
-        ...ticket,
-        restaurantNameDisplay: getRestaurantNameForTicket(ticket.restaurant_id),
-      }));
+      const now = new Date();
+      const ticketsToDisplay: TicketWithRestaurantName[] = [];
 
-      // Apply client-side sorting (if needed for card view, but for counter, usually by creation date)
+      tickets.forEach(ticket => {
+        // Filtrar tickets soft-deleted que já passaram de 1 minuto
+        if (ticket.soft_deleted) {
+          if (ticket.deleted_at) {
+            const deletedAtDate = parseISO(ticket.deleted_at);
+            const oneMinuteAfterDeletion = addMinutes(deletedAtDate, 1);
+            if (isPast(oneMinuteAfterDeletion)) {
+              return; // Não incluir se já passou 1 minuto desde a exclusão
+            }
+          } else {
+            return; // Se soft_deleted é true mas deleted_at é null, ignorar
+          }
+        }
+
+        // Filtrar tickets CONFIRMADO que já passaram de 1 minuto
+        if (ticket.status === "CONFIRMADO") {
+          if (ticket.acknowledged_at) {
+            const acknowledgedAtDate = parseISO(ticket.acknowledged_at);
+            const oneMinuteAfterAcknowledgement = addMinutes(acknowledgedAtDate, 1);
+            if (isPast(oneMinuteAfterAcknowledgement)) {
+              return; // Não incluir se já passou 1 minuto desde a confirmação
+            }
+          } else {
+            // Se status é CONFIRMADO mas acknowledged_at é null (caso improvável),
+            // podemos optar por não mostrar ou mostrar por um tempo padrão.
+            // Por simplicidade, vamos ignorar se acknowledged_at for null para tickets CONFIRMADO.
+            return;
+          }
+        }
+        
+        // Incluir tickets que não foram soft-deleted há mais de 1 minuto,
+        // e tickets PENDING, e tickets CONFIRMADO há menos de 1 minuto.
+        ticketsToDisplay.push({
+          ...ticket,
+          restaurantNameDisplay: getRestaurantNameForTicket(ticket.restaurant_id),
+        });
+      });
+
+      // Ordenar os tickets restantes
       if (sortConfig) {
-        ticketsWithRestaurantName.sort((a, b) => {
+        ticketsToDisplay.sort((a, b) => {
           let aValue: any;
           let bValue: any;
 
@@ -157,7 +190,7 @@ export default function DashboardPage() {
         });
       }
 
-      setActiveTickets(ticketsWithRestaurantName);
+      setActiveTickets(ticketsToDisplay);
     } catch (error) {
       console.error("Failed to fetch active tickets for dashboard:", error);
       showError(t("failedToLoadActiveTickets"));
