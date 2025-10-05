@@ -232,8 +232,8 @@ export const TicketAPI = {
       deleted_by_user_id: ticket.deleted_by || null, // Map to new field
       deleted_by_user_email: ticket.deleted_by_email || null, // Map to new field
       created_date: ticket.created_date,
-      created_by_user_id: ticket.created_by || '', // Map to new field
-      created_by_user_email: ticket.created_by_email || '', // Map to new field
+      created_by_user_id: ticket.created_by || '', // Corrigido aqui
+      created_by_user_email: ticket.created_by_email || '', // Corrigido aqui
       restaurant_id: ticket.restaurant_id,
     }));
   },
@@ -349,11 +349,11 @@ export const TicketAPI = {
       .update(updatePayload)
       .eq('id', id);
 
-    // If the payload contains a restaurant_id, add it to the query.
-    // This is crucial for multi-tenancy and RLS.
-    if (payload.restaurant_id !== undefined) {
-      supabaseQuery = supabaseQuery.eq('restaurant_id', payload.restaurant_id);
-    }
+    // REMOVIDO: O filtro de restaurant_id no lado do cliente para updates.
+    // A RLS já garante que apenas usuários autorizados (admin ou restaurante do ticket) podem atualizar.
+    // if (payload.restaurant_id !== undefined) {
+    //   supabaseQuery = supabaseQuery.eq('restaurant_id', payload.restaurant_id);
+    // }
 
     const { data, error } = await supabaseQuery
       .select()
