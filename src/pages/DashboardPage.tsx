@@ -56,12 +56,6 @@ export default function DashboardPage() {
   const [activationCode, setActivationCode] = useState("");
   const [isActivating, setIsActivating] = useState(false);
 
-  // Estados para a funcionalidade de confirmação/remoção de tickets (para estafetas e restaurantes)
-  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set());
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
-  const doubleClickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const DOUBLE_CLICK_THRESHOLD = 500; // milliseconds
-
   // Fetch available restaurants for admin filter and display
   useEffect(() => {
     const fetchRestaurants = async () => {
@@ -209,98 +203,7 @@ export default function DashboardPage() {
     }
   };
 
-  // Lógica de confirmação/remoção de tickets (adaptada do BalcaoPage)
-  const handleTicketClick = async (ticket: Ticket) => {
-    if (!user) {
-      showError(t("userNotAuthenticated"));
-      return;
-    }
-    if (processingTickets.has(ticket.id)) return;
-
-    if (ticket.status === 'PENDING') {
-      // Acknowledge ticket
-      await handleAcknowledge(ticket);
-    } else if (ticket.status === 'CONFIRMADO') {
-      if (pendingDelete === ticket.id) {
-        // This is the second click on the same ticket
-        if (doubleClickTimeoutRef.current) {
-          clearTimeout(doubleClickTimeoutRef.current);
-          doubleClickTimeoutRef.current = null; // Clear the ref
-        }
-        await handleSoftDelete(ticket);
-        setPendingDelete(null); // Clear pendingDelete after successful deletion
-      } else {
-        // This is the first click on this ticket (or a new first click after timeout)
-        // Clear any existing pending delete for other tickets
-        if (doubleClickTimeoutRef.current) {
-          clearTimeout(doubleClickTimeoutRef.current);
-          doubleClickTimeoutRef.current = null;
-        }
-        setPendingDelete(ticket.id);
-        showInfo(t('clickAgainToRemove'));
-        
-        doubleClickTimeoutRef.current = setTimeout(() => {
-          setPendingDelete(null); // Reset pendingDelete if no second click within threshold
-          doubleClickTimeoutRef.current = null;
-        }, DOUBLE_CLICK_THRESHOLD);
-      }
-    }
-  };
-
-  const handleAcknowledge = async (ticket: Ticket) => {
-    if (!user || processingTickets.has(ticket.id)) return;
-
-    setProcessingTickets(prev => new Set(prev).add(ticket.id));
-    
-    try {
-      await TicketAPI.update(ticket.id, {
-        status: 'CONFIRMADO',
-        acknowledged_by_user_id: user.id,
-        acknowledged_by_user_email: user.email,
-        restaurant_id: ticket.restaurant_id,
-      });
-      
-      showSuccess(t('ticketConfirmedSuccessfully'));
-      await fetchActiveTickets();
-    } catch (error) {
-      console.error('Error acknowledging ticket:', error);
-      showError(t('failedToConfirmTicket'));
-    } finally {
-      setProcessingTickets(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(ticket.id);
-        return newSet;
-      });
-    }
-  };
-
-  const handleSoftDelete = async (ticket: Ticket) => {
-    if (!user || processingTickets.has(ticket.id)) return;
-
-    setProcessingTickets(prev => new Set(prev).add(ticket.id));
-    
-    try {
-      await TicketAPI.update(ticket.id, {
-        soft_deleted: true,
-        deleted_by_user_id: user.id,
-        deleted_by_user_email: user.email,
-        restaurant_id: ticket.restaurant_id,
-      });
-      
-      showSuccess(t('ticketRemovedSuccessfully'));
-      await fetchActiveTickets();
-    } catch (error) {
-      console.error('Error soft deleting ticket:', error);
-      showError(t('failedToRemoveTicket'));
-    } finally {
-      setProcessingTickets(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(ticket.id);
-        return newSet;
-      });
-    }
-  };
-
+  // A função getTicketStatus é mantida, mas suas propriedades interativas não serão usadas na renderização
   const getTicketStatus = (ticket: Ticket) => {
     if (ticket.status === 'PENDING') {
       return {
@@ -308,20 +211,18 @@ export default function DashboardPage() {
         icon: ClockIcon,
         className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
         cardClass: 'border-yellow-300 bg-yellow-50',
-        clickable: true,
-        clickText: t('clickToConfirm')
+        clickable: false, // Não clicável para este painel
+        clickText: '' // Texto de clique removido
       };
     }
-    
+    // Este bloco não deve ser alcançado, pois fetchActiveTickets filtra por PENDING
     return {
       label: t('acknowledged'),
       icon: CheckCircleIcon,
       className: 'bg-green-100 text-green-800 border-green-200',
       cardClass: 'border-green-300 bg-green-50',
-      clickable: true,
-      clickText: pendingDelete === ticket.id 
-        ? t('clickAgainToRemove')
-        : t('removeTicket')
+      clickable: false,
+      clickText: ''
     };
   };
 
@@ -556,8 +457,6 @@ export default function DashboardPage() {
             {activeTickets.map((ticket, index) => {
               const status = getTicketStatus(ticket);
               const StatusIcon = status.icon;
-              const isProcessing = processingTickets.has(ticket.id);
-              const isPendingDelete = pendingDelete === ticket.id;
               
               return (
                 <motion.div
@@ -571,58 +470,38 @@ export default function DashboardPage() {
                 >
                   <Card 
                     className={cn(
-                      "h-full cursor-pointer transition-all duration-200 border-2 relative", // Adicionado relative
+                      "h-full transition-all duration-200 border-2 relative", // Removido cursor-pointer
                       status.cardClass,
-                      status.clickable ? 'hover:shadow-lg hover:scale-105' : '',
-                      isPendingDelete ? 'ring-4 ring-red-500 shadow-xl' : 'hover-lift',
-                      isProcessing ? 'opacity-60 cursor-not-allowed' : '',
                       "flex flex-col"
                     )}
-                    onClick={() => !isProcessing && handleTicketClick(ticket)}
+                    // Removido onClick
                   >
                     {/* Posição do ticket (1º, 2º, etc.) */}
                     <Badge className="absolute top-2 left-2 bg-yellow-200 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full">
                       {index + 1}º
                     </Badge>
-                    {/* Botão de remover (X) */}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute top-1 right-1 h-6 w-6 text-gray-500 hover:text-red-500"
-                      onClick={(e) => {
-                        e.stopPropagation(); // Previne o clique no cartão
-                        handleSoftDelete(ticket);
-                      }}
-                      disabled={isProcessing}
-                    >
-                      <Trash2Icon className="h-4 w-4" />
-                    </Button>
+                    {/* Botão de remover (X) - REMOVIDO */}
 
                     <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">
                       <div className="text-center mt-6"> {/* Ajuste para não sobrepor o badge */}
-                        <p className="text-4xl font-mono font-extrabold tracking-wider text-gray-900">
+                        <Badge 
+                          className={cn(
+                            "text-4xl font-mono font-extrabold tracking-wider px-4 py-2",
+                            "bg-yellow-200 text-yellow-900" // Estilo fixo para o código
+                          )}
+                        >
                           {ticket.code}
-                        </p>
+                        </Badge>
                       </div>
                       
                       <div className="flex justify-center">
                         <Badge className={cn("px-3 py-1 text-sm font-semibold", status.className)}>
-                          {isProcessing ? (
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          ) : (
-                            <StatusIcon className="h-4 w-4 mr-2" />
-                          )}
+                          <StatusIcon className="h-4 w-4 mr-2" />
                           {status.label}
                         </Badge>
                       </div>
                       
-                      {status.clickable && !isProcessing && (
-                        <div className="text-center mt-2">
-                          <p className={cn("text-xs font-medium", isPendingDelete ? 'text-red-700' : 'text-muted-foreground')}>
-                            {status.clickText}
-                          </p>
-                        </div>
-                      )}
+                      {/* Texto "Clique para confirmar" - REMOVIDO */}
                       
                       <div className="text-center text-xs text-muted-foreground space-y-1 mt-auto pt-3 border-t border-gray-200/50">
                         <p>
