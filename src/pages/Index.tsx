@@ -37,7 +37,7 @@ const Index = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col items-center justify-center text-center p-4"
+      className="flex flex-col items-center justify-center min-h-[60vh] text-center p-4"
     >
       <HomeIcon className="h-16 w-16 text-blue-500 mb-4" />
       <h1 className="text-4xl font-bold text-gray-800 mb-2">{t("welcomeToDeliveryFlow")}</h1>
