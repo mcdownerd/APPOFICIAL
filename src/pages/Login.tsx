@@ -10,7 +10,6 @@ import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useTranslation } from "react-i18next";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"; // Import Card components
 
 const Login = () => {
   const { isAuthenticated, isApproved, user, isLoading } = useAuth();
@@ -36,42 +35,34 @@ const Login = () => {
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4"
     >
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold text-gray-800">{t("loginToYourAccount")}</CardTitle>
-          <CardDescription className="text-gray-600 mt-2">
-            {t("testEmailsHint")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Auth
-            supabaseClient={supabase}
-            appearance={{ 
-              theme: ThemeSupa,
-              variables: {
-                default: {
-                  colors: {
-                    brand: '#3b82f6', // Blue for primary
-                    brandAccent: '#1d4ed8',
-                  },
+      <div className="w-full max-w-md">
+        <Auth
+          supabaseClient={supabase}
+          appearance={{ 
+            theme: ThemeSupa,
+            variables: {
+              default: {
+                colors: {
+                  brand: '#3b82f6', // Blue for primary
+                  brandAccent: '#1d4ed8',
                 },
               },
-            }}
-            theme="light"
-            providers={[]} // Only email/password
-            view="sign_in"
-            redirectTo={window.location.origin} // Redirect after auth
-          />
-          <div className="mt-4 text-center">
-            <p className="text-sm text-gray-500">
-              {t("noAccount")}{" "}
-              <a href="/register" className="text-blue-500 hover:underline">
-                {t("register")}
-              </a>
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+            },
+          }}
+          theme="light"
+          providers={[]} // Only email/password
+          view="sign_in"
+          redirectTo={window.location.origin} // Redirect after auth
+        />
+        <div className="mt-4 text-center">
+          <p className="text-sm text-gray-500">
+            {t("noAccount")}{" "}
+            <a href="/register" className="text-blue-500 hover:underline">
+              {t("register")}
+            </a>
+          </p>
+        </div>
+      </div>
       <div className="mt-4">
         <LanguageSwitcher />
       </div>
