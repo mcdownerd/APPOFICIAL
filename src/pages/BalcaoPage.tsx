@@ -33,6 +33,9 @@ export default function BalcaoPage() {
   const doubleClickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const DOUBLE_CLICK_THRESHOLD = 500; // milliseconds
 
+  // DEBUG LOG: Verifique o estado do isPendingLimitEnabled na BalcaoPage
+  console.log("BalcaoPage: isPendingLimitEnabled", isPendingLimitEnabled);
+
   // Fetch available restaurants for admin filter
   useEffect(() => {
     const fetchRestaurants = async () => {
