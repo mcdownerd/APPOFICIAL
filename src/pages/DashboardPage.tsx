@@ -266,7 +266,7 @@ export default function DashboardPage() {
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-center p-4"
       >
-        <LayoutDashboardIcon className="h-16 w-16 text-red-500 mb-4" />
+        <UtensilsCrossedIcon className="h-16 w-16 text-red-500 mb-4" />
         <h3 className="text-2xl font-bold text-gray-800">{t("restaurantIdMissing")}</h3>
         <p className="text-lg text-gray-600">
           {t("assignRestaurantIdMessage")}
@@ -278,136 +278,20 @@ export default function DashboardPage() {
     );
   }
 
-  // Renderização para Admin (tabela)
-  if (isAdmin) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="space-y-6 w-full"
-      >
-        <div className="flex items-center gap-4">
-          <LayoutDashboardIcon className="h-8 w-8 text-blue-600" />
-          <h2 className="text-3xl font-bold text-gray-800">{t("dashboard")}</h2>
-        </div>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-2xl font-bold">{t("activeOrdersOverview")}</CardTitle>
-            <div className="flex items-center gap-2">
-              {isAdmin && (
-                <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder={t("selectRestaurant")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("all")}</SelectItem>
-                    {availableRestaurants.map(r => (
-                      <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              <Button variant="outline" size="icon" onClick={fetchActiveTickets} disabled={loading}>
-                <RefreshCwIcon className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-                <span className="sr-only">{t("refresh")}</span>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex flex-col gap-4 p-4">
-                <Skeleton className="h-10 w-full" />
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
-              </div>
-            ) : activeTickets.length === 0 ? (
-              <p className="text-center text-gray-500 p-8">{t("noActiveOrders")}</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>
-                        <Button variant="ghost" onClick={() => handleSort('code')} className="p-0 h-auto">
-                          {t("code")}
-                          <ArrowUpDown className={cn("ml-2 h-4 w-4", sortConfig?.key === 'code' && sortConfig.direction === 'desc' && 'rotate-180')} />
-                        </Button>
-                      </TableHead>
-                      <TableHead>
-                        <Button variant="ghost" onClick={() => handleSort('status')} className="p-0 h-auto">
-                          {t("status")}
-                          <ArrowUpDown className={cn("ml-2 h-4 w-4", sortConfig?.key === 'status' && sortConfig.direction === 'desc' && 'rotate-180')} />
-                        </Button>
-                      </TableHead>
-                      <TableHead>
-                        <Button variant="ghost" onClick={() => handleSort('restaurantName')} className="p-0 h-auto">
-                          {t("restaurantName")}
-                          <ArrowUpDown className={cn("ml-2 h-4 w-4", sortConfig?.key === 'restaurantName' && sortConfig.direction === 'desc' && 'rotate-180')} />
-                        </Button>
-                      </TableHead>
-                      <TableHead>
-                        <Button variant="ghost" onClick={() => handleSort('created_by_user_email')} className="p-0 h-auto">
-                          {t("createdBy")}
-                          <ArrowUpDown className={cn("ml-2 h-4 w-4", sortConfig?.key === 'created_by_user_email' && sortConfig.direction === 'desc' && 'rotate-180')} />
-                        </Button>
-                      </TableHead>
-                      <TableHead>
-                        <Button variant="ghost" onClick={() => handleSort('created_date')} className="p-0 h-auto">
-                          {t("createdAt")}
-                          <ArrowUpDown className={cn("ml-2 h-4 w-4", sortConfig?.key === 'created_date' && sortConfig.direction === 'desc' && 'rotate-180')} />
-                        </Button>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {activeTickets.map((ticket) => (
-                      <TableRow key={ticket.id}>
-                        <TableCell className="font-medium">{ticket.code}</TableCell>
-                        <TableCell>
-                          {ticket.status === "PENDING" ? (
-                            <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
-                              <ClockIcon className="mr-1 h-3 w-3" /> {t("pending")}
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-green-100 text-green-800">
-                              <CheckCircleIcon className="mr-1 h-3 w-3" /> {t("ready")}
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>{ticket.restaurantNameDisplay}</TableCell>
-                        <TableCell>{ticket.created_by_user_email}</TableCell>
-                        <TableCell className="flex items-center gap-2">
-                          <CalendarIcon className="h-4 w-4 text-gray-500" />
-                          <span>{formatDateWithWeekday(ticket.created_date, i18n.language === 'pt' ? ptBR : undefined)}</span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </motion.div>
-    );
-  }
-
-  // Renderização para Estafeta Ativado e Restaurante (cartões)
+  // Renderização unificada para todos os papéis com acesso (atualmente apenas Admin)
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
+      className="space-y-6 w-full"
     >
       {/* Header with refresh button and restaurant selector */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold text-gray-800">
-            {t('ordersCounter')}
-            {user?.restaurant_id && (
-              <span className="ml-2 text-blue-600">({getRestaurantNameForTicket(user.restaurant_id)})</span>
+            {t('dashboard')}
+            {isAdmin && selectedRestaurant !== "all" && (
+              <span className="ml-2 text-blue-600">({availableRestaurants.find(r => r.id === selectedRestaurant)?.name || selectedRestaurant})</span>
             )}
           </h2>
           <p className="text-muted-foreground">
@@ -416,6 +300,19 @@ export default function DashboardPage() {
         </div>
         
         <div className="flex items-center gap-4">
+          {isAdmin && ( // O seletor de restaurante só aparece para admins
+            <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder={t("selectRestaurant")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("all")}</SelectItem>
+                {availableRestaurants.map(r => (
+                  <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Button
             onClick={fetchActiveTickets}
             variant="outline"
@@ -444,7 +341,7 @@ export default function DashboardPage() {
           <Card className="shadow-lg">
             <CardContent className="py-12">
               <UtensilsCrossedIcon className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
-              <h3 className="text-lg font-medium mb-2 text-gray-800">{t('noActiveTickets')}</h3>
+              <h3 className="text-lg font-medium mb-2 text-gray-800">{t('noActiveOrders')}</h3>
               <p className="text-muted-foreground">
                 {t('awaitingNewCodes')}
               </p>
@@ -479,7 +376,6 @@ export default function DashboardPage() {
                     <Badge className="absolute top-2 left-2 bg-yellow-200 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full">
                       {index + 1}º
                     </Badge>
-                    {/* Botão de remover (X) - REMOVIDO */}
 
                     <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">
                       <div className="text-center mt-6"> {/* Ajuste para não sobrepor o badge */}
@@ -499,8 +395,6 @@ export default function DashboardPage() {
                           {status.label}
                         </Badge>
                       </div>
-                      
-                      {/* Texto "Clique para confirmar" - REMOVIDO */}
                       
                       <div className="text-center text-xs text-muted-foreground space-y-1 mt-auto pt-3 border-t border-gray-200/50">
                         <p>
