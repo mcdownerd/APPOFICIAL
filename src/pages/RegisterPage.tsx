@@ -14,12 +14,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { LayoutDashboardIcon } from "lucide-react";
 
 // Importar localizações do Supabase Auth UI
-import { pt } from '@supabase/auth-ui-shared/dist/i18n/pt';
-import { en } from '@supabase/auth-ui-shared/dist/i18n/en';
+import * as SupabaseAuthUI from '@supabase/auth-ui-shared';
 
 const RegisterPage = () => {
   const { isAuthenticated, isApproved, user, isLoading } = useAuth();
-  const { t, i18n } = useTranslation(); // Usar i18n diretamente do useTranslation
+  const { t, i18n: reactI18n } = useTranslation(); // Renomeado para evitar conflito com o import do Supabase
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -38,7 +37,7 @@ const RegisterPage = () => {
   if (isLoading) return null;
 
   // Selecionar o objeto de localização correto
-  const currentLocalization = i18n.language === 'pt' ? pt : en;
+  const currentLocalization = reactI18n.language === 'pt' ? SupabaseAuthUI.i18n.locales.pt : SupabaseAuthUI.i18n.locales.en;
 
   return (
     <motion.div
