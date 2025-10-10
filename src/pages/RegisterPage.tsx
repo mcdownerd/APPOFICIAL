@@ -52,9 +52,9 @@ const RegisterPage = () => {
             },
           }}
           theme="light"
-          providers={['google']} // Adicionado 'google' aqui
+          providers={['google']}
           view="sign_up"
-          redirectTo={window.location.origin}
+          redirectTo={window.location.origin + '/'} // Redireciona explicitamente para a raiz
         />
         <div className="mt-4 text-center">
           <p className="text-sm text-gray-500">
@@ -64,7 +64,7 @@ const RegisterPage = () => {
             </a>
           </p>
           <p className="text-xs text-gray-400 mt-2">
-            {t("testEmailsHint")} {/* Adapt if needed */}
+            {t("testEmailsHint")}
           </p>
         </div>
       </div>

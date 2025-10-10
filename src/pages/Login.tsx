@@ -50,9 +50,9 @@ const Login = () => {
             },
           }}
           theme="light"
-          providers={['google']} // Adicionado 'google' aqui
+          providers={['google']}
           view="sign_in"
-          redirectTo={window.location.origin} // Redirect after auth
+          redirectTo={window.location.origin + '/'} // Redireciona explicitamente para a raiz
         />
         <div className="mt-4 text-center">
           <p className="text-sm text-gray-500">
