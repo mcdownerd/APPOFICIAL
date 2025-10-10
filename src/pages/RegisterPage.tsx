@@ -52,7 +52,7 @@ const RegisterPage = () => {
             },
           }}
           theme="light"
-          providers={[]} // Only email/password
+          providers={['google']} // Adicionado 'google' aqui
           view="sign_up"
           redirectTo={window.location.origin}
         />

@@ -165,5 +165,6 @@
   "dashboardActivatedSuccessfully": "Painel ativado com sucesso!",
   "failedToActivateDashboard": "Falha ao ativar painel. Por favor, tente novamente.",
   "dashboardAccessCode": "Código de Acesso do Painel",
-  "setAccessCode": "Definir Código de Acesso"
+  "setAccessCode": "Definir Código de Acesso",
+  "loginWithGoogle": "Entrar com Google"
 }

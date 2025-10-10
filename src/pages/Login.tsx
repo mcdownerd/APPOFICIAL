@@ -50,7 +50,7 @@ const Login = () => {
             },
           }}
           theme="light"
-          providers={[]} // Only email/password
+          providers={['google']} // Adicionado 'google' aqui
           view="sign_in"
           redirectTo={window.location.origin} // Redirect after auth
         />
