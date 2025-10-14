@@ -9,7 +9,7 @@ const navItems = [
   { path: "/estafeta", roles: ["estafeta", "admin"] },
   { path: "/balcao", roles: ["restaurante", "admin"] },
   { path: "/historico", roles: ["restaurante", "admin"] },
-  { path: "/analise-tempo", roles: ["admin"] },
+  { path: "/analise-tempo", roles: ["admin", "restaurante"] },
   { path: "/admin/users", roles: ["admin"] },
   { path: "/dashboard", roles: ["admin"] }, // Apenas admin
 ];
