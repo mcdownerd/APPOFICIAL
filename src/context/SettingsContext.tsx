@@ -9,7 +9,8 @@ import React, {
   useCallback,
 } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "./AuthContext"; // Import useAuth
+import { useAuth } from "./AuthContext";
+import { showError } from "@/utils/toast"; // Importar showError
 
 interface SettingsContextType {
   isPendingLimitEnabled: boolean;
@@ -33,14 +34,12 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
     const fetchSetting = async () => {
       if (isAuthLoading || !isApproved) {
-        // Wait for auth to load and user to be approved
         console.log("SettingsContext: Auth still loading or not approved. Skipping fetch.");
         setIsSettingsLoading(true);
         return;
       }
 
       if (!restaurantId) {
-        // If no restaurant_id, default to true or handle as needed
         console.log("SettingsContext: No restaurant_id found for user. Defaulting isPendingLimitEnabled to TRUE.");
         if (isMounted) {
           setIsPendingLimitEnabled(true);
@@ -60,22 +59,41 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
         if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
           console.error("SettingsContext: Failed to fetch pending limit setting:", error);
-          // Fallback to default or handle error
-          if (isMounted) setIsPendingLimitEnabled(true);
+          if (isMounted) {
+            setIsPendingLimitEnabled(true); // Fallback to default on error
+            showError("Failed to load restaurant settings.");
+          }
         } else if (data) {
           console.log(`SettingsContext: Fetched data for restaurant ${restaurantId}:`, data);
           if (isMounted) setIsPendingLimitEnabled(data.pending_limit_enabled);
         } else {
-          // If no data (e.g., restaurant not found or no setting), default to true
-          console.log(`SettingsContext: No restaurant entry found for ID ${restaurantId}. Defaulting isPendingLimitEnabled to TRUE.`);
-          if (isMounted) setIsPendingLimitEnabled(true);
+          // If no data (e.g., restaurant not found or no setting), default to true and create it
+          console.log(`SettingsContext: No restaurant entry found for ID ${restaurantId}. Creating default setting.`);
+          const { data: newRestaurant, error: insertError } = await supabase
+            .from('restaurants')
+            .insert({ id: restaurantId, name: `Restaurante ${restaurantId.substring(0, 4)}`, pending_limit_enabled: true })
+            .select('pending_limit_enabled')
+            .single();
+
+          if (insertError) {
+            console.error("SettingsContext: Failed to create default restaurant setting:", insertError);
+            if (isMounted) {
+              setIsPendingLimitEnabled(true); // Fallback to default on error
+              showError("Failed to initialize restaurant settings.");
+            }
+          } else if (newRestaurant) {
+            console.log(`SettingsContext: Created default setting for restaurant ${restaurantId}:`, newRestaurant);
+            if (isMounted) setIsPendingLimitEnabled(newRestaurant.pending_limit_enabled);
+          }
         }
       } catch (error) {
-        console.error("SettingsContext: Error fetching pending limit setting:", error);
-        if (isMounted) setIsPendingLimitEnabled(true); // Fallback on network error
+        console.error("SettingsContext: Error fetching or creating pending limit setting:", error);
+        if (isMounted) {
+          setIsPendingLimitEnabled(true); // Fallback on network error
+          showError("An unexpected error occurred with restaurant settings.");
+        }
       } finally {
         if (isMounted) setIsSettingsLoading(false);
-        console.log(`SettingsContext: Final isPendingLimitEnabled state: ${isPendingLimitEnabled}`);
       }
     };
 
@@ -84,11 +102,12 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       isMounted = false;
     };
-  }, [restaurantId, isAuthLoading, isApproved, isPendingLimitEnabled]); // Added isPendingLimitEnabled to dependencies for log
+  }, [restaurantId, isAuthLoading, isApproved]); // Removed isPendingLimitEnabled from dependencies to prevent infinite loop
 
   const togglePendingLimit = useCallback(async () => {
     if (!restaurantId || (userRole !== 'admin' && userRole !== 'restaurante')) {
       console.warn("SettingsContext: User not authorized or no restaurant_id to toggle setting.");
+      showError("You are not authorized to change this setting.");
       return;
     }
 
@@ -98,11 +117,12 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     try {
       const { error } = await supabase
         .from('restaurants')
-        .update({ pending_limit_enabled: newValue })
+        .update({ pending_limit_enabled: newValue, updated_at: new Date().toISOString() }) // Adicionado updated_at
         .eq('id', restaurantId);
 
       if (error) {
         console.error("SettingsContext: Failed to update pending limit setting:", error);
+        showError("Failed to update setting.");
         throw new Error("Failed to update setting.");
       }
 
@@ -112,6 +132,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       console.error("SettingsContext: Error updating pending limit setting:", error);
       // Revert UI state if update fails
       setIsPendingLimitEnabled(!newValue);
+      showError("Failed to update setting.");
       throw error;
     } finally {
       setIsSettingsLoading(false);
