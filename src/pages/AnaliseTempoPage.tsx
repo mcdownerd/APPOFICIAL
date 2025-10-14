@@ -153,7 +153,7 @@ const calculateKPIs = (tickets: Ticket[], t: any): AnalysisData => {
 
 // Componente KPI Card
 const KPIcard = ({ title, value, subtitle, icon: Icon, color = "blue" }: { title: string; value: any; subtitle: string; icon: React.ElementType; color?: string }) => (
-  <Card className="p-4">
+  <Card className="p-4 hover:shadow-lg hover:scale-[1.02] transition-all duration-200"> {/* Adicionado efeito de hover */}
     <div className="flex items-center justify-between">
       <div className="space-y-1">
         <p className="text-sm text-muted-foreground">{title}</p>
