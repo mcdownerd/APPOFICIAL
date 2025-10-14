@@ -46,7 +46,7 @@ const DateRangePicker = ({ dateRange, onChange }: { dateRange: DateRange; onChan
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="w-[280px] justify-start text-left font-normal">
+        <Button variant="outline" className="w-full sm:w-[280px] justify-start text-left font-normal"> {/* Ajustado largura */}
           <CalendarIcon className="mr-2 h-4 w-4" />
           {dateRange.from ? (
             dateRange.to ? (
@@ -351,7 +351,7 @@ const AnaliseTempoPage = () => {
       {/* Header */}
       <div className="flex items-center gap-4">
         <TrendingUpIcon className="h-8 w-8 text-green-600" />
-        <h2 className="text-3xl font-bold text-gray-800">{t("timeAnalysisOfOrders")}</h2>
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">{t("timeAnalysisOfOrders")}</h2> {/* Ajustado tamanho da fonte */}
       </div>
 
       {/* Filter Bar */}
@@ -360,7 +360,7 @@ const AnaliseTempoPage = () => {
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
             <DateRangePicker dateRange={dateRange} onChange={handleDateRangeChange} />
             <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]"> {/* Ajustado largura */}
                 <SelectValue placeholder={t("selectPeriod")} />
               </SelectTrigger>
               <SelectContent>
@@ -372,7 +372,7 @@ const AnaliseTempoPage = () => {
             </Select>
             {isAdmin && (
               <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
-                <SelectTrigger className="w-[200px]">
+                <SelectTrigger className="w-full sm:w-[200px]"> {/* Ajustado largura */}
                   <SelectValue placeholder={t("selectRestaurant")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -384,7 +384,7 @@ const AnaliseTempoPage = () => {
               </Select>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 mt-4 sm:mt-0"> {/* Adicionado flex-wrap e margem para mobile */}
             <Button onClick={handleApplyFilters} variant="default">
               {t("applyFilters")}
             </Button>
@@ -444,7 +444,7 @@ const AnaliseTempoPage = () => {
       <Card className="p-6 lg:p-8">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div>
-            <CardTitle className="text-2xl font-bold">{t("ordersByHourOfDay")}</CardTitle>
+            <CardTitle className="text-xl sm:text-2xl font-bold">{t("ordersByHourOfDay")}</CardTitle> {/* Ajustado tamanho da fonte */}
             <CardDescription className="mt-2">
               {t("totalOrdersCreatedEachHour")}
             </CardDescription>
