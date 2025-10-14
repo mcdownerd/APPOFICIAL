@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
-import { UserAPI, User, UserStatus, UserRole } from "@/lib/api";
+import { UserAPI, User, UserStatus, UserRole, RestaurantAPI } from "@/lib/api"; // Import RestaurantAPI
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +24,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { UsersIcon, CheckCircleIcon, XCircleIcon, RefreshCcwIcon, UserCogIcon } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { UsersIcon, CheckCircleIcon, XCircleIcon, RefreshCcwIcon, UserCogIcon, PlusCircleIcon, Loader2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
@@ -37,21 +46,27 @@ const UserManagementPage = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [restaurantIds, setRestaurantIds] = useState<string[]>([]);
 
-  const fetchUsers = useCallback(async () => {
+  // State for Add Restaurant Dialog
+  const [isAddRestaurantDialogOpen, setIsAddRestaurantDialogOpen] = useState(false);
+  const [newRestaurantId, setNewRestaurantId] = useState("");
+  const [newRestaurantName, setNewRestaurantName] = useState("");
+  const [isAddingRestaurant, setIsAddingRestaurant] = useState(false);
+
+  const fetchUsersAndRestaurants = useCallback(async () => {
     setLoading(true);
     try {
       const fetchedUsers = await UserAPI.filter({}, "-created_date");
       setUsers(fetchedUsers);
 
+      // Fetch all existing restaurants to populate the dropdown
+      const fetchedRestaurants = await RestaurantAPI.list();
       const uniqueIds = Array.from(new Set(
-        fetchedUsers
-          .map(u => u.restaurant_id)
-          .filter((id): id is string => id !== undefined && id !== null)
+        fetchedRestaurants.map(r => r.id)
       ));
       setRestaurantIds(uniqueIds.sort());
 
     } catch (error) {
-      console.error("Failed to fetch users:", error);
+      console.error("Failed to fetch users or restaurants:", error);
       showError(t("failedToLoadUsers"));
     } finally {
       setLoading(false);
@@ -60,9 +75,9 @@ const UserManagementPage = () => {
 
   useEffect(() => {
     if (isAdmin) {
-      fetchUsers();
+      fetchUsersAndRestaurants();
     }
-  }, [isAdmin, fetchUsers]);
+  }, [isAdmin, fetchUsersAndRestaurants]);
 
   const handleUpdateUserStatus = async (userId: string, status: UserStatus) => {
     if (!isAdmin) {
@@ -73,7 +88,7 @@ const UserManagementPage = () => {
     try {
       await UserAPI.update(userId, { status });
       showSuccess(t("userStatusUpdated", { status }));
-      fetchUsers();
+      fetchUsersAndRestaurants();
     } catch (error) {
       console.error("Failed to update user status:", error);
       showError(t("failedToUpdateUserStatus"));
@@ -91,7 +106,7 @@ const UserManagementPage = () => {
     try {
       await UserAPI.update(userId, { user_role: role });
       showSuccess(t("userRoleUpdated", { role }));
-      fetchUsers();
+      fetchUsersAndRestaurants();
     } catch (error) {
       console.error("Failed to update user role:", error);
       showError(t("failedToUpdateUserRole"));
@@ -109,7 +124,7 @@ const UserManagementPage = () => {
     try {
       await UserAPI.update(userId, { restaurant_id: newRestaurantId === "unassigned" ? null : newRestaurantId });
       showSuccess(t("userRestaurantIdUpdated"));
-      fetchUsers();
+      fetchUsersAndRestaurants();
     } catch (error) {
       console.error("Failed to update user restaurant ID:", error);
       showError(t("failedToUpdateUserRestaurantId"));
@@ -127,12 +142,37 @@ const UserManagementPage = () => {
     try {
       await UserAPI.update(userId, { dashboard_access_code: code || null });
       showSuccess(t("dashboardAccessCodeUpdated"));
-      fetchUsers();
+      fetchUsersAndRestaurants();
     } catch (error) {
       console.error("Failed to update dashboard access code:", error);
       showError(t("failedToUpdateDashboardAccessCode"));
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleAddRestaurant = async () => {
+    if (!newRestaurantId.trim() || !newRestaurantName.trim()) {
+      showError(t("pleaseFillAllFields"));
+      return;
+    }
+    setIsAddingRestaurant(true);
+    try {
+      await RestaurantAPI.create(newRestaurantId.trim(), newRestaurantName.trim());
+      showSuccess(t("restaurantAddedSuccessfully")); // Assuming you add this translation
+      setIsAddRestaurantDialogOpen(false);
+      setNewRestaurantId("");
+      setNewRestaurantName("");
+      fetchUsersAndRestaurants(); // Refresh lists
+    } catch (error: any) {
+      console.error("Failed to add restaurant:", error);
+      if (error.statusCode === 409) {
+        showError(t("restaurantIdAlreadyExists")); // Assuming you add this translation
+      } else {
+        showError(t("failedToAddRestaurant")); // Assuming you add this translation
+      }
+    } finally {
+      setIsAddingRestaurant(false);
     }
   };
 
@@ -163,18 +203,25 @@ const UserManagementPage = () => {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6 w-full"
     >
-      <div className="flex items-center gap-4">
-        <UsersIcon className="h-8 w-8 text-blue-600" />
-        <h2 className="text-3xl font-bold text-gray-800">{t("userManagement")}</h2>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <UsersIcon className="h-8 w-8 text-blue-600" />
+          <h2 className="text-3xl font-bold text-gray-800">{t("userManagement")}</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setIsAddRestaurantDialogOpen(true)}>
+            <PlusCircleIcon className="mr-2 h-4 w-4" /> {t("addRestaurant")}
+          </Button>
+          <Button variant="outline" size="icon" onClick={fetchUsersAndRestaurants} disabled={loading}>
+            <RefreshCcwIcon className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+            <span className="sr-only">{t("refresh")}</span>
+          </Button>
+        </div>
       </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-2xl font-bold">{t("allUsers")}</CardTitle>
-          <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading}>
-            <RefreshCcwIcon className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-            <span className="sr-only">{t("refresh")}</span>
-          </Button>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -235,6 +282,7 @@ const UserManagementPage = () => {
                               {restaurantIds.map(id => (
                                 <SelectItem key={id} value={id}>{id}</SelectItem>
                               ))}
+                              {/* If a user has a restaurant_id not in the current list, display it as an option */}
                               {!restaurantIds.includes(user.restaurant_id || "") && user.restaurant_id && (
                                 <SelectItem value={user.restaurant_id}>{user.restaurant_id} (current)</SelectItem>
                               )}
@@ -292,6 +340,57 @@ const UserManagementPage = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Add Restaurant Dialog */}
+      <Dialog open={isAddRestaurantDialogOpen} onOpenChange={setIsAddRestaurantDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{t("addRestaurant")}</DialogTitle>
+            <DialogDescription>
+              {t("addRestaurantDescription")} {/* Add this translation */}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="restaurantId" className="text-right">
+                {t("restaurantId")}
+              </Label>
+              <Input
+                id="restaurantId"
+                value={newRestaurantId}
+                onChange={(e) => setNewRestaurantId(e.target.value)}
+                className="col-span-3"
+                disabled={isAddingRestaurant}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="restaurantName" className="text-right">
+                {t("restaurantName")}
+              </Label>
+              <Input
+                id="restaurantName"
+                value={newRestaurantName}
+                onChange={(e) => setNewRestaurantName(e.target.value)}
+                className="col-span-3"
+                disabled={isAddingRestaurant}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              onClick={handleAddRestaurant} 
+              disabled={isAddingRestaurant || !newRestaurantId.trim() || !newRestaurantName.trim()}
+            >
+              {isAddingRestaurant ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <PlusCircleIcon className="mr-2 h-4 w-4" />
+              )}
+              {t("add")} {/* Add this translation */}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 };

@@ -167,5 +167,11 @@
   "failedToActivateDashboard": "Failed to activate dashboard. Please try again.",
   "dashboardAccessCode": "Dashboard Access Code",
   "setAccessCode": "Set Access Code",
-  "loginWithGoogle": "Login with Google"
+  "loginWithGoogle": "Login with Google",
+  "addRestaurant": "Add Restaurant",
+  "addRestaurantDescription": "Enter a unique ID and name for the new restaurant.",
+  "restaurantAddedSuccessfully": "Restaurant added successfully!",
+  "restaurantIdAlreadyExists": "Restaurant ID already exists. Please choose a different one.",
+  "failedToAddRestaurant": "Failed to add restaurant. Please try again.",
+  "add": "Add"
 }

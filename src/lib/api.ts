@@ -38,6 +38,15 @@ export interface Ticket {
   restaurant_id?: string;
 }
 
+// Nova interface para Restaurante
+export interface Restaurant {
+  id: string;
+  name: string;
+  pending_limit_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 // --- Supabase Auth Helpers ---
 export const signInWithPassword = async (email: string, password: string): Promise<AuthResponse> => {
   return supabase.auth.signInWithPassword({ email, password });
@@ -181,6 +190,52 @@ export const UserAPI = {
     };
   },
 };
+
+// --- Restaurant API ---
+export const RestaurantAPI = {
+  create: async (id: string, name: string): Promise<Restaurant> => {
+    const { data, error } = await supabase
+      .from('restaurants')
+      .insert({ id, name, pending_limit_enabled: true }) // Default to true
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '23505') { // Unique violation error code
+        const customError = new Error("Restaurant ID already exists.");
+        (customError as any).statusCode = 409;
+        throw customError;
+      }
+      throw error;
+    }
+    if (!data) throw new Error("Restaurant not created");
+
+    return {
+      id: data.id,
+      name: data.name,
+      pending_limit_enabled: data.pending_limit_enabled,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    };
+  },
+  
+  list: async (): Promise<Restaurant[]> => {
+    const { data, error } = await supabase
+      .from('restaurants')
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (error) throw error;
+    return data.map(r => ({
+      id: r.id,
+      name: r.name,
+      pending_limit_enabled: r.pending_limit_enabled,
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+    }));
+  }
+};
+
 
 // --- Ticket API ---
 export const TicketAPI = {
