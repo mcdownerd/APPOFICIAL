@@ -220,7 +220,8 @@ const UserManagementPage = () => {
                         </Select>
                       </TableCell>
                       <TableCell>
-                        {(user.user_role === "restaurante" || user.user_role === "estafeta") ? (
+                        {/* Permitir que admin, restaurante e estafeta tenham restaurant_id */}
+                        {(user.user_role === "restaurante" || user.user_role === "estafeta" || user.user_role === "admin") ? (
                           <Select
                             value={user.restaurant_id || "unassigned"}
                             onValueChange={(value: string) => handleUpdateRestaurantId(user.id, value)}
