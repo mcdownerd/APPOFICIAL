@@ -26,8 +26,8 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <SettingsProvider>
-          <SessionContextProvider>
+        <SessionContextProvider> {/* SessionContextProvider agora envolve SettingsProvider */}
+          <SettingsProvider>
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<RegisterPage />} />
@@ -84,8 +84,8 @@ const App = () => (
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </SessionContextProvider>
-        </SettingsProvider>
+          </SettingsProvider>
+        </SessionContextProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
