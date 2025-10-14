@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TruckIcon, ClockIcon, CheckCircleIcon, SendIcon } from 'lucide-react';
 import { motion } from "framer-motion";
-import { parseISO, isPast, addMinutes } from "date-fns"; // Importar isPast e addMinutes
+import { parseISO, isPast, addMinutes } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 
@@ -161,20 +161,21 @@ const EstafetaPage = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+      // Adicionado p-4 para padding geral
+      className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4"
     >
       <div className="flex flex-col items-center space-y-6">
         <div className="flex flex-col items-center gap-2 text-center">
           <div className="p-3 rounded-full bg-gradient-to-r from-estafeta to-estafeta-dark text-white mb-2">
             <TruckIcon className="h-8 w-8" />
           </div>
-          <h2 className="text-3xl font-bold text-gray-800">{t("courierCenter")}</h2>
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">{t("courierCenter")}</h2> {/* Ajustado tamanho da fonte */}
         </div>
 
         <Card className="w-full max-w-md">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>{t("sendNewCode")}</CardTitle>
+              <CardTitle className="text-lg sm:text-xl md:text-2xl">{t("sendNewCode")}</CardTitle> {/* Ajustado tamanho da fonte */}
               <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
                 <ClockIcon className="mr-1 h-3 w-3" /> {t("pending")}: {pendingTicketsCount}
               </Badge>
@@ -188,7 +189,8 @@ const EstafetaPage = () => {
                 maxLength={4}
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4))}
-                className="text-center text-2xl font-mono tracking-widest border-estafeta focus:ring-estafeta-dark focus:border-estafeta-dark"
+                // Ajustado tamanho da fonte
+                className="text-xl sm:text-2xl text-center font-mono tracking-widest border-estafeta focus:ring-estafeta-dark focus:border-estafeta-dark"
                 disabled={isSubmitting || (isPendingLimitEnabled && pendingTicketsCount >= 4) || !user?.restaurant_id}
               />
               <p className="text-sm text-gray-500 text-center">{t("fourCharactersHint")}</p>
@@ -223,7 +225,7 @@ const EstafetaPage = () => {
       <Card className="w-full">
         <CardHeader className="flex flex-row items-center gap-2">
           <ClockIcon className="h-5 w-5 text-gray-600" />
-          <CardTitle>{t("lastSevenCodesSent")}</CardTitle>
+          <CardTitle className="text-lg sm:text-xl md:text-2xl">{t("lastSevenCodesSent")}</CardTitle> {/* Ajustado tamanho da fonte */}
         </CardHeader>
         <CardContent>
           {recentTickets.length === 0 ? (
