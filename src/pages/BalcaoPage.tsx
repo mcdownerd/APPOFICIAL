@@ -19,22 +19,19 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
 
 export default function BalcaoPage() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isRestaurante } = useAuth();
   const { t, i18n } = useTranslation();
-  const { isPendingLimitEnabled, togglePendingLimit } = useSettings();
+  const { isPendingLimitEnabled, togglePendingLimit, isSettingsLoading } = useSettings(); // Use isSettingsLoading
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set());
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
-  const [selectedRestaurant, setSelectedRestaurant] = useState<string>("all"); // 'all' or a specific restaurant_id
+  const [selectedRestaurant, setSelectedRestaurant] = useState("all"); // 'all' or a specific restaurant_id
   const [availableRestaurants, setAvailableRestaurants] = useState<{ id: string; name: string }[]>([]);
 
   const doubleClickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const DOUBLE_CLICK_THRESHOLD = 500; // milliseconds
-
-  // DEBUG LOG: Verifique o estado do isPendingLimitEnabled na BalcaoPage
-  console.log("BalcaoPage: isPendingLimitEnabled", isPendingLimitEnabled);
 
   // Fetch available restaurants for admin filter
   useEffect(() => {
@@ -227,7 +224,10 @@ export default function BalcaoPage() {
     return restaurant ? restaurant.name : `Restaurante ${restaurantId.substring(0, 4)}`;
   };
 
-  if (loading) {
+  // Determine if the switch should be disabled
+  const isSwitchDisabled = isSettingsLoading || (!isAdmin && !isRestaurante);
+
+  if (loading || isSettingsLoading) { // Add isSettingsLoading to overall loading state
     return (
       <div className="flex items-center justify-center py-12">
         <div className="flex items-center space-x-2">
@@ -304,27 +304,26 @@ export default function BalcaoPage() {
       </div>
 
       {/* Pending Limit Settings Card */}
-      {(isAdmin || user?.user_role === "restaurante") && (
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <SettingsIcon className="h-5 w-5 text-gray-600" />
-              <h3 className="text-lg font-semibold">{t("pendingLimitSettings")}</h3>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="pending-limit-toggle"
-                checked={isPendingLimitEnabled}
-                onCheckedChange={togglePendingLimit}
-              />
-              <Label htmlFor="pending-limit-toggle">{t("enablePendingLimit")}</Label>
-            </div>
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <SettingsIcon className="h-5 w-5 text-gray-600" />
+            <h3 className="text-lg font-semibold">{t("pendingLimitSettings")}</h3>
           </div>
-          <p className="text-sm text-muted-foreground mt-2">
-            {t("pendingLimitDescription")}
-          </p>
-        </Card>
-      )}
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="pending-limit-toggle"
+              checked={isPendingLimitEnabled}
+              onCheckedChange={togglePendingLimit}
+              disabled={isSwitchDisabled} // Disable if loading or not authorized
+            />
+            <Label htmlFor="pending-limit-toggle">{t("enablePendingLimit")}</Label>
+          </div>
+        </div>
+        <p className="text-sm text-muted-foreground mt-2">
+          {t("pendingLimitDescription")}
+        </p>
+      </Card>
 
       {/* Tickets grid */}
       {tickets.length === 0 ? (
