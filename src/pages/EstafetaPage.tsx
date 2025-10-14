@@ -17,7 +17,7 @@ import { useTranslation } from "react-i18next";
 
 const EstafetaPage = () => {
   const { user } = useAuth();
-  const { isPendingLimitEnabled } = useSettings();
+  const { isPendingLimitEnabled, isSettingsLoading } = useSettings(); // Use isSettingsLoading
   const { t } = useTranslation();
   const [code, setCode] = useState("");
   const [recentTickets, setRecentTickets] = useState<Ticket[]>([]);
@@ -26,10 +26,10 @@ const EstafetaPage = () => {
 
   // DEBUG LOGS
   useEffect(() => {
-    const localStorageValue = localStorage.getItem("deliveryflow_pending_limit_enabled");
     console.log("EstafetaPage: isPendingLimitEnabled from Context:", isPendingLimitEnabled);
-    console.log("EstafetaPage: isPendingLimitEnabled from localStorage (direct read):", localStorageValue ? JSON.parse(localStorageValue) : 'not set');
-  }, [isPendingLimitEnabled]); // Re-run when context value changes
+    console.log("EstafetaPage: isSettingsLoading from Context:", isSettingsLoading);
+    console.log("EstafetaPage: User restaurant_id:", user?.restaurant_id);
+  }, [isPendingLimitEnabled, isSettingsLoading, user?.restaurant_id]);
 
   const fetchRecentTickets = useCallback(async () => {
     if (!user) return;
@@ -149,12 +149,13 @@ const EstafetaPage = () => {
   };
 
   const isCodeValid = code.length === 4 && /^[A-Z0-9]{4}$/.test(code);
-  const canSubmit = isCodeValid && !isSubmitting && (isPendingLimitEnabled ? pendingTicketsCount < 4 : true) && !!user?.restaurant_id;
+  const canSubmit = isCodeValid && !isSubmitting && !isSettingsLoading && (isPendingLimitEnabled ? pendingTicketsCount < 4 : true) && !!user?.restaurant_id;
 
   // --- DEBUG LOGS ---
-  console.log("EstafetaPage: isPendingLimitEnabled", isPendingLimitEnabled);
-  console.log("EstafetaPage: pendingTicketsCount", pendingTicketsCount);
-  console.log("EstafetaPage: canSubmit", canSubmit);
+  console.log("EstafetaPage: isPendingLimitEnabled (final check for canSubmit):", isPendingLimitEnabled);
+  console.log("EstafetaPage: pendingTicketsCount (final check for canSubmit):", pendingTicketsCount);
+  console.log("EstafetaPage: isSettingsLoading (final check for canSubmit):", isSettingsLoading);
+  console.log("EstafetaPage: canSubmit:", canSubmit);
   // --- END DEBUG LOGS ---
 
   return (
@@ -191,7 +192,7 @@ const EstafetaPage = () => {
                 onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4))}
                 // Ajustado tamanho da fonte
                 className="text-xl sm:text-2xl text-center font-mono tracking-widest border-estafeta focus:ring-estafeta-dark focus:border-estafeta-dark"
-                disabled={isSubmitting || (isPendingLimitEnabled && pendingTicketsCount >= 4) || !user?.restaurant_id}
+                disabled={isSubmitting || isSettingsLoading || (isPendingLimitEnabled && pendingTicketsCount >= 4) || !user?.restaurant_id}
               />
               <p className="text-sm text-gray-500 text-center">{t("fourCharactersHint")}</p>
               {isPendingLimitEnabled && pendingTicketsCount >= 4 && (
