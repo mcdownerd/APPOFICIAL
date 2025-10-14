@@ -241,13 +241,18 @@ const EstafetaPage = () => {
                   transition={{ duration: 0.3 }}
                   className={cn(
                     "flex items-center justify-between rounded-lg border p-3 shadow-sm",
-                    ticket.soft_deleted ? "bg-blue-50 border-blue-200" : "bg-yellow-50 border-yellow-200"
+                    // Prioridade: soft_deleted (azul), depois CONFIRMADO (verde), depois PENDING (amarelo)
+                    ticket.soft_deleted ? "bg-blue-50 border-blue-200" : 
+                    ticket.status === "CONFIRMADO" ? "bg-green-50 border-green-200" : 
+                    "bg-yellow-50 border-yellow-200"
                   )}
                 >
                   <Badge 
                     className={cn(
                       "text-base font-bold px-3 py-1",
-                      ticket.soft_deleted ? "bg-blue-200 text-blue-900" : "bg-yellow-200 text-yellow-900"
+                      ticket.soft_deleted ? "bg-blue-200 text-blue-900" : 
+                      ticket.status === "CONFIRMADO" ? "bg-green-200 text-green-900" : 
+                      "bg-yellow-200 text-yellow-900"
                     )}
                   >
                     {ticket.code}
@@ -255,6 +260,10 @@ const EstafetaPage = () => {
                   {ticket.soft_deleted ? (
                     <Badge variant="outline" className="bg-blue-100 text-blue-800">
                       <CheckCircleIcon className="mr-1 h-3 w-3" /> {t("ready")}
+                    </Badge>
+                  ) : ticket.status === "CONFIRMADO" ? (
+                    <Badge variant="outline" className="bg-green-100 text-green-800">
+                      <CheckCircleIcon className="mr-1 h-3 w-3" /> {t("acknowledged")}
                     </Badge>
                   ) : (
                     <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
