@@ -46,7 +46,8 @@ export const SessionContextProvider = ({ children }: { children: ReactNode }) =>
   const { t } = useTranslation();
 
   const loadUser = useCallback(async (sessionUser: any, event?: string) => {
-    setIsLoading(true); // Set loading to true at the start of user loading attempt
+    console.log(`[AuthContext] loadUser called. Event: ${event}, SessionUser:`, sessionUser);
+    setIsLoading(true); // Always set loading to true at the start of user loading attempt
     try {
       if (sessionUser) {
         const currentUser = await UserAPI.me();
@@ -55,64 +56,56 @@ export const SessionContextProvider = ({ children }: { children: ReactNode }) =>
           if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
             showSuccess(t("welcomeUser", { userName: currentUser.full_name }));
           }
+          console.log("[AuthContext] User loaded:", currentUser);
         } else {
-          // If session.user exists but profile not found, treat as unauthenticated
           setUser(null);
           showError(t("failedToLoadUserProfile"));
+          console.warn("[AuthContext] Session user exists, but profile not found.");
         }
       } else {
         setUser(null);
         if (event === 'SIGNED_OUT') {
           showSuccess(t("sessionEnded"));
         }
+        console.log("[AuthContext] No session user or signed out.");
       }
     } catch (error) {
-      console.error("Error fetching user profile or session:", error);
+      console.error("[AuthContext] Error fetching user profile or session:", error);
       showError(t("authErrorOccurred"));
       setUser(null);
     } finally {
       setIsLoading(false); // Ensure loading is set to false after user loading attempt
+      console.log("[AuthContext] isLoading set to false.");
     }
-  }, [t, showSuccess, showError]); // Dependencies for useCallback
+  }, [t, showSuccess, showError]);
 
   useEffect(() => {
     let isMounted = true; // Flag to prevent state updates on unmounted component
 
-    // Handle initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (isMounted) {
-        loadUser(session?.user);
-      }
-    }).catch(error => {
-      console.error("Error getting initial session:", error);
-      if (isMounted) {
-        showError(t("authErrorOccurred"));
-        setUser(null);
-        setIsLoading(false); // Ensure loading is false even if initial session fetch fails
-      }
-    });
-
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
+      console.log("[AuthContext] Auth state change detected. Event:", event, "Session:", session);
       loadUser(session?.user, event);
     });
 
     return () => {
       isMounted = false; // Cleanup: set flag to false
       subscription.unsubscribe();
+      console.log("[AuthContext] Auth state change subscription unsubscribed.");
     };
-  }, [loadUser, t, showError, setUser, setIsLoading]); // Added loadUser and other state setters to dependencies
+  }, [loadUser]);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
       await UserAPI.login(email, password);
+      // loadUser will be called by onAuthStateChange after successful login
     } catch (error) {
       showError(t("loginFailed"));
       throw error;
     } finally {
-      setIsLoading(false);
+      // isLoading will be set by onAuthStateChange after login
     }
   };
 
@@ -120,6 +113,7 @@ export const SessionContextProvider = ({ children }: { children: ReactNode }) =>
     setIsLoading(true);
     try {
       await UserAPI.register(fullName, email, password);
+      // loadUser will be called by onAuthStateChange after successful registration
     } catch (error: any) {
       if (error.message?.includes('already registered')) {
         showError(t("emailAlreadyExists"));
@@ -128,7 +122,7 @@ export const SessionContextProvider = ({ children }: { children: ReactNode }) =>
       }
       throw error;
     } finally {
-      setIsLoading(false);
+      // isLoading will be set by onAuthStateChange after registration
     }
   };
 
@@ -136,11 +130,12 @@ export const SessionContextProvider = ({ children }: { children: ReactNode }) =>
     setIsLoading(true);
     try {
       await supabaseSignOut();
+      // loadUser will be called by onAuthStateChange after successful logout
     } catch (error) {
       showError(t("failedToLogout"));
       throw error;
     } finally {
-      setIsLoading(false);
+      // isLoading will be set by onAuthStateChange after logout
     }
   };
 
