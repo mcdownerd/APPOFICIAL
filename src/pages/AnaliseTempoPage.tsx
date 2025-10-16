@@ -346,7 +346,7 @@ const AnaliseTempoPage = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-7xl mx-auto space-y-6 w-full"
+      className="space-y-6 w-full"
     >
       {/* Header */}
       <div className="flex items-center gap-4">
