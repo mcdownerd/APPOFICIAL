@@ -281,7 +281,7 @@ const UserManagementPage = () => {
                               <SelectItem value="unassigned">{t("none")}</SelectItem>
                               {restaurantIds.map(id => (
                                 <SelectItem key={id} value={id}>{id}</SelectItem>
-                              ))}
+                              )}
                               {/* If a user has a restaurant_id not in the current list, display it as an option */}
                               {!restaurantIds.includes(user.restaurant_id || "") && user.restaurant_id && (
                                 <SelectItem value={user.restaurant_id}>{user.restaurant_id} (current)</SelectItem>
@@ -343,9 +343,9 @@ const UserManagementPage = () => {
 
       {/* Add Restaurant Dialog */}
       <Dialog open={isAddRestaurantDialogOpen} onOpenChange={setIsAddRestaurantDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px]" aria-labelledby="add-restaurant-dialog-title">
           <DialogHeader>
-            <DialogTitle>{t("addRestaurant")}</DialogTitle>
+            <DialogTitle id="add-restaurant-dialog-title">{t("addRestaurant")}</DialogTitle>
             <DialogDescription>
               {t("addRestaurantDescription")} {/* Add this translation */}
             </DialogDescription>
