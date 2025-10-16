@@ -281,7 +281,7 @@ const UserManagementPage = () => {
                               <SelectItem value="unassigned">{t("none")}</SelectItem>
                               {restaurantIds.map(id => (
                                 <SelectItem key={id} value={id}>{id}</SelectItem>
-                              )}
+                              ))}
                               {/* If a user has a restaurant_id not in the current list, display it as an option */}
                               {!restaurantIds.includes(user.restaurant_id || "") && user.restaurant_id && (
                                 <SelectItem value={user.restaurant_id}>{user.restaurant_id} (current)</SelectItem>
