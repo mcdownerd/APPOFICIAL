@@ -74,9 +74,10 @@ export const UserAPI = {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return null;
 
+    // Seleciona todas as colunas para o perfil do usuário logado
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, email, full_name, user_role, status, created_date, restaurant_id, dashboard_access_code, dashboard_activated_at')
       .eq('id', session.user.id)
       .single();
 
@@ -131,7 +132,7 @@ export const UserAPI = {
     order: string = "created_date",
     limit?: number,
   ): Promise<User[]> => {
-    let supabaseQuery = supabase.from('profiles').select('*');
+    let supabaseQuery = supabase.from('profiles').select('id, email, full_name, user_role, status, created_date, restaurant_id, dashboard_access_code, dashboard_activated_at');
 
     // Apply filters
     for (const [key, value] of Object.entries(query)) {
@@ -171,7 +172,7 @@ export const UserAPI = {
         updated_at: new Date().toISOString() 
       })
       .eq('id', id)
-      .select()
+      .select('id, email, full_name, user_role, status, created_date, restaurant_id, dashboard_access_code, dashboard_activated_at') // Seleciona colunas específicas
       .single();
 
     if (error) throw error;
@@ -197,7 +198,7 @@ export const RestaurantAPI = {
     const { data, error } = await supabase
       .from('restaurants')
       .insert({ id, name, pending_limit_enabled: true }) // Default to true
-      .select()
+      .select('id, name, pending_limit_enabled, created_at, updated_at') // Seleciona colunas específicas
       .single();
 
     if (error) {
@@ -222,7 +223,7 @@ export const RestaurantAPI = {
   list: async (): Promise<Restaurant[]> => {
     const { data, error } = await supabase
       .from('restaurants')
-      .select('*')
+      .select('id, name, pending_limit_enabled, created_at, updated_at') // Seleciona colunas específicas
       .order('name', { ascending: true });
 
     if (error) throw error;
@@ -246,7 +247,7 @@ export const TicketAPI = {
   ): Promise<Ticket[]> => {
     let supabaseQuery = supabase
       .from('tickets')
-      .select('*');
+      .select('id, code, status, created_by_ip, acknowledged_at, acknowledged_by, acknowledged_by_email, soft_deleted, deleted_at, deleted_by, deleted_by_email, created_date, created_by, created_by_email, restaurant_id');
     
     // Apply filters
     for (const [key, value] of Object.entries(query)) {
@@ -305,7 +306,7 @@ export const TicketAPI = {
     // Check for duplicate active code within the same restaurant
     const { data: existing } = await supabase
       .from('tickets')
-      .select('id')
+      .select('id') // Apenas o ID é necessário para verificar a existência
       .eq('code', payload.code.toUpperCase())
       .eq('soft_deleted', false)
       .eq('restaurant_id', payload.restaurant_id || null) // Filter by restaurant_id
@@ -326,7 +327,7 @@ export const TicketAPI = {
         created_by_ip: '127.0.0.1', // Use real IP in production
         restaurant_id: payload.restaurant_id || null, // Save restaurant_id
       })
-      .select()
+      .select('id, code, status, created_by_ip, acknowledged_at, acknowledged_by, acknowledged_by_email, soft_deleted, deleted_at, deleted_by, deleted_by_email, created_date, created_by, created_by_email, restaurant_id') // Seleciona colunas específicas
       .single();
 
     if (error) throw error;
@@ -411,7 +412,7 @@ export const TicketAPI = {
     // }
 
     const { data, error } = await supabaseQuery
-      .select()
+      .select('id, code, status, created_by_ip, acknowledged_at, acknowledged_by, acknowledged_by_email, soft_deleted, deleted_at, deleted_by, deleted_by_email, created_date, created_by, created_by_email, restaurant_id') // Seleciona colunas específicas
       .maybeSingle(); // Alterado de .single() para .maybeSingle()
 
     if (error) throw error;

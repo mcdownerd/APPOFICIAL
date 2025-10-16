@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, Trash2Icon, UtensilsCrossedIcon, SettingsIcon } from 'lucide-react';
-import { TicketAPI, Ticket, UserAPI } from '@/lib/api'; // Import UserAPI
+import { TicketAPI, Ticket, UserAPI } from '@/lib/api';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -16,88 +16,136 @@ import { cn } from "@/lib/utils";
 import { useSettings } from "@/context/SettingsContext";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client"; // Adicionado: Importação do cliente Supabase
 
-export default function BalcaoPage() {
+const BalcaoPage = React.memo(() => {
   const { user, isAdmin, isRestaurante } = useAuth();
   const { t, i18n } = useTranslation();
-  const { isPendingLimitEnabled, togglePendingLimit, isSettingsLoading } = useSettings(); // Use isSettingsLoading
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { isPendingLimitEnabled, togglePendingLimit, isSettingsLoading } = useSettings();
+  const queryClient = useQueryClient();
+
   const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set());
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
-  const [selectedRestaurant, setSelectedRestaurant] = useState("all"); // 'all' or a specific restaurant_id
+  const [selectedRestaurant, setSelectedRestaurant] = useState("all");
   const [availableRestaurants, setAvailableRestaurants] = useState<{ id: string; name: string }[]>([]);
 
   const doubleClickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const DOUBLE_CLICK_THRESHOLD = 500; // milliseconds
 
-  // Fetch available restaurants for admin filter
-  useEffect(() => {
-    const fetchRestaurants = async () => {
-      if (isAdmin) {
-        try {
-          const restaurantUsers = await UserAPI.filter({ user_role: "restaurante", status: "APPROVED" });
-          const uniqueRestaurantIds = Array.from(new Set(restaurantUsers.map(u => u.restaurant_id).filter(Boolean) as string[]));
-          const restaurants = uniqueRestaurantIds.map(id => ({ id, name: `Restaurante ${id.substring(0, 4)}` })); // Simple naming
-          setAvailableRestaurants(restaurants);
-        } catch (err) {
-          console.error("Failed to fetch restaurant users:", err);
-          showError(t("failedToLoadRestaurants"));
-        }
-      }
-    };
-    fetchRestaurants();
-  }, [isAdmin, t]);
+  const userRestaurantId = user?.restaurant_id;
 
-  const loadTickets = useCallback(async () => {
-    if (!user || (!isAdmin && user.user_role === "restaurante" && !user.restaurant_id)) {
-      setLoading(false);
-      setRefreshing(false);
-      return;
-    }
-    setRefreshing(true);
-    try {
-      let fetchedTickets: Ticket[] = [];
-      const filter: Partial<Ticket> = { soft_deleted: false };
+  // Query para buscar restaurantes disponíveis (apenas para admin)
+  const { isLoading: isLoadingRestaurants } = useQuery<{ id: string; name: string }[], Error>({
+    queryKey: ["availableRestaurants"],
+    queryFn: async () => {
+      if (!isAdmin) return [];
+      const restaurantUsers = await UserAPI.filter({ user_role: "restaurante", status: "APPROVED" });
+      const uniqueRestaurantIds = Array.from(new Set(restaurantUsers.map(u => u.restaurant_id).filter(Boolean) as string[]));
+      const restaurants = uniqueRestaurantIds.map(id => ({ id, name: `Restaurante ${id.substring(0, 4)}` }));
+      setAvailableRestaurants(restaurants);
+      return restaurants;
+    },
+    enabled: isAdmin,
+    staleTime: 1000 * 60 * 10, // Cache por 10 minutos
+  });
+
+  // Query para buscar tickets ativos
+  const { data: tickets = [], isLoading: isLoadingTickets, refetch: refetchTickets } = useQuery<Ticket[], Error>({
+    queryKey: ["activeTickets", userRestaurantId, isAdmin, selectedRestaurant],
+    queryFn: async () => {
+      if (!user || (!isAdmin && user.user_role === "restaurante" && !userRestaurantId)) {
+        return [];
+      }
+      let filter: Partial<Ticket> = { soft_deleted: false };
 
       if (isAdmin) {
         if (selectedRestaurant !== "all") {
           filter.restaurant_id = selectedRestaurant;
         }
-        fetchedTickets = await TicketAPI.filter(filter, "created_date");
-      } else if (user.user_role === "restaurante" && user.restaurant_id) {
-        filter.restaurant_id = user.restaurant_id;
-        fetchedTickets = await TicketAPI.filter(filter, "created_date");
+      } else if (user.user_role === "restaurante" && userRestaurantId) {
+        filter.restaurant_id = userRestaurantId;
       } else {
-        fetchedTickets = [];
+        return [];
       }
-      setTickets(fetchedTickets);
-    } catch (error) {
-      console.error('Error loading tickets:', error);
-      showError(t('failedToLoadActiveTickets'));
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [user, isAdmin, t, selectedRestaurant]); // Add selectedRestaurant to dependencies
+      const fetchedTickets = await TicketAPI.filter(filter, "created_date");
+      return fetchedTickets;
+    },
+    enabled: !!user && (isAdmin || (isRestaurante && !!userRestaurantId)),
+    staleTime: 1000 * 5, // Re-fetch a cada 5 segundos em background
+  });
 
+  // Supabase Realtime subscription for tickets
   useEffect(() => {
-    loadTickets();
-    
-    // Auto-refresh every 5 seconds
-    const interval = setInterval(loadTickets, 5000);
-    return () => {
-      clearInterval(interval);
-      if (doubleClickTimeoutRef.current) {
-        clearTimeout(doubleClickTimeoutRef.current);
-        doubleClickTimeoutRef.current = null;
-      }
-    };
-  }, [loadTickets]);
+    if (!user || (!isAdmin && !userRestaurantId)) return;
 
-  const handleTicketClick = async (ticket: Ticket) => {
+    const filterRestaurantId = isAdmin && selectedRestaurant !== "all" ? selectedRestaurant : userRestaurantId;
+
+    if (!filterRestaurantId && !isAdmin) return; // Only subscribe if there's a specific restaurant or if admin (all restaurants)
+
+    console.log(`BalcaoPage: Subscribing to realtime changes for tickets in restaurant ${filterRestaurantId || 'all'}`);
+
+    const channel = supabase // Corrigido: 'supabase' agora está importado
+      .channel(`tickets_balcao:${filterRestaurantId || 'all'}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'tickets',
+          filter: filterRestaurantId ? `restaurant_id=eq.${filterRestaurantId}` : undefined // Filter if specific restaurant
+        },
+        (payload) => {
+          console.log('BalcaoPage: Realtime update received:', payload);
+          queryClient.invalidateQueries({ queryKey: ["activeTickets", userRestaurantId, isAdmin, selectedRestaurant] });
+          queryClient.invalidateQueries({ queryKey: ["pendingTicketsCount", filterRestaurantId] }); // Invalidate pending count for estafeta
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log(`BalcaoPage: Unsubscribing from realtime changes for tickets in restaurant ${filterRestaurantId || 'all'}`);
+      supabase.removeChannel(channel); // Corrigido: 'supabase' agora está importado
+    };
+  }, [user, isAdmin, userRestaurantId, selectedRestaurant, queryClient]);
+
+  const updateTicketMutation = useMutation({
+    mutationFn: async (variables: { ticketId: string; payload: Partial<Ticket> }) => {
+      return TicketAPI.update(variables.ticketId, variables.payload);
+    },
+    onSuccess: (updatedTicket, variables) => {
+      if (updatedTicket.status === 'CONFIRMADO') {
+        showSuccess(t('ticketConfirmedSuccessfully'));
+      } else if (updatedTicket.soft_deleted) {
+        showSuccess(t('ticketRemovedSuccessfully'));
+      }
+      // Invalidate queries to refetch the lists
+      queryClient.invalidateQueries({ queryKey: ["activeTickets", userRestaurantId, isAdmin, selectedRestaurant] });
+      queryClient.invalidateQueries({ queryKey: ["pendingTicketsCount", userRestaurantId] }); // Invalidate pending count for estafeta
+      queryClient.invalidateQueries({ queryKey: ["userRecentTickets", user?.id, userRestaurantId] }); // Invalidate recent tickets for estafeta
+      queryClient.invalidateQueries({ queryKey: ["analysis"] }); // Invalidate analysis data
+    },
+    onError: (error: any, variables) => {
+      console.error('Error updating ticket:', error);
+      if (variables.payload.status === 'CONFIRMADO') {
+        showError(t('failedToConfirmTicket'));
+      } else if (variables.payload.soft_deleted) {
+        showError(t('failedToRemoveTicket'));
+      } else {
+        showError(t('failedToUpdateTicket'));
+      }
+    },
+    onSettled: (data, error, variables) => {
+      setProcessingTickets(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(variables.ticketId);
+        return newSet;
+      });
+    }
+  });
+
+  const handleTicketClick = useCallback(async (ticket: Ticket) => {
     if (!user) {
       showError(t("userNotAuthenticated"));
       return;
@@ -105,20 +153,16 @@ export default function BalcaoPage() {
     if (processingTickets.has(ticket.id)) return;
 
     if (ticket.status === 'PENDING') {
-      // Acknowledge ticket
       await handleAcknowledge(ticket);
     } else if (ticket.status === 'CONFIRMADO') {
       if (pendingDelete === ticket.id) {
-        // This is the second click on the same ticket
         if (doubleClickTimeoutRef.current) {
           clearTimeout(doubleClickTimeoutRef.current);
-          doubleClickTimeoutRef.current = null; // Clear the ref
+          doubleClickTimeoutRef.current = null;
         }
         await handleSoftDelete(ticket);
-        setPendingDelete(null); // Clear pendingDelete after successful deletion
+        setPendingDelete(null);
       } else {
-        // This is the first click on this ticket (or a new first click after timeout)
-        // Clear any existing pending delete for other tickets
         if (doubleClickTimeoutRef.current) {
           clearTimeout(doubleClickTimeoutRef.current);
           doubleClickTimeoutRef.current = null;
@@ -127,68 +171,44 @@ export default function BalcaoPage() {
         showInfo(t('clickAgainToRemove'));
         
         doubleClickTimeoutRef.current = setTimeout(() => {
-          setPendingDelete(null); // Reset pendingDelete if no second click within threshold
+          setPendingDelete(null);
           doubleClickTimeoutRef.current = null;
         }, DOUBLE_CLICK_THRESHOLD);
       }
     }
-  };
+  }, [user, processingTickets, pendingDelete, t]);
 
-  const handleAcknowledge = async (ticket: Ticket) => {
+  const handleAcknowledge = useCallback(async (ticket: Ticket) => {
     if (!user || processingTickets.has(ticket.id)) return;
 
     setProcessingTickets(prev => new Set(prev).add(ticket.id));
-    
-    try {
-      await TicketAPI.update(ticket.id, {
+    updateTicketMutation.mutate({
+      ticketId: ticket.id,
+      payload: {
         status: 'CONFIRMADO',
         acknowledged_by_user_id: user.id,
         acknowledged_by_user_email: user.email,
         restaurant_id: ticket.restaurant_id,
-      });
-      
-      showSuccess(t('ticketConfirmedSuccessfully'));
-      await loadTickets();
-    } catch (error) {
-      console.error('Error acknowledging ticket:', error);
-      showError(t('failedToConfirmTicket'));
-    } finally {
-      setProcessingTickets(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(ticket.id);
-        return newSet;
-      });
-    }
-  };
+      }
+    });
+  }, [user, processingTickets, updateTicketMutation]);
 
-  const handleSoftDelete = async (ticket: Ticket) => {
+  const handleSoftDelete = useCallback(async (ticket: Ticket) => {
     if (!user || processingTickets.has(ticket.id)) return;
 
     setProcessingTickets(prev => new Set(prev).add(ticket.id));
-    
-    try {
-      await TicketAPI.update(ticket.id, {
+    updateTicketMutation.mutate({
+      ticketId: ticket.id,
+      payload: {
         soft_deleted: true,
         deleted_by_user_id: user.id,
         deleted_by_user_email: user.email,
         restaurant_id: ticket.restaurant_id,
-      });
-      
-      showSuccess(t('ticketRemovedSuccessfully'));
-      await loadTickets();
-    } catch (error) {
-      console.error('Error soft deleting ticket:', error);
-      showError(t('failedToRemoveTicket'));
-    } finally {
-      setProcessingTickets(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(ticket.id);
-        return newSet;
-      });
-    }
-  };
+      }
+    });
+  }, [user, processingTickets, updateTicketMutation]);
 
-  const getTicketStatus = (ticket: Ticket) => {
+  const getTicketStatus = useCallback((ticket: Ticket) => {
     if (ticket.status === 'PENDING') {
       return {
         label: t('pending'),
@@ -210,24 +230,15 @@ export default function BalcaoPage() {
         ? t('clickAgainToRemove')
         : t('removeTicket')
     };
-  };
+  }, [t, pendingDelete]);
 
-  // Determine the currently selected restaurant name for display
   const currentRestaurantName = isAdmin && selectedRestaurant !== "all"
     ? availableRestaurants.find(r => r.id === selectedRestaurant)?.name || selectedRestaurant
     : null;
 
-  // Helper to get restaurant name for a ticket
-  const getRestaurantNameForTicket = (restaurantId: string | undefined) => {
-    if (!restaurantId) return t("none");
-    const restaurant = availableRestaurants.find(r => r.id === restaurantId);
-    return restaurant ? restaurant.name : `Restaurante ${restaurantId.substring(0, 4)}`;
-  };
-
-  // Determine if the switch should be disabled
   const isSwitchDisabled = isSettingsLoading || (!isAdmin && !isRestaurante);
 
-  if (loading || isSettingsLoading) { // Add isSettingsLoading to overall loading state
+  if (isLoadingTickets || isLoadingRestaurants || isSettingsLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="flex items-center space-x-2">
@@ -238,7 +249,7 @@ export default function BalcaoPage() {
     );
   }
 
-  if (!isAdmin && user?.user_role === "restaurante" && !user.restaurant_id) {
+  if (!isAdmin && user?.user_role === "restaurante" && !userRestaurantId) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -263,7 +274,6 @@ export default function BalcaoPage() {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6"
     >
-      {/* Header with refresh button and restaurant selector */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold text-gray-800">
@@ -292,18 +302,17 @@ export default function BalcaoPage() {
             </Select>
           )}
           <Button
-            onClick={loadTickets}
+            onClick={() => refetchTickets()}
             variant="outline"
-            disabled={refreshing}
+            disabled={isLoadingTickets}
             className="space-x-2"
           >
-            <RefreshCcwIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <RefreshCcwIcon className={`h-4 w-4 ${isLoadingTickets ? 'animate-spin' : ''}`} />
             <span>{t('refresh')}</span>
           </Button>
         </div>
       </div>
 
-      {/* Pending Limit Settings Card */}
       <Card className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -315,7 +324,7 @@ export default function BalcaoPage() {
               id="pending-limit-toggle"
               checked={isPendingLimitEnabled}
               onCheckedChange={togglePendingLimit}
-              disabled={isSwitchDisabled} // Disable if loading or not authorized
+              disabled={isSwitchDisabled}
             />
             <Label htmlFor="pending-limit-toggle">{t("enablePendingLimit")}</Label>
           </div>
@@ -325,7 +334,6 @@ export default function BalcaoPage() {
         </p>
       </Card>
 
-      {/* Tickets grid */}
       {tickets.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -418,4 +426,6 @@ export default function BalcaoPage() {
       )}
     </motion.div>
   );
-}
+});
+
+export default BalcaoPage;
