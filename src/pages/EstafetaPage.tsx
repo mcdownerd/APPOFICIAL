@@ -162,8 +162,7 @@ const EstafetaPage = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      // Adicionado p-4 para padding geral
-      className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4"
+      className="max-w-screen-lg mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6 p-4" // Adicionado max-w-screen-lg e mx-auto
     >
       <div className="flex flex-col items-center space-y-6">
         <div className="flex flex-col items-center gap-2 text-center">
@@ -223,59 +222,61 @@ const EstafetaPage = () => {
         </Card>
       </div>
 
-      <Card className="w-full">
-        <CardHeader className="flex flex-row items-center gap-2">
-          <ClockIcon className="h-5 w-5 text-gray-600" />
-          <CardTitle className="text-lg sm:text-xl md:text-2xl">{t("lastSevenCodesSent")}</CardTitle> {/* Ajustado tamanho da fonte */}
-        </CardHeader>
-        <CardContent>
-          {recentTickets.length === 0 ? (
-            <p className="text-center text-gray-500">{t("noRecentCodes")}</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {recentTickets.map((ticket) => (
-                <motion.div
-                  key={ticket.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.3 }}
-                  className={cn(
-                    "flex items-center justify-between rounded-lg border p-3 shadow-sm",
-                    // Prioridade: soft_deleted (azul), depois CONFIRMADO (verde), depois PENDING (amarelo)
-                    ticket.soft_deleted ? "bg-blue-50 border-blue-200" : 
-                    ticket.status === "CONFIRMADO" ? "bg-green-50 border-green-200" : 
-                    "bg-yellow-50 border-yellow-200"
-                  )}
-                >
-                  <Badge 
+      <div className="w-full flex justify-center"> {/* Novo wrapper div para centralizar o cartão */}
+        <Card className="w-full max-w-md"> {/* Adicionado max-w-md a este cartão */}
+          <CardHeader className="flex flex-row items-center gap-2">
+            <ClockIcon className="h-5 w-5 text-gray-600" />
+            <CardTitle className="text-lg sm:text-xl md:text-2xl">{t("lastSevenCodesSent")}</CardTitle> {/* Ajustado tamanho da fonte */}
+          </CardHeader>
+          <CardContent>
+            {recentTickets.length === 0 ? (
+              <p className="text-center text-gray-500">{t("noRecentCodes")}</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {recentTickets.map((ticket) => (
+                  <motion.div
+                    key={ticket.id}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
                     className={cn(
-                      "text-base font-bold px-3 py-1",
-                      ticket.soft_deleted ? "bg-blue-200 text-blue-900" : 
-                      ticket.status === "CONFIRMADO" ? "bg-green-200 text-green-900" : 
-                      "bg-yellow-200 text-yellow-900"
+                      "flex items-center justify-between rounded-lg border p-3 shadow-sm",
+                      // Prioridade: soft_deleted (azul), depois CONFIRMADO (verde), depois PENDING (amarelo)
+                      ticket.soft_deleted ? "bg-blue-50 border-blue-200" : 
+                      ticket.status === "CONFIRMADO" ? "bg-green-50 border-green-200" : 
+                      "bg-yellow-50 border-yellow-200"
                     )}
                   >
-                    {ticket.code}
-                  </Badge>
-                  {ticket.soft_deleted ? (
-                    <Badge variant="outline" className="bg-blue-100 text-blue-800">
-                      <CheckCircleIcon className="mr-1 h-3 w-3" /> {t("ready")}
+                    <Badge 
+                      className={cn(
+                        "text-base font-bold px-3 py-1",
+                        ticket.soft_deleted ? "bg-blue-200 text-blue-900" : 
+                        ticket.status === "CONFIRMADO" ? "bg-green-200 text-green-900" : 
+                        "bg-yellow-200 text-yellow-900"
+                      )}
+                    >
+                      {ticket.code}
                     </Badge>
-                  ) : ticket.status === "CONFIRMADO" ? (
-                    <Badge variant="outline" className="bg-green-100 text-green-800">
-                      <CheckCircleIcon className="mr-1 h-3 w-3" /> {t("acknowledged")}
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
-                      <ClockIcon className="mr-1 h-3 w-3" /> {t("pending")}
-                    </Badge>
-                  )}
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    {ticket.soft_deleted ? (
+                      <Badge variant="outline" className="bg-blue-100 text-blue-800">
+                        <CheckCircleIcon className="mr-1 h-3 w-3" /> {t("ready")}
+                      </Badge>
+                    ) : ticket.status === "CONFIRMADO" ? (
+                      <Badge variant="outline" className="bg-green-100 text-green-800">
+                        <CheckCircleIcon className="mr-1 h-3 w-3" /> {t("acknowledged")}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
+                        <ClockIcon className="mr-1 h-3 w-3" /> {t("pending")}
+                      </Badge>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </motion.div>
   );
 };
