@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { MenuIcon, LogOutIcon, TruckIcon, UtensilsCrossedIcon, BarChart3Icon, HistoryIcon, UsersIcon, SettingsIcon, LayoutDashboardIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
-import LanguageSwitcher from "./LanguageSwitcher";
+// import LanguageSwitcher from "./LanguageSwitcher"; // Removido
 import { useTranslation } from "react-i18next";
 
 interface NavItem {
@@ -74,7 +74,7 @@ const StatusCard = ({ title, message, buttonText, onButtonClick }: { title: stri
         </Button>
       </div>
       <div className="mt-4">
-        <LanguageSwitcher />
+        {/* <LanguageSwitcher /> */} {/* Removido */}
       </div>
     </motion.div>
   );
@@ -145,7 +145,7 @@ const SidebarContent = ({ onClose }: { onClose?: () => void }) => {
           </div>
         )}
         <div className="mt-4">
-          <LanguageSwitcher />
+          {/* <LanguageSwitcher /> */} {/* Removido */}
         </div>
       </div>
     </div>
@@ -233,7 +233,7 @@ export const Layout = () => {
           <h1 className="text-xl font-bold text-gray-800">{t("deliveryFlow")}</h1>
           
           <div className="ml-auto flex items-center gap-2">
-            <LanguageSwitcher />
+            {/* <LanguageSwitcher /> */} {/* Removido */}
             {user && (
               <Button
                 variant="ghost"
