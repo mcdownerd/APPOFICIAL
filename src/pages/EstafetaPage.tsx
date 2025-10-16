@@ -162,7 +162,7 @@ const EstafetaPage = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-screen-lg mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6"
+      className="grid grid-cols-1 lg:grid-cols-2 gap-6"
     >
       <div className="flex flex-col items-center space-y-6">
         <div className="flex flex-col items-center gap-2 text-center">
