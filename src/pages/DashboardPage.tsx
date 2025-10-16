@@ -25,13 +25,11 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { LayoutDashboardIcon, RefreshCwIcon, CheckCircleIcon, ClockIcon, CalendarIcon, ArrowUpDown, Loader2, Trash2Icon, UtensilsCrossedIcon, KeyIcon } from "lucide-react";
-import { format, parseISO, isPast, addMinutes } from "date-fns";
+import { format, parseISO, isPast, addMinutes } from "date-fns"; // Importar isPast e addMinutes
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 
 // Interface para o estado de ordenação
 interface SortConfig {
@@ -44,33 +42,35 @@ interface TicketWithRestaurantName extends Ticket {
   restaurantNameDisplay: string;
 }
 
-const DashboardPage = React.memo(() => {
+export default function DashboardPage() {
   const { user, isAdmin, isRestaurante, isEstafeta, isDashboardActivated, userDashboardAccessCode, logout } = useAuth();
   const { t, i18n } = useTranslation();
-  const queryClient = useQueryClient();
-
-  const [selectedRestaurant, setSelectedRestaurant] = useState("all");
+  const [activeTickets, setActiveTickets] = useState<TicketWithRestaurantName[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedRestaurant, setSelectedRestaurant] = useState("all"); // 'all' or a specific restaurant_id
   const [availableRestaurants, setAvailableRestaurants] = useState<{ id: string; name: string }[]>([]);
   const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'created_date', direction: 'desc' });
 
+  // Estados para a funcionalidade de ativação do painel (apenas para estafetas)
   const [activationCode, setActivationCode] = useState("");
   const [isActivating, setIsActivating] = useState(false);
 
-  const userRestaurantId = user?.restaurant_id;
-  const userId = user?.id;
-
-  // Query para buscar restaurantes disponíveis (para filtro e display)
-  const { isLoading: isLoadingRestaurants } = useQuery<{ id: string; name: string }[], Error>({
-    queryKey: ["availableRestaurants"],
-    queryFn: async () => {
-      const restaurantUsers = await UserAPI.filter({ user_role: "restaurante", status: "APPROVED" });
-      const uniqueRestaurantIds = Array.from(new Set(restaurantUsers.map(u => u.restaurant_id).filter(Boolean) as string[]));
-      const restaurants = uniqueRestaurantIds.map(id => ({ id, name: `Restaurante ${id.substring(0, 4)}` }));
-      setAvailableRestaurants(restaurants);
-      return restaurants;
-    },
-    staleTime: 1000 * 60 * 10, // Cache por 10 minutos
-  });
+  // Fetch available restaurants for admin filter and display
+  useEffect(() => {
+    const fetchRestaurants = async () => {
+      try {
+        const restaurantUsers = await UserAPI.filter({ user_role: "restaurante", status: "APPROVED" });
+        const uniqueRestaurantIds = Array.from(new Set(restaurantUsers.map(u => u.restaurant_id).filter(Boolean) as string[]));
+        const restaurants = uniqueRestaurantIds.map(id => ({ id, name: `Restaurante ${id.substring(0, 4)}` })); // Simple naming
+        setAvailableRestaurants(restaurants);
+      } catch (err) {
+        console.error("Failed to fetch restaurant users for dashboard:", err);
+        showError(t("failedToLoadRestaurants"));
+      }
+    };
+    fetchRestaurants();
+  }, [t]);
 
   const getRestaurantNameForTicket = useCallback((restaurantId: string | undefined) => {
     if (!restaurantId) return t("none");
@@ -78,27 +78,28 @@ const DashboardPage = React.memo(() => {
     return restaurant ? restaurant.name : `Restaurante ${restaurantId.substring(0, 4)}`;
   }, [availableRestaurants, t]);
 
-  // Query para buscar tickets ativos
-  const { data: activeTickets, isLoading: isLoadingTickets, refetch: refetchActiveTickets } = useQuery<TicketWithRestaurantName[], Error>({ // Removido '= []'
-    queryKey: ["dashboardActiveTickets", userRestaurantId, isAdmin, selectedRestaurant, isDashboardActivated, availableRestaurants],
-    queryFn: async () => {
-      if (!user || (isEstafeta && !isDashboardActivated)) {
-        return [];
-      }
+  const fetchActiveTickets = useCallback(async () => {
+    if (!user || (isEstafeta && !isDashboardActivated)) { // Não carregar tickets se estafeta não ativou
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
 
+    setRefreshing(true);
+    try {
       let allTickets: Ticket[] = [];
-      const filter: Partial<Ticket> = { soft_deleted: undefined };
+      const filter: Partial<Ticket> = { soft_deleted: undefined }; // Buscar todos os tickets (soft_deleted true/false)
 
       if (isAdmin) {
         if (selectedRestaurant !== "all") {
           filter.restaurant_id = selectedRestaurant;
         }
-        allTickets = await TicketAPI.filter(filter, "-created_date");
-      } else if ((isRestaurante || isEstafeta) && userRestaurantId) {
-        filter.restaurant_id = userRestaurantId;
-        allTickets = await TicketAPI.filter(filter, "-created_date");
+        allTickets = await TicketAPI.filter(filter, "-created_date"); // Ordenar por data de criação descendente
+      } else if ((isRestaurante || isEstafeta) && user.restaurant_id) {
+        filter.restaurant_id = user.restaurant_id;
+        allTickets = await TicketAPI.filter(filter, "-created_date"); // Ordenar por data de criação descendente
       } else {
-        return [];
+        allTickets = [];
       }
 
       const ticketsToDisplay: TicketWithRestaurantName[] = [];
@@ -106,102 +107,81 @@ const DashboardPage = React.memo(() => {
 
       allTickets.forEach(ticket => {
         if (ticket.soft_deleted) {
+          // Se o ticket foi soft-deleted, verificar se já passou 1 minuto desde deleted_at
           if (ticket.deleted_at) {
             const deletedAtDate = parseISO(ticket.deleted_at);
             const oneMinuteAfterDeletion = addMinutes(deletedAtDate, 1);
             if (isPast(oneMinuteAfterDeletion)) {
-              return;
+              // Se já passou 1 minuto desde a exclusão, não incluir na lista
+              return; 
             }
           } else {
+            // Se soft_deleted é true mas deleted_at é null (caso improvável), 
+            // podemos optar por não mostrar ou mostrar por um tempo padrão.
+            // Por simplicidade, vamos ignorar se deleted_at for null para tickets soft_deleted.
             return;
           }
         }
+        // Incluir tickets que não foram soft-deleted ou que foram soft-deleted há menos de 1 minuto
         ticketsToDisplay.push({
           ...ticket,
           restaurantNameDisplay: getRestaurantNameForTicket(ticket.restaurant_id),
         });
       });
 
+      // Ordenar: soft-deleted primeiro (mais recentes), depois pendentes (mais recentes)
       ticketsToDisplay.sort((a, b) => {
-        if (a.soft_deleted && !b.soft_deleted) return -1;
-        if (!a.soft_deleted && b.soft_deleted) return 1;
+        if (a.soft_deleted && !b.soft_deleted) return -1; // Soft-deleted vem antes
+        if (!a.soft_deleted && b.soft_deleted) return 1; // Soft-deleted vem antes
 
         if (a.soft_deleted && b.soft_deleted) {
+          // Ambos soft-deleted, ordenar pelo deleted_at mais recente
           const deletedDateA = a.deleted_at ? parseISO(a.deleted_at).getTime() : 0;
           const deletedDateB = b.deleted_at ? parseISO(b.deleted_at).getTime() : 0;
           return deletedDateB - deletedDateA;
         }
 
+        // Ambos pendentes, ordenar pelo created_date mais recente
         const createdDateA = parseISO(a.created_date).getTime();
         const createdDateB = parseISO(b.created_date).getTime();
         return createdDateB - createdDateA;
       });
       
-      return ticketsToDisplay;
-    },
-    enabled: !!user && (isAdmin || (isRestaurante && !!userRestaurantId) || (isEstafeta && isDashboardActivated)) && !isLoadingRestaurants,
-    staleTime: 1000 * 5, // Re-fetch a cada 5 segundos em background
-    // Removido: onError, pois não é mais suportado diretamente nas opções do useQuery v5
-  });
-
-  // Supabase Realtime subscription for tickets
-  useEffect(() => {
-    if (!user || (isEstafeta && !isDashboardActivated)) return;
-
-    const filterRestaurantId = isAdmin && selectedRestaurant !== "all" ? selectedRestaurant : userRestaurantId;
-
-    if (!filterRestaurantId && !isAdmin) return;
-
-    console.log(`DashboardPage: Subscribing to realtime changes for tickets in restaurant ${filterRestaurantId || 'all'}`);
-
-    const channel = supabase
-      .channel(`tickets_dashboard:${filterRestaurantId || 'all'}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'tickets',
-          filter: filterRestaurantId ? `restaurant_id=eq.${filterRestaurantId}` : undefined
-        },
-        (payload) => {
-          console.log('DashboardPage: Realtime update received:', payload);
-          queryClient.invalidateQueries({ queryKey: ["dashboardActiveTickets", userRestaurantId, isAdmin, selectedRestaurant, isDashboardActivated] });
-          queryClient.invalidateQueries({ queryKey: ["pendingTicketsCount", filterRestaurantId] });
-          queryClient.invalidateQueries({ queryKey: ["userRecentTickets", userId, filterRestaurantId] });
-          queryClient.invalidateQueries({ queryKey: ["analysis"] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      console.log(`DashboardPage: Unsubscribing from realtime changes for tickets in restaurant ${filterRestaurantId || 'all'}`);
-      supabase.removeChannel(channel);
-    };
-  }, [user, isAdmin, isEstafeta, isDashboardActivated, userRestaurantId, selectedRestaurant, userId, queryClient]);
-
-  const activateDashboardMutation = useMutation({
-    mutationFn: async (code: string) => {
-      if (!user || !isEstafeta) throw new Error("User not authorized or not an estafeta.");
-      if (code !== userDashboardAccessCode) throw new Error(t("invalidActivationCode"));
-
-      await UserAPI.update(user.id, { dashboard_activated_at: new Date().toISOString() });
-      return true;
-    },
-    onSuccess: () => {
-      showSuccess(t("dashboardActivatedSuccessfully"));
-      queryClient.invalidateQueries({ queryKey: ["user"] }); // Invalidate user to refetch dashboard_activated_at
-    },
-    onError: (error: any) => {
-      console.error("Failed to activate dashboard:", error);
-      showError(error.message || t("failedToActivateDashboard"));
-    },
-    onSettled: () => {
-      setIsActivating(false);
+      setActiveTickets(ticketsToDisplay);
+    } catch (error) {
+      console.error("Failed to fetch active tickets for dashboard:", error);
+      showError(t("failedToLoadActiveTickets"));
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-  });
+  }, [user, isAdmin, isRestaurante, isEstafeta, isDashboardActivated, selectedRestaurant, t, getRestaurantNameForTicket]);
 
-  const handleActivateDashboard = useCallback(async () => {
+  useEffect(() => {
+    // Só faz o fetch se o usuário não for estafeta ou se for estafeta e o painel estiver ativado
+    if (!isEstafeta || isDashboardActivated) {
+      fetchActiveTickets();
+      const interval = setInterval(fetchActiveTickets, 5000); // Refresh every 5 seconds
+      return () => clearInterval(interval);
+    }
+  }, [fetchActiveTickets, isEstafeta, isDashboardActivated]);
+
+  const handleSort = (key: SortConfig['key']) => {
+    setSortConfig(prevConfig => {
+      if (prevConfig?.key === key) {
+        return { ...prevConfig, direction: prevConfig.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' }; // Default to ascending when changing column
+    });
+  };
+
+  const formatDateWithWeekday = (dateString: string, locale: any) => {
+    const date = parseISO(dateString);
+    return format(date, "dd/MM/yyyy (EEEE) HH:mm", { locale });
+  };
+
+  // Lógica de ativação do painel para estafetas
+  const handleActivateDashboard = async () => {
     if (!user || !isEstafeta || isActivating) return;
     if (activationCode.trim() === "") {
       showError(t("pleaseEnterActivationCode"));
@@ -209,10 +189,24 @@ const DashboardPage = React.memo(() => {
     }
 
     setIsActivating(true);
-    activateDashboardMutation.mutate(activationCode.trim());
-  }, [user, isEstafeta, isActivating, activationCode, activateDashboardMutation, t]);
+    try {
+      if (activationCode === userDashboardAccessCode) {
+        await UserAPI.update(user.id, { dashboard_activated_at: new Date().toISOString() });
+        showSuccess(t("dashboardActivatedSuccessfully"));
+        // O AuthContext irá recarregar o usuário e atualizar isDashboardActivated
+      } else {
+        showError(t("invalidActivationCode"));
+      }
+    } catch (error) {
+      console.error("Failed to activate dashboard:", error);
+      showError(t("failedToActivateDashboard"));
+    } finally {
+      setIsActivating(false);
+    }
+  };
 
-  const getTicketStatus = useCallback((ticket: Ticket) => {
+  // A função getTicketStatus é mantida, mas suas propriedades interativas não serão usadas na renderização
+  const getTicketStatus = (ticket: Ticket) => {
     if (ticket.soft_deleted) {
       return {
         label: t('ready'),
@@ -230,9 +224,11 @@ const DashboardPage = React.memo(() => {
       cardClass: 'border-yellow-300 bg-yellow-50',
       codeBadgeClass: 'bg-yellow-200 text-yellow-900',
     };
-  }, [t]);
+  };
 
+  // Renderização condicional baseada no papel do usuário e estado de ativação
   if (!user || (isEstafeta && !isDashboardActivated)) {
+    // Se for estafeta e o painel não estiver ativado, mostrar formulário de ativação
     if (isEstafeta && !isDashboardActivated) {
       return (
         <motion.div
@@ -263,6 +259,7 @@ const DashboardPage = React.memo(() => {
       );
     }
 
+    // Caso contrário (ex: restaurante sem restaurant_id, ou outros casos de não-acesso)
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -281,12 +278,14 @@ const DashboardPage = React.memo(() => {
     );
   }
 
+  // Renderização unificada para todos os papéis com acesso (atualmente apenas Admin)
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6 w-full"
     >
+      {/* Header with refresh button and restaurant selector */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold text-gray-800">
@@ -296,12 +295,12 @@ const DashboardPage = React.memo(() => {
             )}
           </h2>
           <p className="text-muted-foreground">
-            {t('activeTicketsDescription', { count: activeTickets?.length })} {/* Corrigido: Acesso seguro a 'length' */}
+            {t('activeTicketsDescription', { count: activeTickets.length })}
           </p>
         </div>
         
         <div className="flex items-center gap-4">
-          {isAdmin && (
+          {isAdmin && ( // O seletor de restaurante só aparece para admins
             <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder={t("selectRestaurant")} />
@@ -315,24 +314,25 @@ const DashboardPage = React.memo(() => {
             </Select>
           )}
           <Button
-            onClick={() => refetchActiveTickets()}
+            onClick={fetchActiveTickets}
             variant="outline"
-            disabled={isLoadingTickets}
+            disabled={refreshing}
             className="space-x-2"
           >
-            <RefreshCwIcon className={`h-4 w-4 ${isLoadingTickets ? 'animate-spin' : ''}`} />
+            <RefreshCwIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             <span>{t('refresh')}</span>
           </Button>
         </div>
       </div>
 
-      {isLoadingTickets ? (
+      {/* Tickets grid */}
+      {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-48 w-full" />
           ))}
         </div>
-      ) : activeTickets?.length === 0 ? ( {/* Corrigido: Acesso seguro a 'length' */}
+      ) : activeTickets.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -351,7 +351,7 @@ const DashboardPage = React.memo(() => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           <AnimatePresence>
-            {activeTickets?.map((ticket, index) => { {/* Corrigido: Acesso seguro a 'map' */}
+            {activeTickets.map((ticket, index) => {
               const status = getTicketStatus(ticket);
               const StatusIcon = status.icon;
               
@@ -372,16 +372,17 @@ const DashboardPage = React.memo(() => {
                       "flex flex-col"
                     )}
                   >
+                    {/* Posição do ticket (1º, 2º, etc.) */}
                     <Badge className="absolute top-2 left-2 bg-yellow-200 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full">
                       {index + 1}º
                     </Badge>
 
                     <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">
-                      <div className="text-center mt-6">
+                      <div className="text-center mt-6"> {/* Ajuste para não sobrepor o badge */}
                         <Badge 
                           className={cn(
                             "text-4xl font-mono font-extrabold tracking-wider px-4 py-2",
-                            status.codeBadgeClass
+                            status.codeBadgeClass // Usa a classe dinâmica para o código
                           )}
                         >
                           {ticket.code}
@@ -415,6 +416,4 @@ const DashboardPage = React.memo(() => {
       )}
     </motion.div>
   );
-});
-
-export default DashboardPage;
+}

@@ -9,33 +9,34 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TruckIcon, ClockIcon, CheckCircleIcon, SendIcon, Loader2 } from 'lucide-react';
+import { TruckIcon, ClockIcon, CheckCircleIcon, SendIcon } from 'lucide-react';
 import { motion } from "framer-motion";
 import { parseISO, isPast, addMinutes } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client"; // Adicionado: Importação do cliente Supabase
 
-const EstafetaPage = React.memo(() => {
+const EstafetaPage = () => {
   const { user } = useAuth();
-  const { isPendingLimitEnabled, isSettingsLoading } = useSettings();
+  const { isPendingLimitEnabled, isSettingsLoading } = useSettings(); // Use isSettingsLoading
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
-
   const [code, setCode] = useState("");
+  const [recentTickets, setRecentTickets] = useState<Ticket[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingTicketsCount, setPendingTicketsCount] = useState(0);
 
-  const restaurantId = user?.restaurant_id;
-  const userId = user?.id;
+  // DEBUG LOGS
+  useEffect(() => {
+    console.log("EstafetaPage: isPendingLimitEnabled from Context:", isPendingLimitEnabled);
+    console.log("EstafetaPage: isSettingsLoading from Context:", isSettingsLoading);
+    console.log("EstafetaPage: User restaurant_id:", user?.restaurant_id);
+  }, [isPendingLimitEnabled, isSettingsLoading, user?.restaurant_id]);
 
-  // Query para buscar tickets recentes do usuário
-  const { data: recentTickets = [], isLoading: isLoadingRecentTickets } = useQuery<Ticket[], Error>({
-    queryKey: ["userRecentTickets", userId, restaurantId],
-    queryFn: async () => {
-      if (!userId) return [];
+  const fetchRecentTickets = useCallback(async () => {
+    if (!user) return;
+    try {
+      // Fetch all tickets by the user, including soft-deleted ones
       const allUserTickets = await TicketAPI.filter(
-        { created_by_user_id: userId, soft_deleted: undefined },
+        { created_by_user_id: user.id, soft_deleted: undefined }, // Use created_by_user_id
         "-created_date",
       );
 
@@ -44,20 +45,27 @@ const EstafetaPage = React.memo(() => {
 
       allUserTickets.forEach(ticket => {
         if (ticket.soft_deleted) {
+          // Se o ticket foi soft-deleted, verificar se já passou 1 minuto desde deleted_at
           if (ticket.deleted_at) {
             const deletedAtDate = parseISO(ticket.deleted_at);
             const oneMinuteAfterDeletion = addMinutes(deletedAtDate, 1);
             if (isPast(oneMinuteAfterDeletion)) {
-              return;
+              // Se já passou 1 minuto desde a exclusão, não incluir na lista
+              return; 
             }
           } else {
+            // Se soft_deleted é true mas deleted_at é null (caso improvável), 
+            // podemos optar por não mostrar ou mostrar por um tempo padrão.
+            // Por simplicidade, vamos ignorar se deleted_at for null para tickets soft_deleted.
             return;
           }
         }
+        // Incluir tickets que não foram soft-deleted ou que foram soft-deleted há menos de 1 minuto
         ticketsToDisplay.push(ticket);
       });
 
       ticketsToDisplay.sort((a, b) => {
+        // Sort logic remains the same, prioritizing soft-deleted first, then by date
         if (a.soft_deleted && !b.soft_deleted) return -1;
         if (!a.soft_deleted && b.soft_deleted) return 1;
 
@@ -72,85 +80,44 @@ const EstafetaPage = React.memo(() => {
         return createdDateB - createdDateA;
       });
       
-      return ticketsToDisplay.slice(0, 7);
-    },
-    enabled: !!userId && !!restaurantId,
-    staleTime: 1000 * 60 * 5, // Considerar tickets recentes "stale" após 5 minutos para re-fetch em background
-  });
-
-  // Query para contar tickets pendentes do restaurante
-  const { data: pendingTicketsCount = 0, isLoading: isLoadingPendingCount } = useQuery<number, Error>({
-    queryKey: ["pendingTicketsCount", restaurantId],
-    queryFn: async () => {
-      if (!restaurantId) return 0;
-      const pendingTickets = await TicketAPI.filter({ status: "PENDING", soft_deleted: false, restaurant_id: restaurantId });
-      return pendingTickets.length;
-    },
-    enabled: !!restaurantId,
-    staleTime: 1000 * 5, // Re-fetch a cada 5 segundos em background
-  });
-
-  // Supabase Realtime subscription for tickets
-  useEffect(() => {
-    if (!restaurantId) return;
-
-    console.log(`EstafetaPage: Subscribing to realtime changes for tickets in restaurant ${restaurantId}`);
-
-    const channel = supabase // Corrigido: 'supabase' agora está importado
-      .channel(`tickets_estafeta:${restaurantId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // Listen to INSERT, UPDATE, DELETE
-          schema: 'public',
-          table: 'tickets',
-          filter: `restaurant_id=eq.${restaurantId}`
-        },
-        (payload) => {
-          console.log('EstafetaPage: Realtime update received:', payload);
-          // Invalidate queries to trigger a refetch
-          queryClient.invalidateQueries({ queryKey: ["userRecentTickets", userId, restaurantId] });
-          queryClient.invalidateQueries({ queryKey: ["pendingTicketsCount", restaurantId] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      console.log(`EstafetaPage: Unsubscribing from realtime changes for tickets in restaurant ${restaurantId}`);
-      supabase.removeChannel(channel); // Corrigido: 'supabase' agora está importado
-    };
-  }, [restaurantId, userId, queryClient]);
-
-  const createTicketMutation = useMutation({
-    mutationFn: async (payload: { code: string; restaurant_id?: string }) => {
-      return TicketAPI.create(payload);
-    },
-    onSuccess: (newTicket) => {
-      showSuccess(t("codeSentSuccessfully", { code: newTicket.code }));
-      setCode("");
-      // Invalidate queries to refetch the lists
-      queryClient.invalidateQueries({ queryKey: ["userRecentTickets", userId, restaurantId] });
-      queryClient.invalidateQueries({ queryKey: ["pendingTicketsCount", restaurantId] });
-    },
-    onError: (error: any) => {
-      if (error.statusCode === 409) {
-        showError(t("codeAlreadyExists"));
-      } else if (error.statusCode === 429) {
-        showError(t("tooManyRequests"));
-      } else {
-        showError(t("failedToSendCode"));
-      }
-      console.error("Error creating ticket:", error);
-    },
-    onSettled: () => {
-      setIsSubmitting(false);
+      setRecentTickets(ticketsToDisplay.slice(0, 7));
+    } catch (error) {
+      console.error("Failed to fetch recent tickets:", error);
+      showError(t("failedToLoadRecentTickets"));
     }
-  });
+  }, [user, t]);
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+  const fetchPendingTicketsCount = useCallback(async () => {
+    try {
+      // Filter pending tickets by the current user's restaurant_id
+      const pendingTickets = await TicketAPI.filter({ status: "PENDING", soft_deleted: false, restaurant_id: user?.restaurant_id });
+      setPendingTicketsCount(pendingTickets.length);
+    } catch (error) {
+      console.error("Failed to fetch pending tickets count:", error);
+      showError(t("pendingTicketsCountFailed"));
+    }
+  }, [t, user?.restaurant_id]);
+
+  useEffect(() => {
+    fetchRecentTickets();
+    const interval = setInterval(fetchRecentTickets, 5000);
+    return () => {
+      clearInterval(interval);
+    };
+  }, [fetchRecentTickets]);
+
+  useEffect(() => {
+    fetchPendingTicketsCount();
+    const interval = setInterval(fetchPendingTicketsCount, 5000);
+    return () => {
+      clearInterval(interval);
+    };
+  }, [fetchPendingTicketsCount]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!code || code.length !== 4 || isSubmitting) return;
-    if (!restaurantId) {
+    if (!user?.restaurant_id) {
       showError(t("userNotAssignedToRestaurant"));
       return;
     }
@@ -161,11 +128,35 @@ const EstafetaPage = React.memo(() => {
     }
 
     setIsSubmitting(true);
-    createTicketMutation.mutate({ code, restaurant_id: restaurantId });
-  }, [code, isSubmitting, restaurantId, isPendingLimitEnabled, pendingTicketsCount, createTicketMutation, t]);
+    try {
+      await TicketAPI.create({ code, restaurant_id: user.restaurant_id });
+      showSuccess(t("codeSentSuccessfully", { code }));
+      setCode("");
+      fetchRecentTickets();
+      fetchPendingTicketsCount();
+    } catch (error: any) {
+      if (error.statusCode === 409) {
+        showError(t("codeAlreadyExists"));
+      } else if (error.statusCode === 429) {
+        showError(t("tooManyRequests"));
+      } else {
+        showError(t("failedToSendCode"));
+      }
+      console.error("Error creating ticket:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const isCodeValid = code.length === 4 && /^[A-Z0-9]{4}$/.test(code);
-  const canSubmit = isCodeValid && !isSubmitting && !isSettingsLoading && !isLoadingPendingCount && (isPendingLimitEnabled ? pendingTicketsCount < 4 : true) && !!restaurantId;
+  const canSubmit = isCodeValid && !isSubmitting && !isSettingsLoading && (isPendingLimitEnabled ? pendingTicketsCount < 4 : true) && !!user?.restaurant_id;
+
+  // --- DEBUG LOGS ---
+  console.log("EstafetaPage: isPendingLimitEnabled (final check for canSubmit):", isPendingLimitEnabled);
+  console.log("EstafetaPage: pendingTicketsCount (final check for canSubmit):", pendingTicketsCount);
+  console.log("EstafetaPage: isSettingsLoading (final check for canSubmit):", isSettingsLoading);
+  console.log("EstafetaPage: canSubmit:", canSubmit);
+  // --- END DEBUG LOGS ---
 
   return (
     <motion.div
@@ -178,15 +169,15 @@ const EstafetaPage = React.memo(() => {
           <div className="p-3 rounded-full bg-gradient-to-r from-estafeta to-estafeta-dark text-white mb-2">
             <TruckIcon className="h-8 w-8" />
           </div>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">{t("courierCenter")}</h2>
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">{t("courierCenter")}</h2> {/* Ajustado tamanho da fonte */}
         </div>
 
         <Card className="w-full max-w-md">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg sm:text-xl md:text-2xl">{t("sendNewCode")}</CardTitle>
+              <CardTitle className="text-lg sm:text-xl md:text-2xl">{t("sendNewCode")}</CardTitle> {/* Ajustado tamanho da fonte */}
               <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-                <ClockIcon className="mr-1 h-3 w-3" /> {t("pending")}: {isLoadingPendingCount ? <Loader2 className="h-3 w-3 animate-spin" /> : pendingTicketsCount}
+                <ClockIcon className="mr-1 h-3 w-3" /> {t("pending")}: {pendingTicketsCount}
               </Badge>
             </div>
           </CardHeader>
@@ -198,8 +189,9 @@ const EstafetaPage = React.memo(() => {
                 maxLength={4}
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4))}
+                // Ajustado tamanho da fonte
                 className="text-xl sm:text-2xl text-center font-mono tracking-widest border-estafeta focus:ring-estafeta-dark focus:border-estafeta-dark"
-                disabled={isSubmitting || isSettingsLoading || isLoadingPendingCount || (isPendingLimitEnabled && pendingTicketsCount >= 4) || !restaurantId}
+                disabled={isSubmitting || isSettingsLoading || (isPendingLimitEnabled && pendingTicketsCount >= 4) || !user?.restaurant_id}
               />
               <p className="text-sm text-gray-500 text-center">{t("fourCharactersHint")}</p>
               {isPendingLimitEnabled && pendingTicketsCount >= 4 && (
@@ -207,7 +199,7 @@ const EstafetaPage = React.memo(() => {
                   {t("pendingLimitReached")}
                 </p>
               )}
-              {!restaurantId && (
+              {!user?.restaurant_id && (
                 <p className="text-sm text-red-600 text-center font-medium">
                   {t("userNotAssignedToRestaurant")}
                 </p>
@@ -218,7 +210,7 @@ const EstafetaPage = React.memo(() => {
                 className="w-full bg-gradient-to-r from-estafeta to-estafeta-dark text-white hover:from-estafeta-dark hover:to-estafeta"
               >
                 {isSubmitting ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  t("sending")
                 ) : (
                   <>
                     <SendIcon className="mr-2 h-4 w-4" /> {t("sendCode")}
@@ -230,18 +222,14 @@ const EstafetaPage = React.memo(() => {
         </Card>
       </div>
 
-      <div className="w-full flex justify-center">
-        <Card className="w-full max-w-md">
+      <div className="w-full flex justify-center"> {/* Novo wrapper div para centralizar o cartão */}
+        <Card className="w-full max-w-md"> {/* Adicionado max-w-md a este cartão */}
           <CardHeader className="flex flex-row items-center gap-2">
             <ClockIcon className="h-5 w-5 text-gray-600" />
-            <CardTitle className="text-lg sm:text-xl md:text-2xl">{t("lastSevenCodesSent")}</CardTitle>
+            <CardTitle className="text-lg sm:text-xl md:text-2xl">{t("lastSevenCodesSent")}</CardTitle> {/* Ajustado tamanho da fonte */}
           </CardHeader>
           <CardContent>
-            {isLoadingRecentTickets ? (
-              <div className="flex items-center justify-center p-4">
-                <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
-              </div>
-            ) : recentTickets.length === 0 ? (
+            {recentTickets.length === 0 ? (
               <p className="text-center text-gray-500">{t("noRecentCodes")}</p>
             ) : (
               <div className="flex flex-col gap-2">
@@ -253,6 +241,7 @@ const EstafetaPage = React.memo(() => {
                     transition={{ duration: 0.3 }}
                     className={cn(
                       "flex items-center justify-between rounded-lg border p-3 shadow-sm",
+                      // Prioridade: soft_deleted (azul), depois CONFIRMADO (verde), depois PENDING (amarelo)
                       ticket.soft_deleted ? "bg-blue-50 border-blue-200" : 
                       ticket.status === "CONFIRMADO" ? "bg-green-50 border-green-200" : 
                       "bg-yellow-50 border-yellow-200"
@@ -290,6 +279,6 @@ const EstafetaPage = React.memo(() => {
       </div>
     </motion.div>
   );
-});
+};
 
 export default EstafetaPage;

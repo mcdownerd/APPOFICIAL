@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
-import { TicketAPI, Ticket, UserAPI } from "@/lib/api";
+import { TicketAPI, Ticket, UserAPI } from "@/lib/api"; // Import UserAPI
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,23 +16,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { HistoryIcon, RefreshCwIcon, Undo2Icon, CheckCircleIcon, ClockIcon, CalendarIcon, ArrowUpDown, Loader2 } from "lucide-react";
+import { HistoryIcon, RefreshCwIcon, Undo2Icon, CheckCircleIcon, ClockIcon, CalendarIcon, ArrowUpDown } from "lucide-react";
 import { format, parseISO, differenceInMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 
 // Interface para o estado de ordenação
 interface SortConfig {
-  key: 'code' | 'status' | 'created_by_user_email' | 'deleted_at' | 'pendingTime' | 'restaurantName';
+  key: 'code' | 'status' | 'created_by_user_email' | 'deleted_at' | 'pendingTime' | 'restaurantName'; // Added 'restaurantName'
   direction: 'asc' | 'desc';
 }
 
 // Estende a interface Ticket para incluir o valor numérico do tempo pendente para ordenação
 interface TicketWithPendingTime extends Ticket {
   pendingTimeValue: number;
-  restaurantNameDisplay: string;
+  restaurantNameDisplay: string; // Added for display and sorting
 }
 
 // Função auxiliar para calcular e formatar a duração do tempo pendente
@@ -49,7 +48,7 @@ const getPendingDuration = (ticket: Ticket, t: any): { display: string; value: n
   }
 
   const totalMinutes = endDate ? differenceInMinutes(endDate, createdDate) : 0;
-  const absoluteMinutes = Math.max(0, totalMinutes);
+  const absoluteMinutes = Math.max(0, totalMinutes); // Garante que o valor seja não-negativo
 
   if (absoluteMinutes < 1) {
     return { display: t("lessThanOneMin"), value: absoluteMinutes };
@@ -73,26 +72,31 @@ const formatDateWithWeekday = (dateString: string, locale: any) => {
   return format(date, "dd/MM/yyyy (EEEE) HH:mm", { locale });
 };
 
-const HistoricoPage = React.memo(() => {
+const HistoricoPage = () => {
   const { user, isAdmin } = useAuth();
   const { t, i18n } = useTranslation();
-  const queryClient = useQueryClient();
-
-  const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'deleted_at', direction: 'desc' });
+  const [deletedTickets, setDeletedTickets] = useState<TicketWithPendingTime[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [availableRestaurants, setAvailableRestaurants] = useState<{ id: string; name: string }[]>([]);
+  // Estado para a configuração de ordenação, padrão para 'Removido Em' decrescente
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'deleted_at', direction: 'desc' });
 
-  // Query para buscar restaurantes disponíveis
-  const { isLoading: isLoadingRestaurants } = useQuery<{ id: string; name: string }[], Error>({
-    queryKey: ["availableRestaurants"],
-    queryFn: async () => {
-      const restaurantUsers = await UserAPI.filter({ user_role: "restaurante", status: "APPROVED" });
-      const uniqueRestaurantIds = Array.from(new Set(restaurantUsers.map(u => u.restaurant_id).filter(Boolean) as string[]));
-      const restaurants = uniqueRestaurantIds.map(id => ({ id, name: `Restaurante ${id.substring(0, 4)}` }));
-      setAvailableRestaurants(restaurants);
-      return restaurants;
-    },
-    staleTime: 1000 * 60 * 10, // Cache por 10 minutos
-  });
+  // Fetch available restaurants for display
+  useEffect(() => {
+    const fetchRestaurants = async () => {
+      try {
+        const restaurantUsers = await UserAPI.filter({ user_role: "restaurante", status: "APPROVED" });
+        const uniqueRestaurantIds = Array.from(new Set(restaurantUsers.map(u => u.restaurant_id).filter(Boolean) as string[]));
+        const restaurants = uniqueRestaurantIds.map(id => ({ id, name: `Restaurante ${id.substring(0, 4)}` })); // Simple naming
+        setAvailableRestaurants(restaurants);
+      } catch (err) {
+        console.error("Failed to fetch restaurant users for history:", err);
+        showError(t("failedToLoadRestaurants"));
+      }
+    };
+    fetchRestaurants();
+  }, [t]);
 
   const getRestaurantNameForTicket = useCallback((restaurantId: string | undefined) => {
     if (!restaurantId) return t("none");
@@ -100,25 +104,27 @@ const HistoricoPage = React.memo(() => {
     return restaurant ? restaurant.name : `Restaurante ${restaurantId.substring(0, 4)}`;
   }, [availableRestaurants, t]);
 
-  // Query para buscar tickets deletados
-  const { data: deletedTickets, isLoading: isLoadingTickets, refetch: refetchDeletedTickets } = useQuery<TicketWithPendingTime[], Error>({ // Removido '= []' para que o tipo seja inferido corretamente
-    queryKey: ["deletedTickets", user?.id, isAdmin, sortConfig, availableRestaurants],
-    queryFn: async () => {
+  const fetchDeletedTickets = useCallback(async () => {
+    setLoading(true);
+    try {
       let tickets: Ticket[];
       if (isAdmin) {
         tickets = await TicketAPI.filter({ soft_deleted: true }, "-deleted_at");
       } else if (user?.user_role === "restaurante" && user.restaurant_id) {
+        // Restaurante vê tickets removidos associados ao seu restaurant_id
         tickets = await TicketAPI.filter({ soft_deleted: true, restaurant_id: user.restaurant_id }, "-deleted_at");
       } else {
         tickets = [];
       }
 
+      // Adiciona o valor numérico do tempo pendente e o nome do restaurante para ordenação
       const ticketsWithPendingTime: TicketWithPendingTime[] = tickets.map(ticket => ({
         ...ticket,
         pendingTimeValue: getPendingDuration(ticket, t).value,
         restaurantNameDisplay: getRestaurantNameForTicket(ticket.restaurant_id),
       }));
 
+      // Aplica a ordenação no lado do cliente
       if (sortConfig) {
         ticketsWithPendingTime.sort((a, b) => {
           let aValue: any;
@@ -133,7 +139,7 @@ const HistoricoPage = React.memo(() => {
               aValue = a.deleted_at ? parseISO(a.deleted_at).getTime() : 0;
               bValue = b.deleted_at ? parseISO(b.deleted_at).getTime() : 0;
               break;
-            case 'created_by_user_email':
+            case 'created_by_user_email': // Use new field
               aValue = a.created_by_user_email || '';
               bValue = b.created_by_user_email || '';
               break;
@@ -159,49 +165,46 @@ const HistoricoPage = React.memo(() => {
           return 0;
         });
       }
-      return ticketsWithPendingTime;
-    },
-    enabled: !!user && !isLoadingRestaurants, // Only run if user is available and restaurants are loaded
-    staleTime: 1000 * 60, // Considerar stale após 1 minuto
-    // Removido: onError, pois não é mais suportado diretamente nas opções do useQuery v5
-  });
 
-  // Mutation para restaurar ticket
-  const restoreTicketMutation = useMutation({
-    mutationFn: async (ticketId: string) => {
-      if (!user) throw new Error(t("userNotAuthenticated"));
-      const ticketToRestore = (deletedTickets || []).find(t => t.id === ticketId); // Corrigido: Acesso seguro a 'find'
-      if (!ticketToRestore) throw new Error("Ticket not found in local state.");
-      
-      await TicketAPI.update(ticketId, { soft_deleted: false, restaurant_id: ticketToRestore.restaurant_id });
-      return ticketId;
-    },
-    onSuccess: (ticketId) => {
+      setDeletedTickets(ticketsWithPendingTime);
+    } catch (error) {
+      console.error("Failed to fetch deleted tickets:", error);
+      showError(t("failedToLoadHistory"));
+    } finally {
+      setLoading(false);
+    }
+  }, [user, isAdmin, t, sortConfig, getRestaurantNameForTicket]);
+
+  useEffect(() => {
+    fetchDeletedTickets();
+  }, [fetchDeletedTickets]);
+
+  const handleRestoreTicket = async (ticketId: string) => {
+    if (!user) {
+      showError(t("userNotAuthenticated"));
+      return;
+    }
+    setActionLoading(ticketId);
+    try {
+      await TicketAPI.update(ticketId, { soft_deleted: false, restaurant_id: deletedTickets.find(t => t.id === ticketId)?.restaurant_id });
       showSuccess(t("ticketRestoredSuccessfully"));
-      queryClient.invalidateQueries({ queryKey: ["deletedTickets"] });
-      queryClient.invalidateQueries({ queryKey: ["activeTickets"] }); // Invalidate active tickets as well
-      queryClient.invalidateQueries({ queryKey: ["pendingTicketsCount"] }); // Invalidate pending count for estafeta
-      queryClient.invalidateQueries({ queryKey: ["userRecentTickets"] }); // Invalidate recent tickets for estafeta
-      queryClient.invalidateQueries({ queryKey: ["analysis"] }); // Invalidate analysis data
-    },
-    onError: (error) => {
+      fetchDeletedTickets();
+    } catch (error) {
       console.error("Failed to restore ticket:", error);
       showError(t("failedToRestoreTicket"));
+    } finally {
+      setActionLoading(null);
     }
-  });
+  };
 
-  const handleRestoreTicket = useCallback(async (ticketId: string) => {
-    restoreTicketMutation.mutate(ticketId);
-  }, [restoreTicketMutation]);
-
-  const handleSort = useCallback((key: SortConfig['key']) => {
+  const handleSort = (key: SortConfig['key']) => {
     setSortConfig(prevConfig => {
       if (prevConfig?.key === key) {
         return { ...prevConfig, direction: prevConfig.direction === 'asc' ? 'desc' : 'asc' };
       }
-      return { key, direction: 'asc' };
+      return { key, direction: 'asc' }; // Padrão para ascendente ao mudar de coluna
     });
-  }, []);
+  };
 
   return (
     <motion.div
@@ -217,17 +220,17 @@ const HistoricoPage = React.memo(() => {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-2xl font-bold">{t("removedTickets")}</CardTitle>
-          <Button variant="outline" size="icon" onClick={() => refetchDeletedTickets()} disabled={isLoadingTickets}>
-            <RefreshCwIcon className={isLoadingTickets ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+          <Button variant="outline" size="icon" onClick={fetchDeletedTickets} disabled={loading}>
+            <RefreshCwIcon className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
             <span className="sr-only">{t("refresh")}</span>
           </Button>
         </CardHeader>
         <CardContent>
-          {isLoadingTickets ? (
+          {loading ? (
             <div className="flex items-center justify-center p-8">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-500 border-t-transparent"></div>
             </div>
-          ) : deletedTickets?.length === 0 ? ( {/* Corrigido: Acesso seguro a 'length' */}
+          ) : deletedTickets.length === 0 ? (
             <p className="text-center text-gray-500">{t("noRemovedTickets")}</p>
           ) : (
             <div className="overflow-x-auto">
@@ -274,7 +277,7 @@ const HistoricoPage = React.memo(() => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {deletedTickets?.map((ticket) => { {/* Corrigido: Acesso seguro a 'map' */}
+                  {deletedTickets.map((ticket) => {
                     const showDeletionDate = ticket.deleted_at;
                     const dateToShow = showDeletionDate ? ticket.deleted_at : ticket.created_date;
                     const isFallbackDate = !showDeletionDate;
@@ -294,7 +297,7 @@ const HistoricoPage = React.memo(() => {
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell>{ticket.restaurantNameDisplay}</TableCell>
+                        <TableCell>{ticket.restaurantNameDisplay}</TableCell> {/* Display restaurant name */}
                         <TableCell>{ticket.created_by_user_email}</TableCell>
                         <TableCell className="flex items-center gap-2">
                           <CalendarIcon className="h-4 w-4 text-gray-500" />
@@ -311,10 +314,10 @@ const HistoricoPage = React.memo(() => {
                             variant="outline"
                             size="sm"
                             onClick={() => handleRestoreTicket(ticket.id)}
-                            disabled={restoreTicketMutation.isPending}
+                            disabled={actionLoading === ticket.id}
                           >
-                            {restoreTicketMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Undo2Icon className="mr-2 h-4 w-4" />}
-                            {restoreTicketMutation.isPending ? t("restoring") : t("restore")}
+                            <Undo2Icon className="mr-2 h-4 w-4" />
+                            {actionLoading === ticket.id ? t("restoring") : t("restore")}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -328,6 +331,6 @@ const HistoricoPage = React.memo(() => {
       </Card>
     </motion.div>
   );
-});
+};
 
 export default HistoricoPage;

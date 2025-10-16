@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
-import { UserAPI, User, UserStatus, UserRole, RestaurantAPI } from "@/lib/api";
+import { UserAPI, User, UserStatus, UserRole, RestaurantAPI } from "@/lib/api"; // Import RestaurantAPI
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,152 +37,146 @@ import { UsersIcon, CheckCircleIcon, XCircleIcon, RefreshCcwIcon, UserCogIcon, P
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 
-const UserManagementPage = React.memo(() => {
+const UserManagementPage = () => {
   const { user: currentUser, isAdmin } = useAuth();
   const { t, i18n } = useTranslation();
-  const queryClient = useQueryClient();
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [restaurantIds, setRestaurantIds] = useState<string[]>([]);
 
   // State for Add Restaurant Dialog
   const [isAddRestaurantDialogOpen, setIsAddRestaurantDialogOpen] = useState(false);
   const [newRestaurantId, setNewRestaurantId] = useState("");
   const [newRestaurantName, setNewRestaurantName] = useState("");
+  const [isAddingRestaurant, setIsAddingRestaurant] = useState(false);
 
-  // Query para buscar todos os usuários
-  const { data: users, isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery<User[], Error>({ // Removido '= []'
-    queryKey: ["allUsers"],
-    queryFn: async () => {
-      if (!isAdmin) return [];
-      return UserAPI.filter({}, "-created_date");
-    },
-    enabled: isAdmin,
-    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
-    // Removido: onError, pois não é mais suportado diretamente nas opções do useQuery v5
-  });
+  const fetchUsersAndRestaurants = useCallback(async () => {
+    setLoading(true);
+    try {
+      const fetchedUsers = await UserAPI.filter({}, "-created_date");
+      setUsers(fetchedUsers);
 
-  // Query para buscar todos os IDs de restaurantes
-  const { data: restaurantIds, isLoading: isLoadingRestaurantIds, refetch: refetchRestaurantIds } = useQuery<string[], Error>({ // Removido '= []'
-    queryKey: ["allRestaurantIds"],
-    queryFn: async () => {
+      // Fetch all existing restaurants to populate the dropdown
       const fetchedRestaurants = await RestaurantAPI.list();
       const uniqueIds = Array.from(new Set(
         fetchedRestaurants.map(r => r.id)
       ));
-      return uniqueIds.sort();
-    },
-    staleTime: 1000 * 60 * 10, // Cache por 10 minutos
-    // Removido: onError, pois não é mais suportado diretamente nas opções do useQuery v5
-  });
+      setRestaurantIds(uniqueIds.sort());
 
-  // Mutations para atualizar status, papel e restaurant_id do usuário
-  const updateUserStatusMutation = useMutation({
-    mutationFn: async (variables: { userId: string; status: UserStatus }) => {
-      if (!isAdmin) throw new Error(t("permissionDenied"));
-      return UserAPI.update(variables.userId, { status: variables.status });
-    },
-    onSuccess: (data, variables) => {
-      showSuccess(t("userStatusUpdated", { status: variables.status }));
-      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
-    },
-    onError: (error) => {
+    } catch (error) {
+      console.error("Failed to fetch users or restaurants:", error);
+      showError(t("failedToLoadUsers"));
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchUsersAndRestaurants();
+    }
+  }, [isAdmin, fetchUsersAndRestaurants]);
+
+  const handleUpdateUserStatus = async (userId: string, status: UserStatus) => {
+    if (!isAdmin) {
+      showError(t("permissionDenied"));
+      return;
+    }
+    setActionLoading(userId);
+    try {
+      await UserAPI.update(userId, { status });
+      showSuccess(t("userStatusUpdated", { status }));
+      fetchUsersAndRestaurants();
+    } catch (error) {
       console.error("Failed to update user status:", error);
       showError(t("failedToUpdateUserStatus"));
+    } finally {
+      setActionLoading(null);
     }
-  });
+  };
 
-  const updateUserRoleMutation = useMutation({
-    mutationFn: async (variables: { userId: string; role: UserRole }) => {
-      if (!isAdmin) throw new Error(t("permissionDenied"));
-      return UserAPI.update(variables.userId, { user_role: variables.role });
-    },
-    onSuccess: (data, variables) => {
-      showSuccess(t("userRoleUpdated", { role: variables.role }));
-      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
-    },
-    onError: (error) => {
+  const handleUpdateUserRole = async (userId: string, role: UserRole) => {
+    if (!isAdmin) {
+      showError(t("permissionDenied"));
+      return;
+    }
+    setActionLoading(userId);
+    try {
+      await UserAPI.update(userId, { user_role: role });
+      showSuccess(t("userRoleUpdated", { role }));
+      fetchUsersAndRestaurants();
+    } catch (error) {
       console.error("Failed to update user role:", error);
       showError(t("failedToUpdateUserRole"));
+    } finally {
+      setActionLoading(null);
     }
-  });
+  };
 
-  const updateUserRestaurantIdMutation = useMutation({
-    mutationFn: async (variables: { userId: string; restaurantId: string | null }) => {
-      if (!isAdmin) throw new Error(t("permissionDenied"));
-      return UserAPI.update(variables.userId, { restaurant_id: variables.restaurantId });
-    },
-    onSuccess: () => {
+  const handleUpdateRestaurantId = async (userId: string, newRestaurantId: string | null) => {
+    if (!isAdmin) {
+      showError(t("permissionDenied"));
+      return;
+    }
+    setActionLoading(userId);
+    try {
+      await UserAPI.update(userId, { restaurant_id: newRestaurantId === "unassigned" ? null : newRestaurantId });
       showSuccess(t("userRestaurantIdUpdated"));
-      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
-    },
-    onError: (error) => {
+      fetchUsersAndRestaurants();
+    } catch (error) {
       console.error("Failed to update user restaurant ID:", error);
       showError(t("failedToUpdateUserRestaurantId"));
+    } finally {
+      setActionLoading(null);
     }
-  });
+  };
 
-  const updateDashboardAccessCodeMutation = useMutation({
-    mutationFn: async (variables: { userId: string; code: string | null }) => {
-      if (!isAdmin) throw new Error(t("permissionDenied"));
-      return UserAPI.update(variables.userId, { dashboard_access_code: variables.code });
-    },
-    onSuccess: () => {
+  const handleUpdateDashboardAccessCode = async (userId: string, code: string) => {
+    if (!isAdmin) {
+      showError(t("permissionDenied"));
+      return;
+    }
+    setActionLoading(userId);
+    try {
+      await UserAPI.update(userId, { dashboard_access_code: code || null });
       showSuccess(t("dashboardAccessCodeUpdated"));
-      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
-    },
-    onError: (error) => {
+      fetchUsersAndRestaurants();
+    } catch (error) {
       console.error("Failed to update dashboard access code:", error);
       showError(t("failedToUpdateDashboardAccessCode"));
+    } finally {
+      setActionLoading(null);
     }
-  });
+  };
 
-  const addRestaurantMutation = useMutation({
-    mutationFn: async (variables: { id: string; name: string }) => {
-      return RestaurantAPI.create(variables.id, variables.name);
-    },
-    onSuccess: () => {
-      showSuccess(t("restaurantAddedSuccessfully"));
-      setIsAddRestaurantDialogOpen(false);
-      setNewRestaurantId("");
-      setNewRestaurantName("");
-      queryClient.invalidateQueries({ queryKey: ["allRestaurantIds"] }); // Refetch restaurant IDs
-      queryClient.invalidateQueries({ queryKey: ["availableRestaurants"] }); // Refetch available restaurants for other pages
-    },
-    onError: (error: any) => {
-      console.error("Failed to add restaurant:", error);
-      if (error.statusCode === 409) {
-        showError(t("restaurantIdAlreadyExists"));
-      } else {
-        showError(t("failedToAddRestaurant"));
-      }
-    }
-  });
-
-  const handleUpdateUserStatus = useCallback((userId: string, status: UserStatus) => {
-    updateUserStatusMutation.mutate({ userId, status });
-  }, [updateUserStatusMutation]);
-
-  const handleUpdateUserRole = useCallback((userId: string, role: UserRole) => {
-    updateUserRoleMutation.mutate({ userId, role });
-  }, [updateUserRoleMutation]);
-
-  const handleUpdateRestaurantId = useCallback((userId: string, newRestaurantId: string | null) => {
-    updateUserRestaurantIdMutation.mutate({ userId, restaurantId: newRestaurantId === "unassigned" ? null : newRestaurantId });
-  }, [updateUserRestaurantIdMutation]);
-
-  const handleUpdateDashboardAccessCode = useCallback((userId: string, code: string) => {
-    updateDashboardAccessCodeMutation.mutate({ userId, code: code || null });
-  }, [updateDashboardAccessCodeMutation]);
-
-  const handleAddRestaurant = useCallback(async () => {
+  const handleAddRestaurant = async () => {
     if (!newRestaurantId.trim() || !newRestaurantName.trim()) {
       showError(t("pleaseFillAllFields"));
       return;
     }
-    addRestaurantMutation.mutate({ id: newRestaurantId.trim(), name: newRestaurantName.trim() });
-  }, [newRestaurantId, newRestaurantName, addRestaurantMutation, t]);
+    setIsAddingRestaurant(true);
+    try {
+      await RestaurantAPI.create(newRestaurantId.trim(), newRestaurantName.trim());
+      showSuccess(t("restaurantAddedSuccessfully")); // Assuming you add this translation
+      setIsAddRestaurantDialogOpen(false);
+      setNewRestaurantId("");
+      setNewRestaurantName("");
+      fetchUsersAndRestaurants(); // Refresh lists
+    } catch (error: any) {
+      console.error("Failed to add restaurant:", error);
+      if (error.statusCode === 409) {
+        showError(t("restaurantIdAlreadyExists")); // Assuming you add this translation
+      } else {
+        showError(t("failedToAddRestaurant")); // Assuming you add this translation
+      }
+    } finally {
+      setIsAddingRestaurant(false);
+    }
+  };
 
-  const getStatusBadge = useCallback((status: UserStatus) => {
+  const getStatusBadge = (status: UserStatus) => {
     switch (status) {
       case "PENDING":
         return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">{t("pending")}</Badge>;
@@ -193,7 +187,7 @@ const UserManagementPage = React.memo(() => {
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
-  }, [t]);
+  };
 
   if (!isAdmin) {
     return (
@@ -202,8 +196,6 @@ const UserManagementPage = React.memo(() => {
       </div>
     );
   }
-
-  const isAnyActionLoading = updateUserStatusMutation.isPending || updateUserRoleMutation.isPending || updateUserRestaurantIdMutation.isPending || updateDashboardAccessCodeMutation.isPending;
 
   return (
     <motion.div
@@ -220,8 +212,8 @@ const UserManagementPage = React.memo(() => {
           <Button variant="outline" onClick={() => setIsAddRestaurantDialogOpen(true)}>
             <PlusCircleIcon className="mr-2 h-4 w-4" /> {t("addRestaurant")}
           </Button>
-          <Button variant="outline" size="icon" onClick={() => { refetchUsers(); refetchRestaurantIds(); }} disabled={isLoadingUsers || isLoadingRestaurantIds}>
-            <RefreshCcwIcon className={(isLoadingUsers || isLoadingRestaurantIds) ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+          <Button variant="outline" size="icon" onClick={fetchUsersAndRestaurants} disabled={loading}>
+            <RefreshCcwIcon className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
             <span className="sr-only">{t("refresh")}</span>
           </Button>
         </div>
@@ -232,11 +224,11 @@ const UserManagementPage = React.memo(() => {
           <CardTitle className="text-2xl font-bold">{t("allUsers")}</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoadingUsers ? (
+          {loading ? (
             <div className="flex items-center justify-center p-8">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-500 border-t-transparent"></div>
             </div>
-          ) : users?.length === 0 ? ( {/* Corrigido: Acesso seguro a 'length' */}
+          ) : users.length === 0 ? (
             <p className="text-center text-gray-500">{t("noUsersFound")}</p>
           ) : (
             <div className="overflow-x-auto">
@@ -247,14 +239,14 @@ const UserManagementPage = React.memo(() => {
                     <TableHead>{t("email")}</TableHead>
                     <TableHead>{t("role")}</TableHead>
                     <TableHead>{t("restaurantId")}</TableHead>
-                    <TableHead>{t("dashboardAccessCode")}</TableHead>
+                    <TableHead>{t("dashboardAccessCode")}</TableHead> {/* Nova coluna */}
                     <TableHead>{t("status")}</TableHead>
                     <TableHead>{t("createdAt")}</TableHead>
                     <TableHead className="text-right">{t("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users?.map((user) => ( {/* Corrigido: Acesso seguro a 'map' */}
+                  {users.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.full_name}</TableCell>
                       <TableCell>{user.email}</TableCell>
@@ -262,7 +254,7 @@ const UserManagementPage = React.memo(() => {
                         <Select
                           value={user.user_role}
                           onValueChange={(value: UserRole) => handleUpdateUserRole(user.id, value)}
-                          disabled={isAnyActionLoading || user.id === currentUser?.id}
+                          disabled={actionLoading === user.id || user.id === currentUser?.id}
                         >
                           <SelectTrigger className="w-[140px]">
                             <SelectValue placeholder={t("selectRole")} />
@@ -275,21 +267,23 @@ const UserManagementPage = React.memo(() => {
                         </Select>
                       </TableCell>
                       <TableCell>
+                        {/* Permitir que admin, restaurante e estafeta tenham restaurant_id */}
                         {(user.user_role === "restaurante" || user.user_role === "estafeta" || user.user_role === "admin") ? (
                           <Select
                             value={user.restaurant_id || "unassigned"}
                             onValueChange={(value: string) => handleUpdateRestaurantId(user.id, value)}
-                            disabled={isAnyActionLoading}
+                            disabled={actionLoading === user.id}
                           >
                             <SelectTrigger className="w-[180px]">
                               <SelectValue placeholder={t("selectRestaurantId")} />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="unassigned">{t("none")}</SelectItem>
-                              {restaurantIds?.map(id => ( {/* Corrigido: Acesso seguro a 'map' */}
+                              {restaurantIds.map(id => (
                                 <SelectItem key={id} value={id}>{id}</SelectItem>
-                              ))}
-                              {!restaurantIds?.includes(user.restaurant_id || "") && user.restaurant_id && ( {/* Corrigido: Acesso seguro a 'includes' */}
+                              )}
+                              {/* If a user has a restaurant_id not in the current list, display it as an option */}
+                              {!restaurantIds.includes(user.restaurant_id || "") && user.restaurant_id && (
                                 <SelectItem value={user.restaurant_id}>{user.restaurant_id} (current)</SelectItem>
                               )}
                             </SelectContent>
@@ -306,7 +300,7 @@ const UserManagementPage = React.memo(() => {
                             onChange={(e) => handleUpdateDashboardAccessCode(user.id, e.target.value)}
                             placeholder={t("setAccessCode")}
                             className="w-[120px]"
-                            disabled={isAnyActionLoading}
+                            disabled={actionLoading === user.id}
                           />
                         ) : (
                           "N/A"
@@ -322,9 +316,9 @@ const UserManagementPage = React.memo(() => {
                             variant="outline"
                             size="sm"
                             onClick={() => handleUpdateUserStatus(user.id, "APPROVED")}
-                            disabled={isAnyActionLoading}
+                            disabled={actionLoading === user.id}
                           >
-                            {updateUserStatusMutation.isPending && updateUserStatusMutation.variables?.userId === user.id && updateUserStatusMutation.variables?.status === "APPROVED" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircleIcon className="mr-2 h-4 w-4" />} {t("approve")}
+                            <CheckCircleIcon className="mr-2 h-4 w-4" /> {t("approve")}
                           </Button>
                         )}
                         {user.status !== "REJECTED" && user.id !== currentUser?.id && (
@@ -332,9 +326,9 @@ const UserManagementPage = React.memo(() => {
                             variant="destructive"
                             size="sm"
                             onClick={() => handleUpdateUserStatus(user.id, "REJECTED")}
-                            disabled={isAnyActionLoading}
+                            disabled={actionLoading === user.id}
                           >
-                            {updateUserStatusMutation.isPending && updateUserStatusMutation.variables?.userId === user.id && updateUserStatusMutation.variables?.status === "REJECTED" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircleIcon className="mr-2 h-4 w-4" />} {t("reject")}
+                            <XCircleIcon className="mr-2 h-4 w-4" /> {t("reject")}
                           </Button>
                         )}
                       </TableCell>
@@ -353,7 +347,7 @@ const UserManagementPage = React.memo(() => {
           <DialogHeader>
             <DialogTitle id="add-restaurant-dialog-title">{t("addRestaurant")}</DialogTitle>
             <DialogDescription>
-              {t("addRestaurantDescription")}
+              {t("addRestaurantDescription")} {/* Add this translation */}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -366,7 +360,7 @@ const UserManagementPage = React.memo(() => {
                 value={newRestaurantId}
                 onChange={(e) => setNewRestaurantId(e.target.value)}
                 className="col-span-3"
-                disabled={addRestaurantMutation.isPending}
+                disabled={isAddingRestaurant}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
@@ -378,27 +372,27 @@ const UserManagementPage = React.memo(() => {
                 value={newRestaurantName}
                 onChange={(e) => setNewRestaurantName(e.target.value)}
                 className="col-span-3"
-                disabled={addRestaurantMutation.isPending}
+                disabled={isAddingRestaurant}
               />
             </div>
           </div>
           <DialogFooter>
             <Button 
               onClick={handleAddRestaurant} 
-              disabled={addRestaurantMutation.isPending || !newRestaurantId.trim() || !newRestaurantName.trim()}
+              disabled={isAddingRestaurant || !newRestaurantId.trim() || !newRestaurantName.trim()}
             >
-              {addRestaurantMutation.isPending ? (
+              {isAddingRestaurant ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <PlusCircleIcon className="mr-2 h-4 w-4" />
               )}
-              {t("add")}
+              {t("add")} {/* Add this translation */}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </motion.div>
   );
-});
+};
 
 export default UserManagementPage;
