@@ -45,41 +45,38 @@ export const SessionContextProvider = ({ children }: { children: ReactNode }) =>
   const [isLoading, setIsLoading] = useState(true); // Start as true
   const { t } = useTranslation();
 
-  useEffect(() => {
-    let isMounted = true; // Flag to prevent state updates on unmounted component
-
-    const loadUser = async (sessionUser: any, event?: string) => {
-      if (!isMounted) return;
-      setIsLoading(true); // Set loading to true at the start of user loading attempt
-      try {
-        if (sessionUser) {
-          const currentUser = await UserAPI.me();
-          if (isMounted) {
-            setUser(currentUser);
-            if (currentUser && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
-              showSuccess(t("welcomeUser", { userName: currentUser.full_name }));
-            }
+  const loadUser = useCallback(async (sessionUser: any, event?: string) => {
+    setIsLoading(true); // Set loading to true at the start of user loading attempt
+    try {
+      if (sessionUser) {
+        const currentUser = await UserAPI.me();
+        if (currentUser) {
+          setUser(currentUser);
+          if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+            showSuccess(t("welcomeUser", { userName: currentUser.full_name }));
           }
         } else {
-          if (isMounted) {
-            setUser(null);
-            if (event === 'SIGNED_OUT') {
-              showSuccess(t("sessionEnded"));
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching user profile:", error);
-        if (isMounted) {
-          showError(t("failedToLoadUserProfile"));
+          // If session.user exists but profile not found, treat as unauthenticated
           setUser(null);
+          showError(t("failedToLoadUserProfile"));
         }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false); // Ensure loading is set to false after user loading attempt
+      } else {
+        setUser(null);
+        if (event === 'SIGNED_OUT') {
+          showSuccess(t("sessionEnded"));
         }
       }
-    };
+    } catch (error) {
+      console.error("Error fetching user profile or session:", error);
+      showError(t("authErrorOccurred"));
+      setUser(null);
+    } finally {
+      setIsLoading(false); // Ensure loading is set to false after user loading attempt
+    }
+  }, [t, showSuccess, showError]); // Dependencies for useCallback
+
+  useEffect(() => {
+    let isMounted = true; // Flag to prevent state updates on unmounted component
 
     // Handle initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -105,7 +102,7 @@ export const SessionContextProvider = ({ children }: { children: ReactNode }) =>
       isMounted = false; // Cleanup: set flag to false
       subscription.unsubscribe();
     };
-  }, [t]);
+  }, [loadUser, t, showError, setUser, setIsLoading]); // Added loadUser and other state setters to dependencies
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
