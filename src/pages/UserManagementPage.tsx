@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
-import { UserAPI, User, UserStatus, UserRole, RestaurantAPI } from "@/lib/api"; // Import RestaurantAPI
+import { UserAPI, User, UserStatus, UserRole, RestaurantAPI } from "@/lib/api";
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,146 +37,152 @@ import { UsersIcon, CheckCircleIcon, XCircleIcon, RefreshCcwIcon, UserCogIcon, P
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 
-const UserManagementPage = () => {
+const UserManagementPage = React.memo(() => {
   const { user: currentUser, isAdmin } = useAuth();
   const { t, i18n } = useTranslation();
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [restaurantIds, setRestaurantIds] = useState<string[]>([]);
+  const queryClient = useQueryClient();
 
   // State for Add Restaurant Dialog
   const [isAddRestaurantDialogOpen, setIsAddRestaurantDialogOpen] = useState(false);
   const [newRestaurantId, setNewRestaurantId] = useState("");
   const [newRestaurantName, setNewRestaurantName] = useState("");
-  const [isAddingRestaurant, setIsAddingRestaurant] = useState(false);
 
-  const fetchUsersAndRestaurants = useCallback(async () => {
-    setLoading(true);
-    try {
-      const fetchedUsers = await UserAPI.filter({}, "-created_date");
-      setUsers(fetchedUsers);
+  // Query para buscar todos os usuários
+  const { data: users, isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery<User[], Error>({ // Removido '= []'
+    queryKey: ["allUsers"],
+    queryFn: async () => {
+      if (!isAdmin) return [];
+      return UserAPI.filter({}, "-created_date");
+    },
+    enabled: isAdmin,
+    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
+    // Removido: onError, pois não é mais suportado diretamente nas opções do useQuery v5
+  });
 
-      // Fetch all existing restaurants to populate the dropdown
+  // Query para buscar todos os IDs de restaurantes
+  const { data: restaurantIds, isLoading: isLoadingRestaurantIds, refetch: refetchRestaurantIds } = useQuery<string[], Error>({ // Removido '= []'
+    queryKey: ["allRestaurantIds"],
+    queryFn: async () => {
       const fetchedRestaurants = await RestaurantAPI.list();
       const uniqueIds = Array.from(new Set(
         fetchedRestaurants.map(r => r.id)
       ));
-      setRestaurantIds(uniqueIds.sort());
+      return uniqueIds.sort();
+    },
+    staleTime: 1000 * 60 * 10, // Cache por 10 minutos
+    // Removido: onError, pois não é mais suportado diretamente nas opções do useQuery v5
+  });
 
-    } catch (error) {
-      console.error("Failed to fetch users or restaurants:", error);
-      showError(t("failedToLoadUsers"));
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
-
-  useEffect(() => {
-    if (isAdmin) {
-      fetchUsersAndRestaurants();
-    }
-  }, [isAdmin, fetchUsersAndRestaurants]);
-
-  const handleUpdateUserStatus = async (userId: string, status: UserStatus) => {
-    if (!isAdmin) {
-      showError(t("permissionDenied"));
-      return;
-    }
-    setActionLoading(userId);
-    try {
-      await UserAPI.update(userId, { status });
-      showSuccess(t("userStatusUpdated", { status }));
-      fetchUsersAndRestaurants();
-    } catch (error) {
+  // Mutations para atualizar status, papel e restaurant_id do usuário
+  const updateUserStatusMutation = useMutation({
+    mutationFn: async (variables: { userId: string; status: UserStatus }) => {
+      if (!isAdmin) throw new Error(t("permissionDenied"));
+      return UserAPI.update(variables.userId, { status: variables.status });
+    },
+    onSuccess: (data, variables) => {
+      showSuccess(t("userStatusUpdated", { status: variables.status }));
+      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
+    },
+    onError: (error) => {
       console.error("Failed to update user status:", error);
       showError(t("failedToUpdateUserStatus"));
-    } finally {
-      setActionLoading(null);
     }
-  };
+  });
 
-  const handleUpdateUserRole = async (userId: string, role: UserRole) => {
-    if (!isAdmin) {
-      showError(t("permissionDenied"));
-      return;
-    }
-    setActionLoading(userId);
-    try {
-      await UserAPI.update(userId, { user_role: role });
-      showSuccess(t("userRoleUpdated", { role }));
-      fetchUsersAndRestaurants();
-    } catch (error) {
+  const updateUserRoleMutation = useMutation({
+    mutationFn: async (variables: { userId: string; role: UserRole }) => {
+      if (!isAdmin) throw new Error(t("permissionDenied"));
+      return UserAPI.update(variables.userId, { user_role: variables.role });
+    },
+    onSuccess: (data, variables) => {
+      showSuccess(t("userRoleUpdated", { role: variables.role }));
+      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
+    },
+    onError: (error) => {
       console.error("Failed to update user role:", error);
       showError(t("failedToUpdateUserRole"));
-    } finally {
-      setActionLoading(null);
     }
-  };
+  });
 
-  const handleUpdateRestaurantId = async (userId: string, newRestaurantId: string | null) => {
-    if (!isAdmin) {
-      showError(t("permissionDenied"));
-      return;
-    }
-    setActionLoading(userId);
-    try {
-      await UserAPI.update(userId, { restaurant_id: newRestaurantId === "unassigned" ? null : newRestaurantId });
+  const updateUserRestaurantIdMutation = useMutation({
+    mutationFn: async (variables: { userId: string; restaurantId: string | null }) => {
+      if (!isAdmin) throw new Error(t("permissionDenied"));
+      return UserAPI.update(variables.userId, { restaurant_id: variables.restaurantId });
+    },
+    onSuccess: () => {
       showSuccess(t("userRestaurantIdUpdated"));
-      fetchUsersAndRestaurants();
-    } catch (error) {
+      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
+    },
+    onError: (error) => {
       console.error("Failed to update user restaurant ID:", error);
       showError(t("failedToUpdateUserRestaurantId"));
-    } finally {
-      setActionLoading(null);
     }
-  };
+  });
 
-  const handleUpdateDashboardAccessCode = async (userId: string, code: string) => {
-    if (!isAdmin) {
-      showError(t("permissionDenied"));
-      return;
-    }
-    setActionLoading(userId);
-    try {
-      await UserAPI.update(userId, { dashboard_access_code: code || null });
+  const updateDashboardAccessCodeMutation = useMutation({
+    mutationFn: async (variables: { userId: string; code: string | null }) => {
+      if (!isAdmin) throw new Error(t("permissionDenied"));
+      return UserAPI.update(variables.userId, { dashboard_access_code: variables.code });
+    },
+    onSuccess: () => {
       showSuccess(t("dashboardAccessCodeUpdated"));
-      fetchUsersAndRestaurants();
-    } catch (error) {
+      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
+    },
+    onError: (error) => {
       console.error("Failed to update dashboard access code:", error);
       showError(t("failedToUpdateDashboardAccessCode"));
-    } finally {
-      setActionLoading(null);
     }
-  };
+  });
 
-  const handleAddRestaurant = async () => {
+  const addRestaurantMutation = useMutation({
+    mutationFn: async (variables: { id: string; name: string }) => {
+      return RestaurantAPI.create(variables.id, variables.name);
+    },
+    onSuccess: () => {
+      showSuccess(t("restaurantAddedSuccessfully"));
+      setIsAddRestaurantDialogOpen(false);
+      setNewRestaurantId("");
+      setNewRestaurantName("");
+      queryClient.invalidateQueries({ queryKey: ["allRestaurantIds"] }); // Refetch restaurant IDs
+      queryClient.invalidateQueries({ queryKey: ["availableRestaurants"] }); // Refetch available restaurants for other pages
+    },
+    onError: (error: any) => {
+      console.error("Failed to add restaurant:", error);
+      if (error.statusCode === 409) {
+        showError(t("restaurantIdAlreadyExists"));
+      } else {
+        showError(t("failedToAddRestaurant"));
+      }
+    }
+  });
+
+  const handleUpdateUserStatus = useCallback((userId: string, status: UserStatus) => {
+    updateUserStatusMutation.mutate({ userId, status });
+  }, [updateUserStatusMutation]);
+
+  const handleUpdateUserRole = useCallback((userId: string, role: UserRole) => {
+    updateUserRoleMutation.mutate({ userId, role });
+  }, [updateUserRoleMutation]);
+
+  const handleUpdateRestaurantId = useCallback((userId: string, newRestaurantId: string | null) => {
+    updateUserRestaurantIdMutation.mutate({ userId, restaurantId: newRestaurantId === "unassigned" ? null : newRestaurantId });
+  }, [updateUserRestaurantIdMutation]);
+
+  const handleUpdateDashboardAccessCode = useCallback((userId: string, code: string) => {
+    updateDashboardAccessCodeMutation.mutate({ userId, code: code || null });
+  }, [updateDashboardAccessCodeMutation]);
+
+  const handleAddRestaurant = useCallback(async () => {
     if (!newRestaurantId.trim() || !newRestaurantName.trim()) {
       showError(t("pleaseFillAllFields"));
       return;
     }
-    setIsAddingRestaurant(true);
-    try {
-      await RestaurantAPI.create(newRestaurantId.trim(), newRestaurantName.trim());
-      showSuccess(t("restaurantAddedSuccessfully")); // Assuming you add this translation
-      setIsAddRestaurantDialogOpen(false);
-      setNewRestaurantId("");
-      setNewRestaurantName("");
-      fetchUsersAndRestaurants(); // Refresh lists
-    } catch (error: any) {
-      console.error("Failed to add restaurant:", error);
-      if (error.statusCode === 409) {
-        showError(t("restaurantIdAlreadyExists")); // Assuming you add this translation
-      } else {
-        showError(t("failedToAddRestaurant")); // Assuming you add this translation
-      }
-    } finally {
-      setIsAddingRestaurant(false);
-    }
-  };
+    addRestaurantMutation.mutate({ id: newRestaurantId.trim(), name: newRestaurantName.trim() });
+  }, [newRestaurantId, newRestaurantName, addRestaurantMutation, t]);
 
-  const getStatusBadge = (status: UserStatus) => {
+  const getStatusBadge = useCallback((status: UserStatus) => {
     switch (status) {
       case "PENDING":
         return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">{t("pending")}</Badge>;
@@ -187,7 +193,7 @@ const UserManagementPage = () => {
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
-  };
+  }, [t]);
 
   if (!isAdmin) {
     return (
@@ -196,6 +202,8 @@ const UserManagementPage = () => {
       </div>
     );
   }
+
+  const isAnyActionLoading = updateUserStatusMutation.isPending || updateUserRoleMutation.isPending || updateUserRestaurantIdMutation.isPending || updateDashboardAccessCodeMutation.isPending;
 
   return (
     <motion.div
@@ -212,8 +220,8 @@ const UserManagementPage = () => {
           <Button variant="outline" onClick={() => setIsAddRestaurantDialogOpen(true)}>
             <PlusCircleIcon className="mr-2 h-4 w-4" /> {t("addRestaurant")}
           </Button>
-          <Button variant="outline" size="icon" onClick={fetchUsersAndRestaurants} disabled={loading}>
-            <RefreshCcwIcon className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+          <Button variant="outline" size="icon" onClick={() => { refetchUsers(); refetchRestaurantIds(); }} disabled={isLoadingUsers || isLoadingRestaurantIds}>
+            <RefreshCcwIcon className={(isLoadingUsers || isLoadingRestaurantIds) ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
             <span className="sr-only">{t("refresh")}</span>
           </Button>
         </div>
@@ -224,11 +232,11 @@ const UserManagementPage = () => {
           <CardTitle className="text-2xl font-bold">{t("allUsers")}</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoadingUsers ? (
             <div className="flex items-center justify-center p-8">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-500 border-t-transparent"></div>
             </div>
-          ) : users.length === 0 ? (
+          ) : users?.length === 0 ? (
             <p className="text-center text-gray-500">{t("noUsersFound")}</p>
           ) : (
             <div className="overflow-x-auto">
@@ -239,14 +247,14 @@ const UserManagementPage = () => {
                     <TableHead>{t("email")}</TableHead>
                     <TableHead>{t("role")}</TableHead>
                     <TableHead>{t("restaurantId")}</TableHead>
-                    <TableHead>{t("dashboardAccessCode")}</TableHead> {/* Nova coluna */}
+                    <TableHead>{t("dashboardAccessCode")}</TableHead>
                     <TableHead>{t("status")}</TableHead>
                     <TableHead>{t("createdAt")}</TableHead>
                     <TableHead className="text-right">{t("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((user) => (
+                  {users?.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.full_name}</TableCell>
                       <TableCell>{user.email}</TableCell>
@@ -254,7 +262,7 @@ const UserManagementPage = () => {
                         <Select
                           value={user.user_role}
                           onValueChange={(value: UserRole) => handleUpdateUserRole(user.id, value)}
-                          disabled={actionLoading === user.id || user.id === currentUser?.id}
+                          disabled={isAnyActionLoading || user.id === currentUser?.id}
                         >
                           <SelectTrigger className="w-[140px]">
                             <SelectValue placeholder={t("selectRole")} />
@@ -267,23 +275,22 @@ const UserManagementPage = () => {
                         </Select>
                       </TableCell>
                       <TableCell>
-                        {/* Permitir que admin, restaurante e estafeta tenham restaurant_id */}
                         {(user.user_role === "restaurante" || user.user_role === "estafeta" || user.user_role === "admin") ? (
                           <Select
                             value={user.restaurant_id || "unassigned"}
                             onValueChange={(value: string) => handleUpdateRestaurantId(user.id, value)}
-                            disabled={actionLoading === user.id}
+                            disabled={isAnyActionLoading}
                           >
                             <SelectTrigger className="w-[180px]">
                               <SelectValue placeholder={t("selectRestaurantId")} />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="unassigned">{t("none")}</SelectItem>
-                              {restaurantIds.map(id => (
+                              {restaurantIds?.map(id => (
                                 <SelectItem key={id} value={id}>{id}</SelectItem>
-                              )}
+                              ))}
                               {/* If a user has a restaurant_id not in the current list, display it as an option */}
-                              {!restaurantIds.includes(user.restaurant_id || "") && user.restaurant_id && (
+                              {!restaurantIds?.includes(user.restaurant_id || "") && user.restaurant_id && (
                                 <SelectItem value={user.restaurant_id}>{user.restaurant_id} (current)</SelectItem>
                               )}
                             </SelectContent>
@@ -300,7 +307,7 @@ const UserManagementPage = () => {
                             onChange={(e) => handleUpdateDashboardAccessCode(user.id, e.target.value)}
                             placeholder={t("setAccessCode")}
                             className="w-[120px]"
-                            disabled={actionLoading === user.id}
+                            disabled={isAnyActionLoading}
                           />
                         ) : (
                           "N/A"
@@ -316,9 +323,9 @@ const UserManagementPage = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => handleUpdateUserStatus(user.id, "APPROVED")}
-                            disabled={actionLoading === user.id}
+                            disabled={isAnyActionLoading}
                           >
-                            <CheckCircleIcon className="mr-2 h-4 w-4" /> {t("approve")}
+                            {updateUserStatusMutation.isPending && updateUserStatusMutation.variables?.userId === user.id && updateUserStatusMutation.variables?.status === "APPROVED" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircleIcon className="mr-2 h-4 w-4" />} {t("approve")}
                           </Button>
                         )}
                         {user.status !== "REJECTED" && user.id !== currentUser?.id && (
@@ -326,9 +333,9 @@ const UserManagementPage = () => {
                             variant="destructive"
                             size="sm"
                             onClick={() => handleUpdateUserStatus(user.id, "REJECTED")}
-                            disabled={actionLoading === user.id}
+                            disabled={isAnyActionLoading}
                           >
-                            <XCircleIcon className="mr-2 h-4 w-4" /> {t("reject")}
+                            {updateUserStatusMutation.isPending && updateUserStatusMutation.variables?.userId === user.id && updateUserStatusMutation.variables?.status === "REJECTED" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircleIcon className="mr-2 h-4 w-4" />} {t("reject")}
                           </Button>
                         )}
                       </TableCell>
@@ -347,7 +354,7 @@ const UserManagementPage = () => {
           <DialogHeader>
             <DialogTitle id="add-restaurant-dialog-title">{t("addRestaurant")}</DialogTitle>
             <DialogDescription>
-              {t("addRestaurantDescription")} {/* Add this translation */}
+              {t("addRestaurantDescription")}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -360,7 +367,7 @@ const UserManagementPage = () => {
                 value={newRestaurantId}
                 onChange={(e) => setNewRestaurantId(e.target.value)}
                 className="col-span-3"
-                disabled={isAddingRestaurant}
+                disabled={addRestaurantMutation.isPending}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
@@ -372,27 +379,27 @@ const UserManagementPage = () => {
                 value={newRestaurantName}
                 onChange={(e) => setNewRestaurantName(e.target.value)}
                 className="col-span-3"
-                disabled={isAddingRestaurant}
+                disabled={addRestaurantMutation.isPending}
               />
             </div>
           </div>
           <DialogFooter>
             <Button 
               onClick={handleAddRestaurant} 
-              disabled={isAddingRestaurant || !newRestaurantId.trim() || !newRestaurantName.trim()}
+              disabled={addRestaurantMutation.isPending || !newRestaurantId.trim() || !newRestaurantName.trim()}
             >
-              {isAddingRestaurant ? (
+              {addRestaurantMutation.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <PlusCircleIcon className="mr-2 h-4 w-4" />
               )}
-              {t("add")} {/* Add this translation */}
+              {t("add")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </motion.div>
   );
-};
+});
 
 export default UserManagementPage;
