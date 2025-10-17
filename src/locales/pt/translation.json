@@ -52,6 +52,7 @@
   "ready": "PRONTO",
   "pending": "PENDENTE",
   "acknowledged": "CONFIRMADO",
+  "paid": "PAGO",
   "codeSentSuccessfully": "Código \"{{code}}\" enviado com sucesso!",
   "codeAlreadyExists": "Código já existe na fila ativa!",
   "tooManyRequests": "Muitas requisições. Tente novamente em breve.",
@@ -61,7 +62,9 @@
   "activeTickets": "Tickets Ativos",
   "removeTicket": "Remover Ticket",
   "ticketConfirmedSuccessfully": "Ticket confirmado com sucesso!",
+  "ticketPaidSuccessfully": "Ticket marcado como pago com sucesso!",
   "failedToConfirmTicket": "Falha ao confirmar ticket.",
+  "failedToProcessTicketAction": "Falha ao processar ação do ticket.",
   "clickAgainToRemove": "Clique novamente para remover.",
   "ticketRemovedSuccessfully": "Ticket removido com sucesso!",
   "failedToRemoveTicket": "Falha ao remover ticket.",
@@ -115,6 +118,7 @@
   "pendingLimitDescription": "Quando ativado, estafetas só podem enviar novos códigos se houver menos de 4 pedidos pendentes no sistema.",
   "loadingTickets": "Carregando tickets...",
   "clickToConfirm": "Clique para confirmar",
+  "markAsPaid": "Marcar como Pago",
   "noActiveTickets": "Nenhum ticket ativo",
   "awaitingNewCodes": "Aguardando novos códigos dos estafetas.",
   "activeTicketsDescription_one": "{{count}} ticket ativo.",
@@ -172,5 +176,6 @@
   "restaurantAddedSuccessfully": "Restaurante adicionado com sucesso!",
   "restaurantIdAlreadyExists": "O ID do restaurante já existe. Por favor, escolha outro.",
   "failedToAddRestaurant": "Falha ao adicionar restaurante. Por favor, tente novamente.",
-  "add": "Adicionar"
+  "add": "Adicionar",
+  "unknownAction": "Ação Desconhecida"
 }

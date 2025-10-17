@@ -18,7 +18,7 @@ export interface User {
   dashboard_activated_at?: string | null; // Nova coluna
 }
 
-export type TicketStatus = "PENDING" | "CONFIRMADO"; // Alterado de "ACKNOWLEDGED" para "CONFIRMADO"
+export type TicketStatus = "PENDING" | "CONFIRMADO" | "PAID"; // Alterado para incluir "PAID"
 
 export interface Ticket {
   id: string;
@@ -28,6 +28,7 @@ export interface Ticket {
   acknowledged_at: string | null;
   acknowledged_by_user_id: string | null; // User ID (UUID)
   acknowledged_by_user_email: string | null; // User Email
+  paid_at: string | null; // Nova coluna para pagamento
   soft_deleted: boolean;
   deleted_at: string | null;
   deleted_by_user_id: string | null; // User ID (UUID)
@@ -258,6 +259,7 @@ export const TicketAPI = {
       if (key === 'deleted_by_user_email') dbKey = 'deleted_by_email';
       if (key === 'created_by_user_id') dbKey = 'created_by';
       if (key === 'created_by_user_email') dbKey = 'created_by_email';
+      if (key === 'paid_at') dbKey = 'paid_at'; // Mapear paid_at
 
       if (value !== undefined) {
         supabaseQuery = supabaseQuery.eq(dbKey, value);
@@ -277,11 +279,12 @@ export const TicketAPI = {
     return data.map(ticket => ({
       id: ticket.id,
       code: ticket.code,
-      status: ticket.status === "ACKED" ? "CONFIRMADO" : ticket.status, // Convert ACKED to CONFIRMADO
+      status: ticket.status === "ACKED" ? "CONFIRMADO" : (ticket.status === "PAID" ? "PAID" : ticket.status), // Converter ACKED para CONFIRMADO e PAID
       created_by_ip: ticket.created_by_ip,
       acknowledged_at: ticket.acknowledged_at || null,
       acknowledged_by_user_id: ticket.acknowledged_by || null, // Map to new field
       acknowledged_by_user_email: ticket.acknowledged_by_email || null, // Map to new field
+      paid_at: ticket.paid_at || null, // Mapear paid_at
       soft_deleted: ticket.soft_deleted,
       deleted_at: ticket.deleted_at || null,
       deleted_by_user_id: ticket.deleted_by || null, // Map to new field
@@ -335,11 +338,12 @@ export const TicketAPI = {
     return {
       id: data.id,
       code: data.code,
-      status: data.status === "ACKED" ? "CONFIRMADO" : data.status, // Convert ACKED to CONFIRMADO
+      status: data.status === "ACKED" ? "CONFIRMADO" : (data.status === "PAID" ? "PAID" : data.status), // Converter ACKED para CONFIRMADO e PAID
       created_by_ip: data.created_by_ip,
       acknowledged_at: null,
       acknowledged_by_user_id: null,
       acknowledged_by_user_email: null,
+      paid_at: null, // Inicializar paid_at como null
       soft_deleted: false,
       deleted_at: null,
       deleted_by_user_id: null,
@@ -385,6 +389,9 @@ export const TicketAPI = {
       updatePayload.created_by_email = payload.created_by_user_email;
       delete updatePayload.created_by_user_email;
     }
+    if (payload.paid_at !== undefined) { // Mapear paid_at
+      updatePayload.paid_at = payload.paid_at;
+    }
 
     // Convert CONFIRMADO back to ACKED for database if needed
     if (updatePayload.status === "CONFIRMADO") {
@@ -392,7 +399,11 @@ export const TicketAPI = {
       updatePayload.acknowledged_at = new Date().toISOString();
       updatePayload.acknowledged_by = session.user.id; // Use user ID
       updatePayload.acknowledged_by_email = session.user.email; // Use user email
+    } else if (updatePayload.status === "PAID") { // Novo status PAID
+      updatePayload.status = "PAID";
+      updatePayload.paid_at = new Date().toISOString(); // Definir paid_at
     }
+    
     if (updatePayload.soft_deleted === true) {
       updatePayload.deleted_at = new Date().toISOString();
       updatePayload.deleted_by = session.user.id; // Use user ID
@@ -403,12 +414,6 @@ export const TicketAPI = {
       .from('tickets')
       .update(updatePayload)
       .eq('id', id);
-
-    // REMOVIDO: O filtro de restaurant_id no lado do cliente para updates.
-    // A RLS já garante que apenas usuários autorizados (admin ou restaurante do ticket) podem atualizar.
-    // if (payload.restaurant_id !== undefined) {
-    //   supabaseQuery = supabaseQuery.eq('restaurant_id', payload.restaurant_id);
-    // }
 
     const { data, error } = await supabaseQuery
       .select()
@@ -423,11 +428,12 @@ export const TicketAPI = {
     return {
       id: data.id,
       code: data.code,
-      status: data.status === "ACKED" ? "CONFIRMADO" : data.status, // Convert ACKED to CONFIRMADO
+      status: data.status === "ACKED" ? "CONFIRMADO" : (data.status === "PAID" ? "PAID" : data.status), // Converter ACKED para CONFIRMADO e PAID
       created_by_ip: data.created_by_ip,
       acknowledged_at: data.acknowledged_at || null,
       acknowledged_by_user_id: data.acknowledged_by || null,
       acknowledged_by_user_email: data.acknowledged_by_email || null,
+      paid_at: data.paid_at || null, // Mapear paid_at
       soft_deleted: data.soft_deleted,
       deleted_at: data.deleted_at || null,
       deleted_by_user_id: data.deleted_by || null,

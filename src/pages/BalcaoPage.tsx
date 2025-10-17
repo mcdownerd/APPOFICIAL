@@ -6,8 +6,8 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, Trash2Icon, UtensilsCrossedIcon, SettingsIcon } from 'lucide-react';
-import { TicketAPI, Ticket, UserAPI } from '@/lib/api'; // Import UserAPI
+import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, Trash2Icon, UtensilsCrossedIcon, SettingsIcon, DollarSignIcon } from 'lucide-react'; // Adicionado DollarSignIcon
+import { TicketAPI, Ticket, UserAPI } from '@/lib/api';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -16,22 +16,18 @@ import { cn } from "@/lib/utils";
 import { useSettings } from "@/context/SettingsContext";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function BalcaoPage() {
   const { user, isAdmin, isRestaurante } = useAuth();
   const { t, i18n } = useTranslation();
-  const { isPendingLimitEnabled, togglePendingLimit, isSettingsLoading } = useSettings(); // Use isSettingsLoading
+  const { isPendingLimitEnabled, togglePendingLimit, isSettingsLoading } = useSettings();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set());
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
-  const [selectedRestaurant, setSelectedRestaurant] = useState("all"); // 'all' or a specific restaurant_id
+  const [selectedRestaurant, setSelectedRestaurant] = useState("all");
   const [availableRestaurants, setAvailableRestaurants] = useState<{ id: string; name: string }[]>([]);
-
-  const doubleClickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const DOUBLE_CLICK_THRESHOLD = 500; // milliseconds
 
   // Fetch available restaurants for admin filter
   useEffect(() => {
@@ -40,7 +36,7 @@ export default function BalcaoPage() {
         try {
           const restaurantUsers = await UserAPI.filter({ user_role: "restaurante", status: "APPROVED" });
           const uniqueRestaurantIds = Array.from(new Set(restaurantUsers.map(u => u.restaurant_id).filter(Boolean) as string[]));
-          const restaurants = uniqueRestaurantIds.map(id => ({ id, name: `Restaurante ${id.substring(0, 4)}` })); // Simple naming
+          const restaurants = uniqueRestaurantIds.map(id => ({ id, name: `Restaurante ${id.substring(0, 4)}` }));
           setAvailableRestaurants(restaurants);
         } catch (err) {
           console.error("Failed to fetch restaurant users:", err);
@@ -81,7 +77,7 @@ export default function BalcaoPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, isAdmin, t, selectedRestaurant]); // Add selectedRestaurant to dependencies
+  }, [user, isAdmin, t, selectedRestaurant]);
 
   useEffect(() => {
     loadTickets();
@@ -90,95 +86,55 @@ export default function BalcaoPage() {
     const interval = setInterval(loadTickets, 5000);
     return () => {
       clearInterval(interval);
-      if (doubleClickTimeoutRef.current) {
-        clearTimeout(doubleClickTimeoutRef.current);
-        doubleClickTimeoutRef.current = null;
-      }
     };
   }, [loadTickets]);
 
-  const handleTicketClick = async (ticket: Ticket) => {
+  const handleTicketAction = async (ticket: Ticket) => {
     if (!user) {
       showError(t("userNotAuthenticated"));
       return;
     }
     if (processingTickets.has(ticket.id)) return;
 
-    if (ticket.status === 'PENDING') {
-      // Acknowledge ticket
-      await handleAcknowledge(ticket);
-    } else if (ticket.status === 'CONFIRMADO') {
-      if (pendingDelete === ticket.id) {
-        // This is the second click on the same ticket
-        if (doubleClickTimeoutRef.current) {
-          clearTimeout(doubleClickTimeoutRef.current);
-          doubleClickTimeoutRef.current = null; // Clear the ref
-        }
-        await handleSoftDelete(ticket);
-        setPendingDelete(null); // Clear pendingDelete after successful deletion
-      } else {
-        // This is the first click on this ticket (or a new first click after timeout)
-        // Clear any existing pending delete for other tickets
-        if (doubleClickTimeoutRef.current) {
-          clearTimeout(doubleClickTimeoutRef.current);
-          doubleClickTimeoutRef.current = null;
-        }
-        setPendingDelete(ticket.id);
-        showInfo(t('clickAgainToRemove'));
-        
-        doubleClickTimeoutRef.current = setTimeout(() => {
-          setPendingDelete(null); // Reset pendingDelete if no second click within threshold
-          doubleClickTimeoutRef.current = null;
-        }, DOUBLE_CLICK_THRESHOLD);
+    setProcessingTickets(prev => new Set(prev).add(ticket.id));
+    
+    try {
+      let newStatus: Ticket['status'] | undefined;
+      let successMessage: string = '';
+      let updatePayload: Partial<Ticket> = { restaurant_id: ticket.restaurant_id };
+
+      if (ticket.status === 'PENDING') {
+        newStatus = 'CONFIRMADO';
+        updatePayload = {
+          ...updatePayload,
+          status: newStatus,
+          acknowledged_by_user_id: user.id,
+          acknowledged_by_user_email: user.email,
+        };
+        successMessage = t('ticketConfirmedSuccessfully');
+      } else if (ticket.status === 'CONFIRMADO') {
+        newStatus = 'PAID';
+        updatePayload = {
+          ...updatePayload,
+          status: newStatus,
+        };
+        successMessage = t('ticketPaidSuccessfully'); // Nova tradução
+      } else if (ticket.status === 'PAID') {
+        updatePayload = {
+          ...updatePayload,
+          soft_deleted: true,
+          deleted_by_user_id: user.id,
+          deleted_by_user_email: user.email,
+        };
+        successMessage = t('ticketRemovedSuccessfully');
       }
-    }
-  };
 
-  const handleAcknowledge = async (ticket: Ticket) => {
-    if (!user || processingTickets.has(ticket.id)) return;
-
-    setProcessingTickets(prev => new Set(prev).add(ticket.id));
-    
-    try {
-      await TicketAPI.update(ticket.id, {
-        status: 'CONFIRMADO',
-        acknowledged_by_user_id: user.id,
-        acknowledged_by_user_email: user.email,
-        restaurant_id: ticket.restaurant_id,
-      });
-      
-      showSuccess(t('ticketConfirmedSuccessfully'));
+      await TicketAPI.update(ticket.id, updatePayload);
+      showSuccess(successMessage);
       await loadTickets();
     } catch (error) {
-      console.error('Error acknowledging ticket:', error);
-      showError(t('failedToConfirmTicket'));
-    } finally {
-      setProcessingTickets(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(ticket.id);
-        return newSet;
-      });
-    }
-  };
-
-  const handleSoftDelete = async (ticket: Ticket) => {
-    if (!user || processingTickets.has(ticket.id)) return;
-
-    setProcessingTickets(prev => new Set(prev).add(ticket.id));
-    
-    try {
-      await TicketAPI.update(ticket.id, {
-        soft_deleted: true,
-        deleted_by_user_id: user.id,
-        deleted_by_user_email: user.email,
-        restaurant_id: ticket.restaurant_id,
-      });
-      
-      showSuccess(t('ticketRemovedSuccessfully'));
-      await loadTickets();
-    } catch (error) {
-      console.error('Error soft deleting ticket:', error);
-      showError(t('failedToRemoveTicket'));
+      console.error('Error processing ticket action:', error);
+      showError(t('failedToProcessTicketAction')); // Nova tradução
     } finally {
       setProcessingTickets(prev => {
         const newSet = new Set(prev);
@@ -195,20 +151,36 @@ export default function BalcaoPage() {
         icon: ClockIcon,
         className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
         cardClass: 'border-yellow-300 bg-yellow-50',
-        clickable: true,
-        clickText: t('clickToConfirm')
+        actionText: t('clickToConfirm'),
+        actionIcon: CheckCircleIcon,
+      };
+    } else if (ticket.status === 'CONFIRMADO') {
+      return {
+        label: t('acknowledged'),
+        icon: CheckCircleIcon,
+        className: 'bg-green-100 text-green-800 border-green-200',
+        cardClass: 'border-green-300 bg-green-50',
+        actionText: t('markAsPaid'), // Nova tradução
+        actionIcon: DollarSignIcon, // Novo ícone
+      };
+    } else if (ticket.status === 'PAID') {
+      return {
+        label: t('paid'), // Nova tradução
+        icon: DollarSignIcon, // Novo ícone
+        className: 'bg-blue-100 text-blue-800 border-blue-200', // Nova cor
+        cardClass: 'border-blue-300 bg-blue-50', // Nova cor
+        actionText: t('removeTicket'),
+        actionIcon: Trash2Icon,
       };
     }
     
-    return {
-      label: t('acknowledged'),
-      icon: CheckCircleIcon,
-      className: 'bg-green-100 text-green-800 border-green-200',
-      cardClass: 'border-green-300 bg-green-50',
-      clickable: true,
-      clickText: pendingDelete === ticket.id 
-        ? t('clickAgainToRemove')
-        : t('removeTicket')
+    return { // Fallback para status desconhecido
+      label: ticket.status,
+      icon: ClockIcon,
+      className: 'bg-gray-100 text-gray-800 border-gray-200',
+      cardClass: 'border-gray-300 bg-gray-50',
+      actionText: t('unknownAction'),
+      actionIcon: ClockIcon,
     };
   };
 
@@ -227,7 +199,7 @@ export default function BalcaoPage() {
   // Determine if the switch should be disabled
   const isSwitchDisabled = isSettingsLoading || (!isAdmin && !isRestaurante);
 
-  if (loading || isSettingsLoading) { // Add isSettingsLoading to overall loading state
+  if (loading || isSettingsLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="flex items-center space-x-2">
@@ -315,7 +287,7 @@ export default function BalcaoPage() {
               id="pending-limit-toggle"
               checked={isPendingLimitEnabled}
               onCheckedChange={togglePendingLimit}
-              disabled={isSwitchDisabled} // Disable if loading or not authorized
+              disabled={isSwitchDisabled}
             />
             <Label htmlFor="pending-limit-toggle">{t("enablePendingLimit")}</Label>
           </div>
@@ -348,8 +320,8 @@ export default function BalcaoPage() {
             {tickets.map((ticket, index) => {
               const status = getTicketStatus(ticket);
               const StatusIcon = status.icon;
+              const ActionIcon = status.actionIcon;
               const isProcessing = processingTickets.has(ticket.id);
-              const isPendingDelete = pendingDelete === ticket.id;
               
               return (
                 <motion.div
@@ -365,12 +337,11 @@ export default function BalcaoPage() {
                     className={cn(
                       "h-full cursor-pointer transition-all duration-200 border-2",
                       status.cardClass,
-                      status.clickable ? 'hover:shadow-lg hover:scale-105' : '',
-                      isPendingDelete ? 'ring-4 ring-red-500 shadow-xl' : 'hover-lift',
+                      'hover:shadow-lg hover:scale-105',
                       isProcessing ? 'opacity-60 cursor-not-allowed' : '',
                       "flex flex-col"
                     )}
-                    onClick={() => !isProcessing && handleTicketClick(ticket)}
+                    onClick={() => !isProcessing && handleTicketAction(ticket)}
                   >
                     <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">
                       <div className="text-center">
@@ -390,10 +361,10 @@ export default function BalcaoPage() {
                         </Badge>
                       </div>
                       
-                      {status.clickable && !isProcessing && (
+                      {!isProcessing && (
                         <div className="text-center mt-2">
-                          <p className={cn("text-xs font-medium", isPendingDelete ? 'text-red-700' : 'text-muted-foreground')}>
-                            {status.clickText}
+                          <p className="text-xs font-medium text-muted-foreground flex items-center justify-center gap-1">
+                            <ActionIcon className="h-3 w-3" /> {status.actionText}
                           </p>
                         </div>
                       )}
@@ -405,6 +376,11 @@ export default function BalcaoPage() {
                         {ticket.acknowledged_at && (
                           <p>
                             {t('confirmed')}: {format(parseISO(ticket.acknowledged_at), 'HH:mm', { locale: i18n.language === 'pt' ? ptBR : undefined })}
+                          </p>
+                        )}
+                        {ticket.paid_at && (
+                          <p>
+                            {t('paid')}: {format(parseISO(ticket.paid_at), 'HH:mm', { locale: i18n.language === 'pt' ? ptBR : undefined })}
                           </p>
                         )}
                       </div>
