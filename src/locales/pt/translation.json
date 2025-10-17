@@ -177,5 +177,10 @@
   "restaurantIdAlreadyExists": "O ID do restaurante já existe. Por favor, escolha outro.",
   "failedToAddRestaurant": "Falha ao adicionar restaurante. Por favor, tente novamente.",
   "add": "Adicionar",
-  "unknownAction": "Ação Desconhecida"
+  "unknownAction": "Ação Desconhecida",
+  "deleteTicket": "Apagar Pedido",
+  "confirmDelete": "Confirmar Exclusão",
+  "clickAgainToDelete": "Clique novamente para apagar.",
+  "ticketDeletionConfirmed": "Pedido apagado com sucesso!",
+  "failedToDeleteTicket": "Falha ao apagar pedido."
 }

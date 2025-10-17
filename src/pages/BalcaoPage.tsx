@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, Trash2Icon, UtensilsCrossedIcon, SettingsIcon, DollarSignIcon } from 'lucide-react'; // Adicionado DollarSignIcon
+import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, Trash2Icon, UtensilsCrossedIcon, SettingsIcon, DollarSignIcon } from 'lucide-react';
 import { TicketAPI, Ticket, UserAPI } from '@/lib/api';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
@@ -28,6 +28,10 @@ export default function BalcaoPage() {
   const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set());
   const [selectedRestaurant, setSelectedRestaurant] = useState("all");
   const [availableRestaurants, setAvailableRestaurants] = useState<{ id: string; name: string }[]>([]);
+
+  // Novo estado para gerenciar a confirmação de exclusão
+  const [confirmDeleteTicketId, setConfirmDeleteTicketId] = useState<string | null>(null);
+  const deleteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch available restaurants for admin filter
   useEffect(() => {
@@ -89,6 +93,15 @@ export default function BalcaoPage() {
     };
   }, [loadTickets]);
 
+  // Limpar o estado de confirmação de exclusão se o componente for desmontado ou tickets forem recarregados
+  useEffect(() => {
+    return () => {
+      if (deleteTimeoutRef.current) {
+        clearTimeout(deleteTimeoutRef.current);
+      }
+    };
+  }, [tickets]);
+
   const handleTicketAction = async (ticket: Ticket) => {
     if (!user) {
       showError(t("userNotAuthenticated"));
@@ -118,7 +131,7 @@ export default function BalcaoPage() {
           ...updatePayload,
           status: newStatus,
         };
-        successMessage = t('ticketPaidSuccessfully'); // Nova tradução
+        successMessage = t('ticketPaidSuccessfully');
       } else if (ticket.status === 'PAID') {
         updatePayload = {
           ...updatePayload,
@@ -134,13 +147,59 @@ export default function BalcaoPage() {
       await loadTickets();
     } catch (error) {
       console.error('Error processing ticket action:', error);
-      showError(t('failedToProcessTicketAction')); // Nova tradução
+      showError(t('failedToProcessTicketAction'));
     } finally {
       setProcessingTickets(prev => {
         const newSet = new Set(prev);
         newSet.delete(ticket.id);
         return newSet;
       });
+    }
+  };
+
+  // Nova função para lidar com a exclusão direta
+  const handleDeleteTicket = async (ticket: Ticket) => {
+    if (!user) {
+      showError(t("userNotAuthenticated"));
+      return;
+    }
+    if (processingTickets.has(ticket.id)) return;
+
+    if (confirmDeleteTicketId === ticket.id) {
+      // Segunda vez que o botão é clicado, confirmar exclusão
+      setProcessingTickets(prev => new Set(prev).add(ticket.id));
+      if (deleteTimeoutRef.current) {
+        clearTimeout(deleteTimeoutRef.current);
+        deleteTimeoutRef.current = null;
+      }
+      setConfirmDeleteTicketId(null); // Resetar estado de confirmação
+
+      try {
+        await TicketAPI.update(ticket.id, {
+          soft_deleted: true,
+          deleted_by_user_id: user.id,
+          deleted_by_user_email: user.email,
+          restaurant_id: ticket.restaurant_id, // Manter o restaurant_id
+        });
+        showSuccess(t('ticketDeletionConfirmed'));
+        await loadTickets();
+      } catch (error) {
+        console.error('Error deleting ticket:', error);
+        showError(t('failedToDeleteTicket'));
+      } finally {
+        setProcessingTickets(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(ticket.id);
+          return newSet;
+        });
+      }
+    } else {
+      // Primeira vez que o botão é clicado, pedir confirmação
+      setConfirmDeleteTicketId(ticket.id);
+      showInfo(t('clickAgainToDelete')); // Mensagem para o usuário
+      deleteTimeoutRef.current = setTimeout(() => {
+        setConfirmDeleteTicketId(null); // Resetar após 3 segundos
+      }, 3000);
     }
   };
 
@@ -160,21 +219,21 @@ export default function BalcaoPage() {
         icon: CheckCircleIcon,
         className: 'bg-green-100 text-green-800 border-green-200',
         cardClass: 'border-green-300 bg-green-50',
-        actionText: t('markAsPaid'), // Nova tradução
-        actionIcon: DollarSignIcon, // Novo ícone
+        actionText: t('markAsPaid'),
+        actionIcon: DollarSignIcon,
       };
     } else if (ticket.status === 'PAID') {
       return {
-        label: t('paid'), // Nova tradução
-        icon: DollarSignIcon, // Novo ícone
-        className: 'bg-blue-100 text-blue-800 border-blue-200', // Nova cor
-        cardClass: 'border-blue-300 bg-blue-50', // Nova cor
+        label: t('paid'),
+        icon: DollarSignIcon,
+        className: 'bg-blue-100 text-blue-800 border-blue-200',
+        cardClass: 'border-blue-300 bg-blue-50',
         actionText: t('removeTicket'),
         actionIcon: Trash2Icon,
       };
     }
     
-    return { // Fallback para status desconhecido
+    return {
       label: ticket.status,
       icon: ClockIcon,
       className: 'bg-gray-100 text-gray-800 border-gray-200',
@@ -322,6 +381,7 @@ export default function BalcaoPage() {
               const StatusIcon = status.icon;
               const ActionIcon = status.actionIcon;
               const isProcessing = processingTickets.has(ticket.id);
+              const isConfirmingDelete = confirmDeleteTicketId === ticket.id;
               
               return (
                 <motion.div
@@ -335,15 +395,42 @@ export default function BalcaoPage() {
                 >
                   <Card 
                     className={cn(
-                      "h-full cursor-pointer transition-all duration-200 border-2",
+                      "h-full transition-all duration-200 border-2 relative", // Adicionado relative para posicionar o botão de exclusão
                       status.cardClass,
                       'hover:shadow-lg hover:scale-105',
                       isProcessing ? 'opacity-60 cursor-not-allowed' : '',
                       "flex flex-col"
                     )}
-                    onClick={() => !isProcessing && handleTicketAction(ticket)}
                   >
-                    <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                    {/* Botão de exclusão direta */}
+                    <Button
+                      variant={isConfirmingDelete ? "destructive" : "ghost"}
+                      size="icon"
+                      className={cn(
+                        "absolute top-2 right-2 h-8 w-8 rounded-full z-10",
+                        isConfirmingDelete ? "bg-red-500 hover:bg-red-600 text-white" : "text-gray-500 hover:bg-gray-100"
+                      )}
+                      onClick={(e) => {
+                        e.stopPropagation(); // Previne que o clique no botão acione o handleTicketAction do Card
+                        handleDeleteTicket(ticket);
+                      }}
+                      disabled={isProcessing}
+                      aria-label={isConfirmingDelete ? t('confirmDelete') : t('deleteTicket')}
+                    >
+                      {isProcessing ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2Icon className="h-4 w-4" />
+                      )}
+                    </Button>
+
+                    <CardContent 
+                      className={cn(
+                        "p-4 space-y-3 flex-1 flex flex-col justify-between",
+                        isProcessing ? 'cursor-not-allowed' : 'cursor-pointer'
+                      )}
+                      onClick={() => !isProcessing && handleTicketAction(ticket)}
+                    >
                       <div className="text-center">
                         <p className="text-4xl font-mono font-extrabold tracking-wider text-gray-900">
                           {ticket.code}
