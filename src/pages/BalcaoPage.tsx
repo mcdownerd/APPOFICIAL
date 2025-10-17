@@ -363,7 +363,7 @@ export default function BalcaoPage() {
                 >
                   <Card 
                     className={cn(
-                      "h-full cursor-pointer transition-all duration-200 border-2",
+                      "h-full cursor-pointer transition-all duration-200 border-2 relative", // Adicionado relative para posicionamento absoluto do botão
                       status.cardClass,
                       status.clickable ? 'hover:shadow-lg hover:scale-105' : '',
                       isPendingDelete ? 'ring-4 ring-red-500 shadow-xl' : 'hover-lift',
@@ -372,6 +372,21 @@ export default function BalcaoPage() {
                     )}
                     onClick={() => !isProcessing && handleTicketClick(ticket)}
                   >
+                    {ticket.status === 'CONFIRMADO' && ( // Botão de lixeira só aparece para tickets CONFIRMADOS
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                        onClick={(e) => {
+                          e.stopPropagation(); // Previne que o clique no botão ative o clique do cartão
+                          handleSoftDelete(ticket);
+                        }}
+                        disabled={isProcessing}
+                        aria-label={t('removeTicket')}
+                      >
+                        <Trash2Icon className="h-5 w-5" />
+                      </Button>
+                    )}
                     <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">
                       <div className="text-center">
                         <p className="text-4xl font-mono font-extrabold tracking-wider text-gray-900">
