@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, Trash2Icon, UtensilsCrossedIcon, SettingsIcon, DollarSignIcon } from 'lucide-react';
+import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, Trash2Icon, UtensilsCrossedIcon, SettingsIcon } from 'lucide-react'; // Removido DollarSignIcon
 import { TicketAPI, Ticket, UserAPI } from '@/lib/api';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
@@ -25,7 +25,7 @@ export default function BalcaoPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set());
+  const [processingTickets, setProcessingTickets] = new Set();
   const [selectedRestaurant, setSelectedRestaurant] = useState("all");
   const [availableRestaurants, setAvailableRestaurants] = useState<{ id: string; name: string }[]>([]);
 
@@ -126,13 +126,7 @@ export default function BalcaoPage() {
         };
         successMessage = t('ticketConfirmedSuccessfully');
       } else if (ticket.status === 'CONFIRMADO') {
-        newStatus = 'PAID';
-        updatePayload = {
-          ...updatePayload,
-          status: newStatus,
-        };
-        successMessage = t('ticketPaidSuccessfully');
-      } else if (ticket.status === 'PAID') {
+        // Se o status for CONFIRMADO, o próximo passo é remover (soft delete)
         updatePayload = {
           ...updatePayload,
           soft_deleted: true,
@@ -141,6 +135,7 @@ export default function BalcaoPage() {
         };
         successMessage = t('ticketRemovedSuccessfully');
       }
+      // Removido o caso para 'PAID'
 
       await TicketAPI.update(ticket.id, updatePayload);
       showSuccess(successMessage);
@@ -157,7 +152,7 @@ export default function BalcaoPage() {
     }
   };
 
-  // Nova função para lidar com a exclusão direta
+  // Função para lidar com a exclusão direta (mantida)
   const handleDeleteTicket = async (ticket: Ticket) => {
     if (!user) {
       showError(t("userNotAuthenticated"));
@@ -166,20 +161,19 @@ export default function BalcaoPage() {
     if (processingTickets.has(ticket.id)) return;
 
     if (confirmDeleteTicketId === ticket.id) {
-      // Segunda vez que o botão é clicado, confirmar exclusão
       setProcessingTickets(prev => new Set(prev).add(ticket.id));
       if (deleteTimeoutRef.current) {
         clearTimeout(deleteTimeoutRef.current);
         deleteTimeoutRef.current = null;
       }
-      setConfirmDeleteTicketId(null); // Resetar estado de confirmação
+      setConfirmDeleteTicketId(null);
 
       try {
         await TicketAPI.update(ticket.id, {
           soft_deleted: true,
           deleted_by_user_id: user.id,
           deleted_by_user_email: user.email,
-          restaurant_id: ticket.restaurant_id, // Manter o restaurant_id
+          restaurant_id: ticket.restaurant_id,
         });
         showSuccess(t('ticketDeletionConfirmed'));
         await loadTickets();
@@ -194,11 +188,10 @@ export default function BalcaoPage() {
         });
       }
     } else {
-      // Primeira vez que o botão é clicado, pedir confirmação
       setConfirmDeleteTicketId(ticket.id);
-      showInfo(t('clickAgainToDelete')); // Mensagem para o usuário
+      showInfo(t('clickAgainToDelete'));
       deleteTimeoutRef.current = setTimeout(() => {
-        setConfirmDeleteTicketId(null); // Resetar após 3 segundos
+        setConfirmDeleteTicketId(null);
       }, 3000);
     }
   };
@@ -219,21 +212,13 @@ export default function BalcaoPage() {
         icon: CheckCircleIcon,
         className: 'bg-green-100 text-green-800 border-green-200',
         cardClass: 'border-green-300 bg-green-50',
-        actionText: t('markAsPaid'),
-        actionIcon: DollarSignIcon,
-      };
-    } else if (ticket.status === 'PAID') {
-      return {
-        label: t('paid'),
-        icon: DollarSignIcon,
-        className: 'bg-blue-100 text-blue-800 border-blue-200',
-        cardClass: 'border-blue-300 bg-blue-50',
-        actionText: t('removeTicket'),
-        actionIcon: Trash2Icon,
+        actionText: t('removeTicket'), // Alterado para remover diretamente
+        actionIcon: Trash2Icon, // Alterado para ícone de lixeira
       };
     }
+    // Removido o caso para 'PAID'
     
-    return {
+    return { // Fallback para status desconhecido
       label: ticket.status,
       icon: ClockIcon,
       className: 'bg-gray-100 text-gray-800 border-gray-200',
@@ -465,11 +450,7 @@ export default function BalcaoPage() {
                             {t('confirmed')}: {format(parseISO(ticket.acknowledged_at), 'HH:mm', { locale: i18n.language === 'pt' ? ptBR : undefined })}
                           </p>
                         )}
-                        {ticket.paid_at && (
-                          <p>
-                            {t('paid')}: {format(parseISO(ticket.paid_at), 'HH:mm', { locale: i18n.language === 'pt' ? ptBR : undefined })}
-                          </p>
-                        )}
+                        {/* Removido a exibição de paid_at */}
                       </div>
                     </CardContent>
                   </Card>

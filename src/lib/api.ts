@@ -18,7 +18,7 @@ export interface User {
   dashboard_activated_at?: string | null; // Nova coluna
 }
 
-export type TicketStatus = "PENDING" | "CONFIRMADO" | "PAID"; // Alterado para incluir "PAID"
+export type TicketStatus = "PENDING" | "CONFIRMADO"; // Alterado para remover "PAID"
 
 export interface Ticket {
   id: string;
@@ -28,7 +28,7 @@ export interface Ticket {
   acknowledged_at: string | null;
   acknowledged_by_user_id: string | null; // User ID (UUID)
   acknowledged_by_user_email: string | null; // User Email
-  paid_at: string | null; // Nova coluna para pagamento
+  paid_at: string | null; // Esta coluna será removida do uso, mas mantida na interface por enquanto
   soft_deleted: boolean;
   deleted_at: string | null;
   deleted_by_user_id: string | null; // User ID (UUID)
@@ -279,7 +279,7 @@ export const TicketAPI = {
     return data.map(ticket => ({
       id: ticket.id,
       code: ticket.code,
-      status: ticket.status === "ACKED" ? "CONFIRMADO" : (ticket.status === "PAID" ? "PAID" : ticket.status), // Converter ACKED para CONFIRMADO e PAID
+      status: ticket.status === "ACKED" ? "CONFIRMADO" : ticket.status, // Converter ACKED para CONFIRMADO, removido PAID
       created_by_ip: ticket.created_by_ip,
       acknowledged_at: ticket.acknowledged_at || null,
       acknowledged_by_user_id: ticket.acknowledged_by || null, // Map to new field
@@ -338,7 +338,7 @@ export const TicketAPI = {
     return {
       id: data.id,
       code: data.code,
-      status: data.status === "ACKED" ? "CONFIRMADO" : (data.status === "PAID" ? "PAID" : data.status), // Converter ACKED para CONFIRMADO e PAID
+      status: data.status === "ACKED" ? "CONFIRMADO" : data.status, // Converter ACKED para CONFIRMADO, removido PAID
       created_by_ip: data.created_by_ip,
       acknowledged_at: null,
       acknowledged_by_user_id: null,
@@ -389,8 +389,9 @@ export const TicketAPI = {
       updatePayload.created_by_email = payload.created_by_user_email;
       delete updatePayload.created_by_user_email;
     }
-    if (payload.paid_at !== undefined) { // Mapear paid_at
-      updatePayload.paid_at = payload.paid_at;
+    // Removido o mapeamento de paid_at para o payload de atualização
+    if (updatePayload.paid_at !== undefined) {
+      delete updatePayload.paid_at;
     }
 
     // Convert CONFIRMADO back to ACKED for database if needed
@@ -399,10 +400,8 @@ export const TicketAPI = {
       updatePayload.acknowledged_at = new Date().toISOString();
       updatePayload.acknowledged_by = session.user.id; // Use user ID
       updatePayload.acknowledged_by_email = session.user.email; // Use user email
-    } else if (updatePayload.status === "PAID") { // Novo status PAID
-      updatePayload.status = "PAID";
-      updatePayload.paid_at = new Date().toISOString(); // Definir paid_at
-    }
+    } 
+    // Removido o bloco else if (updatePayload.status === "PAID")
     
     if (updatePayload.soft_deleted === true) {
       updatePayload.deleted_at = new Date().toISOString();
@@ -428,12 +427,12 @@ export const TicketAPI = {
     return {
       id: data.id,
       code: data.code,
-      status: data.status === "ACKED" ? "CONFIRMADO" : (data.status === "PAID" ? "PAID" : data.status), // Converter ACKED para CONFIRMADO e PAID
+      status: data.status === "ACKED" ? "CONFIRMADO" : data.status, // Converter ACKED para CONFIRMADO, removido PAID
       created_by_ip: data.created_by_ip,
       acknowledged_at: data.acknowledged_at || null,
       acknowledged_by_user_id: data.acknowledged_by || null,
       acknowledged_by_user_email: data.acknowledged_by_email || null,
-      paid_at: data.paid_at || null, // Mapear paid_at
+      paid_at: data.paid_at || null, // Mapear paid_at (mantido na interface, mas não será usado)
       soft_deleted: data.soft_deleted,
       deleted_at: data.deleted_at || null,
       deleted_by_user_id: data.deleted_by || null,
