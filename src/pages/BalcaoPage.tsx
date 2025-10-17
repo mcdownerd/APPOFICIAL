@@ -376,7 +376,7 @@ export default function BalcaoPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute top-2 right-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                        className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-opacity duration-200" // Removido opacity-0 group-hover:opacity-100
                         onClick={(e) => {
                           e.stopPropagation(); // Previne que o clique no botão ative o clique do cartão
                           handleSoftDelete(ticket);
