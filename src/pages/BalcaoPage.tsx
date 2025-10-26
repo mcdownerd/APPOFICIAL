@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, Trash2Icon, UtensilsCrossedIcon, SettingsIcon } from 'lucide-react';
-import { TicketAPI, Ticket, UserAPI, RestaurantAPI } from '@/lib/api'; // Import RestaurantAPI
+import { TicketAPI, Ticket, UserAPI } from '@/lib/api'; // Import UserAPI
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -38,22 +38,18 @@ export default function BalcaoPage() {
     const fetchRestaurants = async () => {
       if (isAdmin) {
         try {
-          const restaurants = await RestaurantAPI.list(); // Fetch all restaurants
+          const restaurantUsers = await UserAPI.filter({ user_role: "restaurante", status: "APPROVED" });
+          const uniqueRestaurantIds = Array.from(new Set(restaurantUsers.map(u => u.restaurant_id).filter(Boolean) as string[]));
+          const restaurants = uniqueRestaurantIds.map(id => ({ id, name: `Restaurante ${id.substring(0, 4)}` })); // Simple naming
           setAvailableRestaurants(restaurants);
         } catch (err) {
-          console.error("Failed to fetch restaurants for BalcaoPage:", err);
+          console.error("Failed to fetch restaurant users:", err);
           showError(t("failedToLoadRestaurants"));
         }
       }
     };
     fetchRestaurants();
   }, [isAdmin, t]);
-
-  const getRestaurantNameForTicket = useCallback((restaurantId: string | undefined) => {
-    if (!restaurantId) return t("none");
-    const restaurant = availableRestaurants.find(r => r.id === restaurantId);
-    return restaurant ? restaurant.name : `Restaurante ${restaurantId.substring(0, 4)}`;
-  }, [availableRestaurants, t]);
 
   const loadTickets = useCallback(async () => {
     if (!user || (!isAdmin && user.user_role === "restaurante" && !user.restaurant_id)) {
@@ -220,6 +216,13 @@ export default function BalcaoPage() {
   const currentRestaurantName = isAdmin && selectedRestaurant !== "all"
     ? availableRestaurants.find(r => r.id === selectedRestaurant)?.name || selectedRestaurant
     : null;
+
+  // Helper to get restaurant name for a ticket
+  const getRestaurantNameForTicket = (restaurantId: string | undefined) => {
+    if (!restaurantId) return t("none");
+    const restaurant = availableRestaurants.find(r => r.id === restaurantId);
+    return restaurant ? restaurant.name : `Restaurante ${restaurantId.substring(0, 4)}`;
+  };
 
   // Determine if the switch should be disabled
   const isSwitchDisabled = isSettingsLoading || (!isAdmin && !isRestaurante);

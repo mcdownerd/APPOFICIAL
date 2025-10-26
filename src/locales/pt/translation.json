@@ -32,7 +32,6 @@
   "timeAnalysis": "Análise de Tempo",
   "manageUsers": "Gerenciar Usuários",
   "dashboard": "Painel",
-  "dashboardNew": "Painel (Novo)",
   "sessionEnded": "Sessão terminada.",
   "loginFailed": "Falha no login. Tente novamente.",
   "userNotAuthenticated": "Usuário não autenticado.",
@@ -154,6 +153,7 @@
   "created": "Criado",
   "confirmed": "Confirmado",
   "restaurantName": "Restaurante",
+  "dashboard": "Painel",
   "activeOrdersOverview": "Visão Geral de Pedidos Ativos",
   "noActiveOrders": "Nenhum pedido ativo encontrado para este período.",
   "activateDashboard": "Ativar Painel",
@@ -172,6 +172,5 @@
   "restaurantAddedSuccessfully": "Restaurante adicionado com sucesso!",
   "restaurantIdAlreadyExists": "O ID do restaurante já existe. Por favor, escolha outro.",
   "failedToAddRestaurant": "Falha ao adicionar restaurante. Por favor, tente novamente.",
-  "add": "Adicionar",
-  "inProcessing": "Em Processamento"
+  "add": "Adicionar"
 }

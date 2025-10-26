@@ -5,24 +5,17 @@ import { useAuth, UserRole } from "@/context/AuthContext";
 interface AuthGuardProps {
   children: ReactNode;
   allowedRoles: UserRole[];
-  requiresRestaurantId?: boolean; // Nova propriedade
 }
 
-export const AuthGuard = ({ children, allowedRoles, requiresRestaurantId = false }: AuthGuardProps) => {
+export const AuthGuard = ({ children, allowedRoles }: AuthGuardProps) => {
   const { isAuthenticated, isApproved, user, isLoading } = useAuth();
 
   if (isLoading) {
-    return null; // Ou um spinner de carregamento
+    return null; // Or a loading spinner
   }
 
   if (!isAuthenticated || !isApproved || !user || !allowedRoles.includes(user.user_role)) {
-    // Redirecionar para a página inicial ou uma página proibida se não autorizado
-    return <Navigate to="/" replace />;
-  }
-
-  // Se a rota requer um restaurant_id e o usuário não é admin, verificar se ele tem um.
-  if (requiresRestaurantId && user.user_role !== 'admin' && !user.restaurant_id) {
-    // Redirecionar para a página inicial se o restaurant_id estiver faltando
+    // Redirect to home or a forbidden page if not authorized
     return <Navigate to="/" replace />;
   }
 

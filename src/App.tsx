@@ -17,7 +17,6 @@ import HistoricoPage from "./pages/HistoricoPage";
 import AnaliseTempoPage from "./pages/AnaliseTempoPage";
 import UserManagementPage from "./pages/UserManagementPage";
 import DashboardPage from "./pages/DashboardPage";
-import DashboardCopyPage from "./pages/DashboardCopyPage"; // Import the new page
 
 const queryClient = new QueryClient();
 
@@ -79,15 +78,6 @@ const App = () => (
                   element={
                     <AuthGuard allowedRoles={["admin"]}> {/* Apenas admin pode acessar o dashboard */}
                       <DashboardPage />
-                    </AuthGuard>
-                  }
-                />
-                {/* New route for the copied dashboard */}
-                <Route
-                  path="dashboard-copy"
-                  element={
-                    <AuthGuard allowedRoles={["admin", "restaurante", "estafeta"]} requiresRestaurantId={true}> {/* Adicionado requiresRestaurantId */}
-                      <DashboardCopyPage />
                     </AuthGuard>
                   }
                 />
