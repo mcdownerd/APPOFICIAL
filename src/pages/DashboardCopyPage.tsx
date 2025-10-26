@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { LayoutDashboardIcon, RefreshCwIcon, ClockIcon, KeyIcon, UtensilsCrossedIcon } from "lucide-react"; // Removido CheckCircleIcon
+import { LayoutDashboardIcon, RefreshCwIcon, ClockIcon, KeyIcon, UtensilsCrossedIcon } from "lucide-react";
 import { format, parseISO, isPast, addMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
@@ -322,12 +322,12 @@ export default function DashboardCopyPage() {
                   <Card 
                     className={cn(
                       "h-full transition-all duration-200 border-2 relative",
-                      "border-gray-300 bg-gray-50", // Estilo neutro para o cartão
+                      "border-green-300 bg-green-50", // Estilo verde para o cartão
                       "flex flex-col"
                     )}
                   >
                     {/* Posição do ticket (1º, 2º, etc.) */}
-                    <Badge className="absolute top-2 left-2 bg-gray-200 text-gray-900 text-xs font-bold px-2 py-1 rounded-full">
+                    <Badge className="absolute top-2 left-2 bg-green-200 text-green-900 text-xs font-bold px-2 py-1 rounded-full">
                       {index + 1}º
                     </Badge>
 
@@ -336,7 +336,7 @@ export default function DashboardCopyPage() {
                         <Badge 
                           className={cn(
                             "text-4xl font-mono font-extrabold tracking-wider px-4 py-2",
-                            "bg-gray-200 text-gray-900" // Estilo neutro para o código
+                            "bg-green-200 text-green-900" // Estilo verde para o código
                           )}
                         >
                           {ticket.code}
