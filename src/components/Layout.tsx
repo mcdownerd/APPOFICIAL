@@ -31,6 +31,7 @@ const navItems: NavItem[] = [
   { name: "timeAnalysis", path: "/analise-tempo", icon: BarChart3Icon, roles: ["admin", "restaurante"] },
   { name: "manageUsers", path: "/admin/users", icon: UsersIcon, roles: ["admin"] },
   { name: "dashboard", path: "/dashboard", icon: LayoutDashboardIcon, roles: ["admin"] }, // Apenas admin
+  { name: "dashboardNew", path: "/dashboard-copy", icon: LayoutDashboardIcon, roles: ["admin", "restaurante", "estafeta"] }, // Novo item de navegação
 ];
 
 const getRoleTheme = (role: string | undefined) => {
