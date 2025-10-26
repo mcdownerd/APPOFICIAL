@@ -243,24 +243,9 @@ export default function DashboardCopyPage() {
         </motion.div>
       );
     }
-
-    // Caso contrário (ex: restaurante sem restaurant_id, ou outros casos de não-acesso)
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-center p-4"
-      >
-        <UtensilsCrossedIcon className="h-16 w-16 text-red-500 mb-4" />
-        <h3 className="text-2xl font-bold text-gray-800">{t("restaurantIdMissing")}</h3>
-        <p className="text-lg text-gray-600">
-          {t("assignRestaurantIdMessage")}
-        </p>
-        <Button onClick={() => window.location.reload()} className="mt-4">
-          {t("refreshPage")}
-        </Button>
-      </motion.div>
-    );
+    // Se o AuthGuard redirecionar, este bloco não será alcançado para usuários sem restaurant_id.
+    // No entanto, mantemos um retorno nulo para garantir que nada seja renderizado inesperadamente.
+    return null;
   }
 
   // Renderização unificada para todos os papéis com acesso

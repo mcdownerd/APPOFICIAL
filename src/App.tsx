@@ -86,7 +86,7 @@ const App = () => (
                 <Route
                   path="dashboard-copy"
                   element={
-                    <AuthGuard allowedRoles={["admin", "restaurante", "estafeta"]}> {/* Adjust roles as needed */}
+                    <AuthGuard allowedRoles={["admin", "restaurante", "estafeta"]} requiresRestaurantId={true}> {/* Adicionado requiresRestaurantId */}
                       <DashboardCopyPage />
                     </AuthGuard>
                   }
