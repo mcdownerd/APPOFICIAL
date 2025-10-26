@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
-import { TicketAPI, Ticket, UserAPI } from "@/lib/api";
+import { TicketAPI, Ticket, UserAPI, RestaurantAPI } from "@/lib/api"; // Import RestaurantAPI
 import { showError, showSuccess, showInfo } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -60,12 +60,10 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchRestaurants = async () => {
       try {
-        const restaurantUsers = await UserAPI.filter({ user_role: "restaurante", status: "APPROVED" });
-        const uniqueRestaurantIds = Array.from(new Set(restaurantUsers.map(u => u.restaurant_id).filter(Boolean) as string[]));
-        const restaurants = uniqueRestaurantIds.map(id => ({ id, name: `Restaurante ${id.substring(0, 4)}` })); // Simple naming
+        const restaurants = await RestaurantAPI.list(); // Fetch all restaurants
         setAvailableRestaurants(restaurants);
       } catch (err) {
-        console.error("Failed to fetch restaurant users for dashboard:", err);
+        console.error("Failed to fetch restaurants for DashboardPage:", err);
         showError(t("failedToLoadRestaurants"));
       }
     };

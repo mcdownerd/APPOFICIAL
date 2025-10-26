@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
-import { TicketAPI, Ticket, UserAPI } from "@/lib/api";
+import { TicketAPI, Ticket, UserAPI, RestaurantAPI } from "@/lib/api"; // Import RestaurantAPI
 import { showError, showSuccess, showInfo } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -60,12 +60,10 @@ export default function DashboardCopyPage() {
   useEffect(() => {
     const fetchRestaurants = async () => {
       try {
-        const restaurantUsers = await UserAPI.filter({ user_role: "restaurante", status: "APPROVED" });
-        const uniqueRestaurantIds = Array.from(new Set(restaurantUsers.map(u => u.restaurant_id).filter(Boolean) as string[]));
-        const restaurants = uniqueRestaurantIds.map(id => ({ id, name: `Restaurante ${id.substring(0, 4)}` })); // Simple naming
+        const restaurants = await RestaurantAPI.list(); // Fetch all restaurants
         setAvailableRestaurants(restaurants);
       } catch (err) {
-        console.error("Failed to fetch restaurant users for dashboard:", err);
+        console.error("Failed to fetch restaurants for DashboardCopyPage:", err);
         showError(t("failedToLoadRestaurants"));
       }
     };
@@ -323,7 +321,7 @@ export default function DashboardCopyPage() {
           <AnimatePresence>
             {activeTickets.map((ticket, index) => {
               const status = getTicketStatus(ticket);
-              // const StatusIcon = status.icon; // Não é mais necessário
+              const StatusIcon = status.icon;
               
               return (
                 <motion.div
@@ -359,7 +357,12 @@ export default function DashboardCopyPage() {
                         </Badge>
                       </div>
                       
-                      {/* Removido o badge de status */}
+                      <div className="flex justify-center">
+                        <Badge className={cn("px-3 py-1 text-sm font-semibold", status.className)}>
+                          <StatusIcon className="h-4 w-4 mr-2" />
+                          {status.label}
+                        </Badge>
+                      </div>
                       
                       <div className="text-center text-xs text-muted-foreground space-y-1 mt-auto pt-3 border-t border-gray-200/50">
                         <p>
