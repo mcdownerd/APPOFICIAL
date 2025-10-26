@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
-import { TicketAPI, Ticket, UserAPI, RestaurantAPI } from "@/lib/api"; // Import RestaurantAPI
+import { TicketAPI, Ticket, UserAPI, RestaurantAPI } from "@/lib/api";
 import { showError, showSuccess, showInfo } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { LayoutDashboardIcon, RefreshCwIcon, CheckCircleIcon, ClockIcon, CalendarIcon, ArrowUpDown, Loader2, Trash2Icon, UtensilsCrossedIcon, KeyIcon } from "lucide-react";
+import { LayoutDashboardIcon, RefreshCwIcon, ClockIcon, KeyIcon, UtensilsCrossedIcon } from "lucide-react"; // Removido CheckCircleIcon
 import { format, parseISO, isPast, addMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
@@ -197,18 +197,6 @@ export default function DashboardCopyPage() {
     }
   };
 
-  // A função getTicketStatus é modificada para o novo comportamento
-  const getTicketStatus = (ticket: Ticket) => {
-    // Neste painel, todos os tickets não soft-deleted são 'Em Processamento'
-    return {
-      label: t('inProcessing'), // Novo status genérico
-      icon: ClockIcon,
-      className: 'bg-blue-100 text-blue-800 border-blue-200', // Cor azul para 'Em Processamento'
-      cardClass: 'border-blue-300 bg-blue-50',
-      codeBadgeClass: 'bg-blue-200 text-blue-900',
-    };
-  };
-
   // Renderização condicional baseada no papel do usuário e estado de ativação
   if (!user || (isEstafeta && !isDashboardActivated)) {
     // Se for estafeta e o painel não estiver ativado, mostrar formulário de ativação
@@ -320,8 +308,6 @@ export default function DashboardCopyPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           <AnimatePresence>
             {activeTickets.map((ticket, index) => {
-              const status = getTicketStatus(ticket);
-              const StatusIcon = status.icon;
               
               return (
                 <motion.div
@@ -336,12 +322,12 @@ export default function DashboardCopyPage() {
                   <Card 
                     className={cn(
                       "h-full transition-all duration-200 border-2 relative",
-                      status.cardClass,
+                      "border-gray-300 bg-gray-50", // Estilo neutro para o cartão
                       "flex flex-col"
                     )}
                   >
                     {/* Posição do ticket (1º, 2º, etc.) */}
-                    <Badge className="absolute top-2 left-2 bg-blue-200 text-blue-900 text-xs font-bold px-2 py-1 rounded-full">
+                    <Badge className="absolute top-2 left-2 bg-gray-200 text-gray-900 text-xs font-bold px-2 py-1 rounded-full">
                       {index + 1}º
                     </Badge>
 
@@ -350,19 +336,14 @@ export default function DashboardCopyPage() {
                         <Badge 
                           className={cn(
                             "text-4xl font-mono font-extrabold tracking-wider px-4 py-2",
-                            status.codeBadgeClass // Usa a classe dinâmica para o código
+                            "bg-gray-200 text-gray-900" // Estilo neutro para o código
                           )}
                         >
                           {ticket.code}
                         </Badge>
                       </div>
                       
-                      <div className="flex justify-center">
-                        <Badge className={cn("px-3 py-1 text-sm font-semibold", status.className)}>
-                          <StatusIcon className="h-4 w-4 mr-2" />
-                          {status.label}
-                        </Badge>
-                      </div>
+                      {/* Removido o badge de status */}
                       
                       <div className="text-center text-xs text-muted-foreground space-y-1 mt-auto pt-3 border-t border-gray-200/50">
                         <p>
