@@ -323,7 +323,7 @@ export default function DashboardCopyPage() {
           <AnimatePresence>
             {activeTickets.map((ticket, index) => {
               const status = getTicketStatus(ticket);
-              const StatusIcon = status.icon;
+              // const StatusIcon = status.icon; // Não é mais necessário
               
               return (
                 <motion.div
@@ -359,12 +359,7 @@ export default function DashboardCopyPage() {
                         </Badge>
                       </div>
                       
-                      <div className="flex justify-center">
-                        <Badge className={cn("px-3 py-1 text-sm font-semibold", status.className)}>
-                          <StatusIcon className="h-4 w-4 mr-2" />
-                          {status.label}
-                        </Badge>
-                      </div>
+                      {/* Removido o badge de status */}
                       
                       <div className="text-center text-xs text-muted-foreground space-y-1 mt-auto pt-3 border-t border-gray-200/50">
                         <p>
