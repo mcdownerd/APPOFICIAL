@@ -6,9 +6,9 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, UtensilsCrossedIcon, MonitorIcon, AlertCircleIcon } from 'lucide-react'; // Importar AlertCircleIcon
+import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, UtensilsCrossedIcon, MonitorIcon, AlertCircleIcon, Trash2Icon } from 'lucide-react'; // Importar Trash2Icon
 import { TicketAPI, Ticket, UserAPI } from '@/lib/api'; // Import UserAPI
-import { showError } from '@/utils/toast';
+import { showError, showSuccess } from '@/utils/toast'; // Importar showSuccess
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,7 @@ export default function EcranEstafetaPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set()); // Para gerenciar o estado de processamento
   const [selectedRestaurant, setSelectedRestaurant] = useState("all"); // 'all' or a specific restaurant_id
   const [availableRestaurants, setAvailableRestaurants] = useState<{ id: string; name: string }[]>([]);
 
@@ -87,6 +88,38 @@ export default function EcranEstafetaPage() {
       clearInterval(interval);
     };
   }, [loadTickets]);
+
+  const handleSoftDelete = async (ticket: Ticket) => {
+    if (!user || processingTickets.has(ticket.id)) return;
+    // Apenas admin e restaurante podem apagar tickets nesta tela
+    if (!isAdmin && !isRestaurante) {
+      showError(t("permissionDenied"));
+      return;
+    }
+
+    setProcessingTickets(prev => new Set(prev).add(ticket.id));
+    
+    try {
+      await TicketAPI.update(ticket.id, {
+        soft_deleted: true,
+        deleted_by_user_id: user.id,
+        deleted_by_user_email: user.email,
+        restaurant_id: ticket.restaurant_id,
+      });
+      
+      showSuccess(t('ticketRemovedSuccessfully'));
+      await loadTickets();
+    } catch (error) {
+      console.error('Error soft deleting ticket:', error);
+      showError(t('failedToRemoveTicket'));
+    } finally {
+      setProcessingTickets(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(ticket.id);
+        return newSet;
+      });
+    }
+  };
 
   const getTicketStatus = (ticket: Ticket) => {
     // Sempre retorna CONFIRMADO para o Ecrã Estafeta
@@ -228,6 +261,7 @@ export default function EcranEstafetaPage() {
             {tickets.map((ticket, index) => {
               const status = getTicketStatus(ticket);
               const StatusIcon = status.icon;
+              const isProcessing = processingTickets.has(ticket.id);
               
               return (
                 <motion.div
@@ -246,6 +280,21 @@ export default function EcranEstafetaPage() {
                       "flex flex-col"
                     )}
                   >
+                    {(isAdmin || isRestaurante) && ( // Botão de lixeira só aparece para Admin e Restaurante
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-opacity duration-200"
+                        onClick={(e) => {
+                          e.stopPropagation(); // Previne que o clique no botão ative o clique do cartão
+                          handleSoftDelete(ticket);
+                        }}
+                        disabled={isProcessing}
+                        aria-label={t('removeTicket')}
+                      >
+                        {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Trash2Icon className="h-5 w-5" />}
+                      </Button>
+                    )}
                     <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">
                       <div className="text-center">
                         <p className="text-4xl font-mono font-extrabold tracking-wider text-gray-900">
