@@ -15,9 +15,9 @@ import { RestaurantAPI } from "@/lib/api"; // Importar RestaurantAPI
 
 interface SettingsContextType {
   isPendingLimitEnabled: boolean;
-  togglePendingLimit: () => Promise<void>;
-  isEcranEstafetaEnabled: boolean; // Nova propriedade
-  toggleEcranEstafeta: () => Promise<void>; // Nova função
+  togglePendingLimit: (newValue: boolean) => Promise<void>; // Ajustado aqui
+  isEcranEstafetaEnabled: boolean;
+  toggleEcranEstafeta: (newValue: boolean) => Promise<void>; // Ajustado aqui
   isSettingsLoading: boolean;
 }
 
@@ -26,13 +26,13 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const { user, isLoading: isAuthLoading, isApproved } = useAuth();
   const [isPendingLimitEnabled, setIsPendingLimitEnabled] = useState<boolean>(true);
-  const [isEcranEstafetaEnabled, setIsEcranEstafetaEnabled] = useState<boolean>(false); // Novo estado
+  const [isEcranEstafetaEnabled, setIsEcranEstafetaEnabled] = useState<boolean>(false);
   const [isSettingsLoading, setIsSettingsLoading] = useState<boolean>(true);
 
-  const restaurantId = user?.restaurant_id;
+  const loggedInUserRestaurantId = user?.restaurant_id;
   const userRole = user?.user_role;
 
-  // Fetch setting from database
+  // Fetch setting from database for the logged-in user's restaurant
   useEffect(() => {
     let isMounted = true;
 
@@ -43,23 +43,23 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      if (!restaurantId) {
-        console.log("SettingsContext: No restaurant_id found for user. Defaulting settings to TRUE/FALSE.");
+      if (!loggedInUserRestaurantId) {
+        console.log("SettingsContext: No restaurant_id found for logged-in user. Defaulting settings to TRUE/FALSE.");
         if (isMounted) {
           setIsPendingLimitEnabled(true);
-          setIsEcranEstafetaEnabled(false); // Default para false
+          setIsEcranEstafetaEnabled(false);
           setIsSettingsLoading(false);
         }
         return;
       }
 
-      console.log(`SettingsContext: Fetching settings for restaurant_id: ${restaurantId}`);
+      console.log(`SettingsContext: Fetching settings for logged-in user's restaurant_id: ${loggedInUserRestaurantId}`);
       setIsSettingsLoading(true);
       try {
         const { data, error } = await supabase
           .from('restaurants')
-          .select('pending_limit_enabled, ecran_estafeta_enabled') // Buscar nova coluna
-          .eq('id', restaurantId)
+          .select('pending_limit_enabled, ecran_estafeta_enabled')
+          .eq('id', loggedInUserRestaurantId)
           .single();
 
         if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
@@ -70,17 +70,17 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
             showError("Failed to load restaurant settings.");
           }
         } else if (data) {
-          console.log(`SettingsContext: Fetched data for restaurant ${restaurantId}:`, data);
+          console.log(`SettingsContext: Fetched data for restaurant ${loggedInUserRestaurantId}:`, data);
           if (isMounted) {
             setIsPendingLimitEnabled(data.pending_limit_enabled);
-            setIsEcranEstafetaEnabled(data.ecran_estafeta_enabled); // Set new state
+            setIsEcranEstafetaEnabled(data.ecran_estafeta_enabled);
           }
         } else {
           // If no data (e.g., restaurant not found or no setting), default to true/false and create it
-          console.log(`SettingsContext: No restaurant entry found for ID ${restaurantId}. Creating default setting.`);
+          console.log(`SettingsContext: No restaurant entry found for ID ${loggedInUserRestaurantId}. Creating default setting.`);
           const { data: newRestaurant, error: insertError } = await supabase
             .from('restaurants')
-            .insert({ id: restaurantId, name: `Restaurante ${restaurantId.substring(0, 4)}`, pending_limit_enabled: true, ecran_estafeta_enabled: false }) // Default para false
+            .insert({ id: loggedInUserRestaurantId, name: `Restaurante ${loggedInUserRestaurantId.substring(0, 4)}`, pending_limit_enabled: true, ecran_estafeta_enabled: false })
             .select('pending_limit_enabled, ecran_estafeta_enabled')
             .single();
 
@@ -92,7 +92,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
               showError("Failed to initialize restaurant settings.");
             }
           } else if (newRestaurant) {
-            console.log(`SettingsContext: Created default setting for restaurant ${restaurantId}:`, newRestaurant);
+            console.log(`SettingsContext: Created default setting for restaurant ${loggedInUserRestaurantId}:`, newRestaurant);
             if (isMounted) {
               setIsPendingLimitEnabled(newRestaurant.pending_limit_enabled);
               setIsEcranEstafetaEnabled(newRestaurant.ecran_estafeta_enabled);
@@ -116,66 +116,53 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       isMounted = false;
     };
-  }, [restaurantId, isAuthLoading, isApproved]); // Removed isPendingLimitEnabled from dependencies to prevent infinite loop
+  }, [loggedInUserRestaurantId, isAuthLoading, isApproved]);
 
-  const togglePendingLimit = useCallback(async () => {
-    if (!restaurantId || (userRole !== 'admin' && userRole !== 'restaurante')) {
-      console.warn("SettingsContext: User not authorized or no restaurant_id to toggle setting.");
+  // These functions are now for external use (e.g., by admin page)
+  const togglePendingLimit = useCallback(async (newValue: boolean) => { // Ajustado aqui
+    if (!loggedInUserRestaurantId || (userRole !== 'admin' && userRole !== 'restaurante')) { // Only admin or restaurant can change settings
+      console.warn("SettingsContext: User not authorized to toggle setting.");
       showError("You are not authorized to change this setting.");
-      return;
+      throw new Error("Unauthorized");
     }
-
-    setIsSettingsLoading(true);
-    const newValue = !isPendingLimitEnabled;
-    console.log(`SettingsContext: Attempting to toggle pending_limit_enabled for restaurant ${restaurantId} to ${newValue}`);
+    
+    console.log(`SettingsContext: Attempting to toggle pending_limit_enabled for restaurant ${loggedInUserRestaurantId} to ${newValue}`);
     try {
-      await RestaurantAPI.update(restaurantId, { pending_limit_enabled: newValue });
-
-      setIsPendingLimitEnabled(newValue);
+      await RestaurantAPI.update(loggedInUserRestaurantId, { pending_limit_enabled: newValue });
       console.log("SettingsContext: Updated pending_limit_enabled to", newValue);
+      setIsPendingLimitEnabled(newValue); // Update local state
     } catch (error) {
       console.error("SettingsContext: Error updating pending limit setting:", error);
-      // Revert UI state if update fails
-      setIsPendingLimitEnabled(!newValue);
       showError("Failed to update setting.");
       throw error;
-    } finally {
-      setIsSettingsLoading(false);
     }
-  }, [isPendingLimitEnabled, restaurantId, userRole]);
+  }, [loggedInUserRestaurantId, userRole]);
 
-  const toggleEcranEstafeta = useCallback(async () => {
-    if (!restaurantId || (userRole !== 'admin' && userRole !== 'restaurante')) {
-      console.warn("SettingsContext: User not authorized or no restaurant_id to toggle Ecran Estafeta setting.");
+  const toggleEcranEstafeta = useCallback(async (newValue: boolean) => { // Ajustado aqui
+    if (!loggedInUserRestaurantId || (userRole !== 'admin' && userRole !== 'restaurante')) { // Only admin or restaurant can change settings
+      console.warn("SettingsContext: User not authorized to toggle Ecran Estafeta setting.");
       showError("You are not authorized to change this setting.");
-      return;
+      throw new Error("Unauthorized");
     }
 
-    setIsSettingsLoading(true);
-    const newValue = !isEcranEstafetaEnabled;
-    console.log(`SettingsContext: Attempting to toggle ecran_estafeta_enabled for restaurant ${restaurantId} to ${newValue}`);
+    console.log(`SettingsContext: Attempting to toggle ecran_estafeta_enabled for restaurant ${loggedInUserRestaurantId} to ${newValue}`);
     try {
-      await RestaurantAPI.update(restaurantId, { ecran_estafeta_enabled: newValue });
-
-      setIsEcranEstafetaEnabled(newValue);
+      await RestaurantAPI.update(loggedInUserRestaurantId, { ecran_estafeta_enabled: newValue });
       console.log("SettingsContext: Updated ecran_estafeta_enabled to", newValue);
+      setIsEcranEstafetaEnabled(newValue); // Update local state
     } catch (error) {
       console.error("SettingsContext: Error updating Ecran Estafeta setting:", error);
-      // Revert UI state if update fails
-      setIsEcranEstafetaEnabled(!newValue);
       showError("Failed to update setting.");
       throw error;
-    } finally {
-      setIsSettingsLoading(false);
     }
-  }, [isEcranEstafetaEnabled, restaurantId, userRole]);
+  }, [loggedInUserRestaurantId, userRole]);
 
   return (
     <SettingsContext.Provider value={{ 
       isPendingLimitEnabled, 
       togglePendingLimit, 
-      isEcranEstafetaEnabled, // Nova propriedade
-      toggleEcranEstafeta, // Nova função
+      isEcranEstafetaEnabled,
+      toggleEcranEstafeta,
       isSettingsLoading 
     }}>
       {children}

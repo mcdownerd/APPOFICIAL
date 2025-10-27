@@ -178,5 +178,12 @@
   "enableCourierScreen": "Ativar Ecrã Estafeta",
   "courierScreenDescription": "Quando ativado, o ecrã de estafeta estará visível para os usuários associados a este restaurante.",
   "featureDisabled": "Funcionalidade Desativada",
-  "courierScreenFeatureDisabled": "O Ecrã Estafeta não está habilitado para o seu restaurante. Por favor, entre em contato com um administrador para ativá-lo."
+  "courierScreenFeatureDisabled": "O Ecrã Estafeta não está habilitado para o seu restaurante. Por favor, entre em contato com um administrador para ativá-lo.",
+  "manageRestaurants": "Gerenciar Restaurantes",
+  "manageRestaurantSettings": "Gerenciar Configurações de Restaurantes",
+  "manageRestaurantSettingsDescription": "Visualize e edite as configurações de cada restaurante, incluindo o limite de pedidos pendentes e a ativação do Ecrã Estafeta.",
+  "noRestaurantsFound": "Nenhum restaurante encontrado.",
+  "close": "Fechar",
+  "restaurantSettingsUpdated": "Configurações do restaurante {{restaurantName}} atualizadas com sucesso.",
+  "failedToUpdateRestaurantSettings": "Falha ao atualizar as configurações do restaurante."
 }

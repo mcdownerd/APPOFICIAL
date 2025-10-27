@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, Trash2Icon, UtensilsCrossedIcon, SettingsIcon, MonitorIcon } from 'lucide-react'; // Importar MonitorIcon
+import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, Trash2Icon, UtensilsCrossedIcon, SettingsIcon } from 'lucide-react'; // MonitorIcon removido
 import { TicketAPI, Ticket, UserAPI } from '@/lib/api'; // Import UserAPI
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
@@ -25,7 +25,7 @@ export default function BalcaoPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set()); // Corrigido aqui
+  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set());
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [selectedRestaurant, setSelectedRestaurant] = useState("all"); // 'all' or a specific restaurant_id
   const [availableRestaurants, setAvailableRestaurants] = useState<{ id: string; name: string }[]>([]);
@@ -314,7 +314,7 @@ export default function BalcaoPage() {
             <Switch
               id="pending-limit-toggle"
               checked={isPendingLimitEnabled}
-              onCheckedChange={togglePendingLimit}
+              onCheckedChange={(checked) => togglePendingLimit(checked)} {/* Corrigido aqui */}
               disabled={isSwitchDisabled} // Disable if loading or not authorized
             />
             <Label htmlFor="pending-limit-toggle">{t("enablePendingLimit")}</Label>
@@ -322,28 +322,6 @@ export default function BalcaoPage() {
         </div>
         <p className="text-sm text-muted-foreground mt-2">
           {t("pendingLimitDescription")}
-        </p>
-      </Card>
-
-      {/* Ecran Estafeta Settings Card */}
-      <Card className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <MonitorIcon className="h-5 w-5 text-gray-600" />
-            <h3 className="text-lg font-semibold">{t("courierScreenSettings")}</h3>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="ecran-estafeta-toggle"
-              checked={isEcranEstafetaEnabled}
-              onCheckedChange={toggleEcranEstafeta}
-              disabled={isSwitchDisabled} // Disable if loading or not authorized
-            />
-            <Label htmlFor="ecran-estafeta-toggle">{t("enableCourierScreen")}</Label>
-          </div>
-        </div>
-        <p className="text-sm text-muted-foreground mt-2">
-          {t("courierScreenDescription")}
         </p>
       </Card>
 

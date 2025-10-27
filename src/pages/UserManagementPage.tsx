@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
-import { UserAPI, User, UserStatus, UserRole, RestaurantAPI } from "@/lib/api";
+import { UserAPI, User, UserStatus, UserRole, RestaurantAPI, Restaurant } from "@/lib/api";
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,11 +33,12 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { UsersIcon, CheckCircleIcon, XCircleIcon, RefreshCcwIcon, UserCogIcon, PlusCircleIcon, Loader2 } from "lucide-react";
+import { UsersIcon, CheckCircleIcon, XCircleIcon, RefreshCcwIcon, UserCogIcon, PlusCircleIcon, Loader2, SettingsIcon, MonitorIcon } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { Switch } from "@/components/ui/switch"; // Import Switch
 
 const UserManagementPage = React.memo(() => {
   const { user: currentUser, isAdmin } = useAuth();
@@ -49,8 +50,11 @@ const UserManagementPage = React.memo(() => {
   const [newRestaurantId, setNewRestaurantId] = useState("");
   const [newRestaurantName, setNewRestaurantName] = useState("");
 
+  // State for Manage Restaurant Settings Dialog
+  const [isManageRestaurantsDialogOpen, setIsManageRestaurantsDialogOpen] = useState(false);
+
   // Query para buscar todos os usuários
-  const { data: users, isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery<User[], Error>({ // Removido '= []'
+  const { data: users, isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery<User[], Error>({
     queryKey: ["allUsers"],
     queryFn: async () => {
       if (!isAdmin) return [];
@@ -58,21 +62,15 @@ const UserManagementPage = React.memo(() => {
     },
     enabled: isAdmin,
     staleTime: 1000 * 60 * 5, // Cache por 5 minutos
-    // Removido: onError, pois não é mais suportado diretamente nas opções do useQuery v5
   });
 
   // Query para buscar todos os IDs de restaurantes
-  const { data: restaurantIds, isLoading: isLoadingRestaurantIds, refetch: refetchRestaurantIds } = useQuery<string[], Error>({ // Removido '= []'
-    queryKey: ["allRestaurantIds"],
+  const { data: restaurants, isLoading: isLoadingRestaurants, refetch: refetchRestaurants } = useQuery<Restaurant[], Error>({
+    queryKey: ["allRestaurants"],
     queryFn: async () => {
-      const fetchedRestaurants = await RestaurantAPI.list();
-      const uniqueIds = Array.from(new Set(
-        fetchedRestaurants.map(r => r.id)
-      ));
-      return uniqueIds.sort();
+      return RestaurantAPI.list();
     },
     staleTime: 1000 * 60 * 10, // Cache por 10 minutos
-    // Removido: onError, pois não é mais suportado diretamente nas opções do useQuery v5
   });
 
   // Mutations para atualizar status, papel e restaurant_id do usuário
@@ -145,8 +143,7 @@ const UserManagementPage = React.memo(() => {
       setIsAddRestaurantDialogOpen(false);
       setNewRestaurantId("");
       setNewRestaurantName("");
-      queryClient.invalidateQueries({ queryKey: ["allRestaurantIds"] }); // Refetch restaurant IDs
-      queryClient.invalidateQueries({ queryKey: ["availableRestaurants"] }); // Refetch available restaurants for other pages
+      queryClient.invalidateQueries({ queryKey: ["allRestaurants"] }); // Refetch restaurant IDs
     },
     onError: (error: any) => {
       console.error("Failed to add restaurant:", error);
@@ -155,6 +152,25 @@ const UserManagementPage = React.memo(() => {
       } else {
         showError(t("failedToAddRestaurant"));
       }
+    }
+  });
+
+  const updateRestaurantSettingsMutation = useMutation({
+    mutationFn: async (variables: { restaurantId: string; payload: Partial<Restaurant> }) => {
+      if (!isAdmin) throw new Error(t("permissionDenied"));
+      return RestaurantAPI.update(variables.restaurantId, variables.payload);
+    },
+    onSuccess: (data, variables) => {
+      showSuccess(t("restaurantSettingsUpdated", { restaurantName: data.name }));
+      queryClient.invalidateQueries({ queryKey: ["allRestaurants"] });
+      // Invalidate settings context if the current user's restaurant settings were updated
+      if (currentUser?.restaurant_id === variables.restaurantId) {
+        queryClient.invalidateQueries({ queryKey: ["settings", currentUser.restaurant_id] });
+      }
+    },
+    onError: (error) => {
+      console.error("Failed to update restaurant settings:", error);
+      showError(t("failedToUpdateRestaurantSettings"));
     }
   });
 
@@ -182,6 +198,13 @@ const UserManagementPage = React.memo(() => {
     addRestaurantMutation.mutate({ id: newRestaurantId.trim(), name: newRestaurantName.trim() });
   }, [newRestaurantId, newRestaurantName, addRestaurantMutation, t]);
 
+  const handleToggleRestaurantSetting = useCallback((restaurantId: string, setting: 'pending_limit_enabled' | 'ecran_estafeta_enabled', currentValue: boolean) => {
+    updateRestaurantSettingsMutation.mutate({
+      restaurantId,
+      payload: { [setting]: !currentValue }
+    });
+  }, [updateRestaurantSettingsMutation]);
+
   const getStatusBadge = useCallback((status: UserStatus) => {
     switch (status) {
       case "PENDING":
@@ -203,7 +226,7 @@ const UserManagementPage = React.memo(() => {
     );
   }
 
-  const isAnyActionLoading = updateUserStatusMutation.isPending || updateUserRoleMutation.isPending || updateUserRestaurantIdMutation.isPending || updateDashboardAccessCodeMutation.isPending;
+  const isAnyActionLoading = updateUserStatusMutation.isPending || updateUserRoleMutation.isPending || updateUserRestaurantIdMutation.isPending || updateDashboardAccessCodeMutation.isPending || addRestaurantMutation.isPending || updateRestaurantSettingsMutation.isPending;
 
   return (
     <motion.div
@@ -217,11 +240,14 @@ const UserManagementPage = React.memo(() => {
           <h2 className="text-3xl font-bold text-gray-800">{t("userManagement")}</h2>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setIsManageRestaurantsDialogOpen(true)}>
+            <SettingsIcon className="mr-2 h-4 w-4" /> {t("manageRestaurants")}
+          </Button>
           <Button variant="outline" onClick={() => setIsAddRestaurantDialogOpen(true)}>
             <PlusCircleIcon className="mr-2 h-4 w-4" /> {t("addRestaurant")}
           </Button>
-          <Button variant="outline" size="icon" onClick={() => { refetchUsers(); refetchRestaurantIds(); }} disabled={isLoadingUsers || isLoadingRestaurantIds}>
-            <RefreshCcwIcon className={(isLoadingUsers || isLoadingRestaurantIds) ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+          <Button variant="outline" size="icon" onClick={() => { refetchUsers(); refetchRestaurants(); }} disabled={isLoadingUsers || isLoadingRestaurants}>
+            <RefreshCcwIcon className={(isLoadingUsers || isLoadingRestaurants) ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
             <span className="sr-only">{t("refresh")}</span>
           </Button>
         </div>
@@ -286,11 +312,11 @@ const UserManagementPage = React.memo(() => {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="unassigned">{t("none")}</SelectItem>
-                              {restaurantIds?.map(id => (
-                                <SelectItem key={id} value={id}>{id}</SelectItem>
+                              {restaurants?.map(r => (
+                                <SelectItem key={r.id} value={r.id}>{r.name} ({r.id})</SelectItem>
                               ))}
                               {/* If a user has a restaurant_id not in the current list, display it as an option */}
-                              {!restaurantIds?.includes(user.restaurant_id || "") && user.restaurant_id && (
+                              {!restaurants?.some(r => r.id === user.restaurant_id) && user.restaurant_id && (
                                 <SelectItem value={user.restaurant_id}>{user.restaurant_id} (current)</SelectItem>
                               )}
                             </SelectContent>
@@ -394,6 +420,68 @@ const UserManagementPage = React.memo(() => {
                 <PlusCircleIcon className="mr-2 h-4 w-4" />
               )}
               {t("add")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Restaurant Settings Dialog */}
+      <Dialog open={isManageRestaurantsDialogOpen} onOpenChange={setIsManageRestaurantsDialogOpen}>
+        <DialogContent className="sm:max-w-2xl" aria-labelledby="manage-restaurants-dialog-title">
+          <DialogHeader>
+            <DialogTitle id="manage-restaurants-dialog-title">{t("manageRestaurantSettings")}</DialogTitle>
+            <DialogDescription>
+              {t("manageRestaurantSettingsDescription")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
+            {isLoadingRestaurants ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-500 border-t-transparent"></div>
+              </div>
+            ) : restaurants?.length === 0 ? (
+              <p className="text-center text-gray-500">{t("noRestaurantsFound")}</p>
+            ) : (
+              <div className="space-y-4">
+                {restaurants?.map((restaurant) => (
+                  <Card key={restaurant.id} className="p-4">
+                    <CardTitle className="text-lg mb-2">{restaurant.name} ({restaurant.id})</CardTitle>
+                    <div className="space-y-3">
+                      {/* Pending Limit Setting */}
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor={`pending-limit-${restaurant.id}`} className="flex flex-col">
+                          <span>{t("enablePendingLimit")}</span>
+                          <span className="text-xs text-muted-foreground">{t("pendingLimitDescription")}</span>
+                        </Label>
+                        <Switch
+                          id={`pending-limit-${restaurant.id}`}
+                          checked={restaurant.pending_limit_enabled}
+                          onCheckedChange={(checked) => handleToggleRestaurantSetting(restaurant.id, 'pending_limit_enabled', restaurant.pending_limit_enabled)}
+                          disabled={updateRestaurantSettingsMutation.isPending && updateRestaurantSettingsMutation.variables?.restaurantId === restaurant.id}
+                        />
+                      </div>
+                      {/* Ecran Estafeta Setting */}
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor={`ecran-estafeta-${restaurant.id}`} className="flex flex-col">
+                          <span>{t("enableCourierScreen")}</span>
+                          <span className="text-xs text-muted-foreground">{t("courierScreenDescription")}</span>
+                        </Label>
+                        <Switch
+                          id={`ecran-estafeta-${restaurant.id}`}
+                          checked={restaurant.ecran_estafeta_enabled}
+                          onCheckedChange={(checked) => handleToggleRestaurantSetting(restaurant.id, 'ecran_estafeta_enabled', restaurant.ecran_estafeta_enabled)}
+                          disabled={updateRestaurantSettingsMutation.isPending && updateRestaurantSettingsMutation.variables?.restaurantId === restaurant.id}
+                        />
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsManageRestaurantsDialogOpen(false)}>
+              {t("close")}
             </Button>
           </DialogFooter>
         </DialogContent>
