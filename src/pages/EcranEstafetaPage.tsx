@@ -1,37 +1,31 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, Trash2Icon, UtensilsCrossedIcon, SettingsIcon } from 'lucide-react';
+import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, UtensilsCrossedIcon, MonitorIcon, AlertCircleIcon } from 'lucide-react'; // Importar AlertCircleIcon
 import { TicketAPI, Ticket, UserAPI } from '@/lib/api'; // Import UserAPI
-import { showSuccess, showError, showInfo } from '@/utils/toast';
+import { showError } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
-import { useSettings } from "@/context/SettingsContext";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { useSettings } from "@/context/SettingsContext"; // Importar useSettings
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Importar Alert components
 
 export default function EcranEstafetaPage() {
   const { user, isAdmin, isRestaurante } = useAuth();
   const { t, i18n } = useTranslation();
-  const { isPendingLimitEnabled, togglePendingLimit, isSettingsLoading } = useSettings(); // Use isSettingsLoading
+  const { isEcranEstafetaEnabled, isSettingsLoading } = useSettings(); // Usar isEcranEstafetaEnabled e isSettingsLoading
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set());
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [selectedRestaurant, setSelectedRestaurant] = useState("all"); // 'all' or a specific restaurant_id
   const [availableRestaurants, setAvailableRestaurants] = useState<{ id: string; name: string }[]>([]);
-
-  const doubleClickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const DOUBLE_CLICK_THRESHOLD = 500; // milliseconds
 
   // Fetch available restaurants for admin filter
   useEffect(() => {
@@ -52,7 +46,8 @@ export default function EcranEstafetaPage() {
   }, [isAdmin, t]);
 
   const loadTickets = useCallback(async () => {
-    if (!user || (!isAdmin && user.user_role === "restaurante" && !user.restaurant_id)) {
+    // Não carregar tickets se a funcionalidade não estiver habilitada
+    if (!isEcranEstafetaEnabled || !user || (!isAdmin && user.user_role === "restaurante" && !user.restaurant_id)) {
       setLoading(false);
       setRefreshing(false);
       return;
@@ -81,7 +76,7 @@ export default function EcranEstafetaPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, isAdmin, t, selectedRestaurant]); // Add selectedRestaurant to dependencies
+  }, [user, isAdmin, t, selectedRestaurant, isEcranEstafetaEnabled]); // Adicionar isEcranEstafetaEnabled
 
   useEffect(() => {
     loadTickets();
@@ -90,103 +85,8 @@ export default function EcranEstafetaPage() {
     const interval = setInterval(loadTickets, 5000);
     return () => {
       clearInterval(interval);
-      if (doubleClickTimeoutRef.current) {
-        clearTimeout(doubleClickTimeoutRef.current);
-        doubleClickTimeoutRef.current = null;
-      }
     };
   }, [loadTickets]);
-
-  const handleTicketClick = async (ticket: Ticket) => {
-    if (!user) {
-      showError(t("userNotAuthenticated"));
-      return;
-    }
-    if (processingTickets.has(ticket.id)) return;
-
-    if (ticket.status === 'PENDING') {
-      // Acknowledge ticket
-      await handleAcknowledge(ticket);
-    } else if (ticket.status === 'CONFIRMADO') {
-      if (pendingDelete === ticket.id) {
-        // This is the second click on the same ticket
-        if (doubleClickTimeoutRef.current) {
-          clearTimeout(doubleClickTimeoutRef.current);
-          doubleClickTimeoutRef.current = null; // Clear the ref
-        }
-        await handleSoftDelete(ticket);
-        setPendingDelete(null); // Clear pendingDelete after successful deletion
-      } else {
-        // This is the first click on this ticket (or a new first click after timeout)
-        // Clear any existing pending delete for other tickets
-        if (doubleClickTimeoutRef.current) {
-          clearTimeout(doubleClickTimeoutRef.current);
-          doubleClickTimeoutRef.current = null;
-        }
-        setPendingDelete(ticket.id);
-        showInfo(t('clickAgainToRemove'));
-        
-        doubleClickTimeoutRef.current = setTimeout(() => {
-          setPendingDelete(null); // Reset pendingDelete if no second click within threshold
-          doubleClickTimeoutRef.current = null;
-        }, DOUBLE_CLICK_THRESHOLD);
-      }
-    }
-  };
-
-  const handleAcknowledge = async (ticket: Ticket) => {
-    if (!user || processingTickets.has(ticket.id)) return;
-
-    setProcessingTickets(prev => new Set(prev).add(ticket.id));
-    
-    try {
-      await TicketAPI.update(ticket.id, {
-        status: 'CONFIRMADO',
-        acknowledged_by_user_id: user.id,
-        acknowledged_by_user_email: user.email,
-        restaurant_id: ticket.restaurant_id,
-      });
-      
-      showSuccess(t('ticketConfirmedSuccessfully'));
-      await loadTickets();
-    } catch (error) {
-      console.error('Error acknowledging ticket:', error);
-      showError(t('failedToConfirmTicket'));
-    } finally {
-      setProcessingTickets(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(ticket.id);
-        return newSet;
-      });
-    }
-  };
-
-  const handleSoftDelete = async (ticket: Ticket) => {
-    if (!user || processingTickets.has(ticket.id)) return;
-
-    setProcessingTickets(prev => new Set(prev).add(ticket.id));
-    
-    try {
-      await TicketAPI.update(ticket.id, {
-        soft_deleted: true,
-        deleted_by_user_id: user.id,
-        deleted_by_user_email: user.email,
-        restaurant_id: ticket.restaurant_id,
-      });
-      
-      showSuccess(t('ticketRemovedSuccessfully'));
-      await loadTickets();
-    } catch (error) {
-      console.error('Error soft deleting ticket:', error);
-      showError(t('failedToRemoveTicket'));
-    } finally {
-      setProcessingTickets(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(ticket.id);
-        return newSet;
-      });
-    }
-  };
 
   const getTicketStatus = (ticket: Ticket) => {
     if (ticket.status === 'PENDING') {
@@ -195,8 +95,6 @@ export default function EcranEstafetaPage() {
         icon: ClockIcon,
         className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
         cardClass: 'border-yellow-300 bg-yellow-50',
-        clickable: true,
-        clickText: t('clickToConfirm')
       };
     }
     
@@ -205,10 +103,6 @@ export default function EcranEstafetaPage() {
       icon: CheckCircleIcon,
       className: 'bg-green-100 text-green-800 border-green-200',
       cardClass: 'border-green-300 bg-green-50',
-      clickable: true,
-      clickText: pendingDelete === ticket.id 
-        ? t('clickAgainToRemove')
-        : t('removeTicket')
     };
   };
 
@@ -224,9 +118,6 @@ export default function EcranEstafetaPage() {
     return restaurant ? restaurant.name : `Restaurante ${restaurantId.substring(0, 4)}`;
   };
 
-  // Determine if the switch should be disabled
-  const isSwitchDisabled = isSettingsLoading || (!isAdmin && !isRestaurante);
-
   if (loading || isSettingsLoading) { // Add isSettingsLoading to overall loading state
     return (
       <div className="flex items-center justify-center py-12">
@@ -235,6 +126,25 @@ export default function EcranEstafetaPage() {
           <span className="text-gray-700">{t('loadingTickets')}</span>
         </div>
       </div>
+    );
+  }
+
+  // Mensagem de funcionalidade desabilitada
+  if (!isEcranEstafetaEnabled) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-center p-4"
+      >
+        <Alert variant="default" className="max-w-md"> {/* Corrigido aqui */}
+          <AlertCircleIcon className="h-4 w-4" />
+          <AlertTitle>{t("featureDisabled")}</AlertTitle>
+          <AlertDescription>
+            {t("courierScreenFeatureDisabled")}
+          </AlertDescription>
+        </Alert>
+      </motion.div>
     );
   }
 
@@ -327,8 +237,6 @@ export default function EcranEstafetaPage() {
             {tickets.map((ticket, index) => {
               const status = getTicketStatus(ticket);
               const StatusIcon = status.icon;
-              const isProcessing = processingTickets.has(ticket.id);
-              const isPendingDelete = pendingDelete === ticket.id;
               
               return (
                 <motion.div
@@ -357,11 +265,7 @@ export default function EcranEstafetaPage() {
                       
                       <div className="flex justify-center">
                         <Badge className={cn("px-3 py-1 text-sm font-semibold", status.className)}>
-                          {isProcessing ? (
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          ) : (
-                            <StatusIcon className="h-4 w-4 mr-2" />
-                          )}
+                          <StatusIcon className="h-4 w-4 mr-2" />
                           {status.label}
                         </Badge>
                       </div>

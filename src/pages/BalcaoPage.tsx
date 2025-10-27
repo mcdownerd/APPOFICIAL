@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, Trash2Icon, UtensilsCrossedIcon, SettingsIcon } from 'lucide-react';
+import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, Trash2Icon, UtensilsCrossedIcon, SettingsIcon, MonitorIcon } from 'lucide-react'; // Importar MonitorIcon
 import { TicketAPI, Ticket, UserAPI } from '@/lib/api'; // Import UserAPI
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
@@ -21,11 +21,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 export default function BalcaoPage() {
   const { user, isAdmin, isRestaurante } = useAuth();
   const { t, i18n } = useTranslation();
-  const { isPendingLimitEnabled, togglePendingLimit, isSettingsLoading } = useSettings(); // Use isSettingsLoading
+  const { isPendingLimitEnabled, togglePendingLimit, isEcranEstafetaEnabled, toggleEcranEstafeta, isSettingsLoading } = useSettings(); // Usar novas props
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set());
+  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set()); // Corrigido aqui
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [selectedRestaurant, setSelectedRestaurant] = useState("all"); // 'all' or a specific restaurant_id
   const [availableRestaurants, setAvailableRestaurants] = useState<{ id: string; name: string }[]>([]);
@@ -325,6 +325,28 @@ export default function BalcaoPage() {
         </p>
       </Card>
 
+      {/* Ecran Estafeta Settings Card */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MonitorIcon className="h-5 w-5 text-gray-600" />
+            <h3 className="text-lg font-semibold">{t("courierScreenSettings")}</h3>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="ecran-estafeta-toggle"
+              checked={isEcranEstafetaEnabled}
+              onCheckedChange={toggleEcranEstafeta}
+              disabled={isSwitchDisabled} // Disable if loading or not authorized
+            />
+            <Label htmlFor="ecran-estafeta-toggle">{t("enableCourierScreen")}</Label>
+          </div>
+        </div>
+        <p className="text-sm text-muted-foreground mt-2">
+          {t("courierScreenDescription")}
+        </p>
+      </Card>
+
       {/* Tickets grid */}
       {tickets.length === 0 ? (
         <motion.div
@@ -376,7 +398,7 @@ export default function BalcaoPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-opacity duration-200" // Removido opacity-0 group-hover:opacity-100
+                        className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-opacity duration-200"
                         onClick={(e) => {
                           e.stopPropagation(); // Previne que o clique no botão ative o clique do cartão
                           handleSoftDelete(ticket);
