@@ -128,8 +128,8 @@ const SidebarContent = ({ onClose, isDesktopSidebarOpen }: { onClose?: () => voi
                 {user.full_name.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            {isDesktopSidebarOpen && ( {/* Esconder texto se a sidebar estiver recolhida */}
-              <div className="flex-1">
+            {isDesktopSidebarOpen && ( // Esconder texto se a sidebar estiver recolhida
+              <div className="flex-1"> 
                 <div className="font-medium text-sidebar-foreground">{user.full_name}</div>
                 <Badge
                   className={cn(
