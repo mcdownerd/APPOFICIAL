@@ -213,7 +213,7 @@ export default function EcranEstafetaPage() {
         </div>
         
         <div className="flex items-center gap-4">
-          {isAdmin && (
+          {isAdmin && ( // O seletor de restaurante só aparece para admins
             <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder={t("selectRestaurant")} />
