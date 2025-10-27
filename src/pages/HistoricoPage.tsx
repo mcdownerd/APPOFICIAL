@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
-import { TicketAPI, Ticket, UserAPI } from "@/lib/api"; // Import UserAPI
+import { TicketAPI, Ticket, UserAPI, RestaurantAPI, Restaurant } from "@/lib/api"; // Import UserAPI e RestaurantAPI
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +21,7 @@ import { format, parseISO, differenceInMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
 
 // Interface para o estado de ordenação
 interface SortConfig {
@@ -78,25 +79,26 @@ const HistoricoPage = () => {
   const [deletedTickets, setDeletedTickets] = useState<TicketWithPendingTime[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [availableRestaurants, setAvailableRestaurants] = useState<{ id: string; name: string }[]>([]);
+  const [selectedRestaurant, setSelectedRestaurant] = useState("all"); // 'all' or a specific restaurant_id
+  const [availableRestaurants, setAvailableRestaurants] = useState<Restaurant[]>([]); // Alterado para Restaurant[]
   // Estado para a configuração de ordenação, padrão para 'Removido Em' decrescente
   const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'deleted_at', direction: 'desc' });
 
-  // Fetch available restaurants for display
+  // Fetch available restaurants for admin filter
   useEffect(() => {
     const fetchRestaurants = async () => {
-      try {
-        const restaurantUsers = await UserAPI.filter({ user_role: "restaurante", status: "APPROVED" });
-        const uniqueRestaurantIds = Array.from(new Set(restaurantUsers.map(u => u.restaurant_id).filter(Boolean) as string[]));
-        const restaurants = uniqueRestaurantIds.map(id => ({ id, name: `Restaurante ${id.substring(0, 4)}` })); // Simple naming
-        setAvailableRestaurants(restaurants);
-      } catch (err) {
-        console.error("Failed to fetch restaurant users for history:", err);
-        showError(t("failedToLoadRestaurants"));
+      if (isAdmin) {
+        try {
+          const restaurantsList = await RestaurantAPI.list(); // Buscar todos os restaurantes
+          setAvailableRestaurants(restaurantsList);
+        } catch (err) {
+          console.error("Failed to fetch restaurants:", err);
+          showError(t("failedToLoadRestaurants"));
+        }
       }
     };
     fetchRestaurants();
-  }, [t]);
+  }, [isAdmin, t]);
 
   const getRestaurantNameForTicket = useCallback((restaurantId: string | undefined) => {
     if (!restaurantId) return t("none");
@@ -108,11 +110,17 @@ const HistoricoPage = () => {
     setLoading(true);
     try {
       let tickets: Ticket[];
+      const filter: Partial<Ticket> = { soft_deleted: true };
+
       if (isAdmin) {
-        tickets = await TicketAPI.filter({ soft_deleted: true }, "-deleted_at");
+        if (selectedRestaurant !== "all") {
+          filter.restaurant_id = selectedRestaurant;
+        }
+        tickets = await TicketAPI.filter(filter, "-deleted_at");
       } else if (user?.user_role === "restaurante" && user.restaurant_id) {
         // Restaurante vê tickets removidos associados ao seu restaurant_id
-        tickets = await TicketAPI.filter({ soft_deleted: true, restaurant_id: user.restaurant_id }, "-deleted_at");
+        filter.restaurant_id = user.restaurant_id;
+        tickets = await TicketAPI.filter(filter, "-deleted_at");
       } else {
         tickets = [];
       }
@@ -173,7 +181,7 @@ const HistoricoPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, isAdmin, t, sortConfig, getRestaurantNameForTicket]);
+  }, [user, isAdmin, t, sortConfig, getRestaurantNameForTicket, selectedRestaurant]); // Adicionado selectedRestaurant
 
   useEffect(() => {
     fetchDeletedTickets();
@@ -212,18 +220,35 @@ const HistoricoPage = () => {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6"
     >
-      <div className="flex items-center gap-4">
-        <HistoryIcon className="h-8 w-8 text-blue-600" />
-        <h2 className="text-3xl font-bold text-gray-800">{t("ticketHistory")}</h2>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <HistoryIcon className="h-8 w-8 text-blue-600" />
+          <h2 className="text-3xl font-bold text-gray-800">{t("ticketHistory")}</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder={t("selectRestaurant")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("all")}</SelectItem>
+                {availableRestaurants.map(r => (
+                  <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Button variant="outline" size="icon" onClick={fetchDeletedTickets} disabled={loading}>
+            <RefreshCwIcon className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+            <span className="sr-only">{t("refresh")}</span>
+          </Button>
+        </div>
       </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-2xl font-bold">{t("removedTickets")}</CardTitle>
-          <Button variant="outline" size="icon" onClick={fetchDeletedTickets} disabled={loading}>
-            <RefreshCwIcon className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-            <span className="sr-only">{t("refresh")}</span>
-          </Button>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -297,7 +322,7 @@ const HistoricoPage = () => {
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell>{ticket.restaurantNameDisplay}</TableCell> {/* Display restaurant name */}
+                        <TableCell>{getRestaurantNameForTicket(ticket.restaurant_id)}</TableCell> {/* Display restaurant name */}
                         <TableCell>{ticket.created_by_user_email}</TableCell>
                         <TableCell className="flex items-center gap-2">
                           <CalendarIcon className="h-4 w-4 text-gray-500" />
