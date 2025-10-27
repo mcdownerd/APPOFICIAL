@@ -89,15 +89,7 @@ export default function EcranEstafetaPage() {
   }, [loadTickets]);
 
   const getTicketStatus = (ticket: Ticket) => {
-    if (ticket.status === 'PENDING') {
-      return {
-        label: t('pending'),
-        icon: ClockIcon,
-        className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-        cardClass: 'border-yellow-300 bg-yellow-50',
-      };
-    }
-    
+    // Sempre retorna CONFIRMADO para o Ecrã Estafeta
     return {
       label: t('acknowledged'),
       icon: CheckCircleIcon,
@@ -137,7 +129,7 @@ export default function EcranEstafetaPage() {
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-center p-4"
       >
-        <Alert variant="default" className="max-w-md"> {/* Corrigido aqui */}
+        <Alert variant="default" className="max-w-md">
           <AlertCircleIcon className="h-4 w-4" />
           <AlertTitle>{t("featureDisabled")}</AlertTitle>
           <AlertDescription>
@@ -177,7 +169,7 @@ export default function EcranEstafetaPage() {
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold text-gray-800">
-            {t('courierScreen')} {/* Alterado para 'courierScreen' */}
+            {t('courierScreen')}
             {currentRestaurantName && (
               <span className="ml-2 text-blue-600">({currentRestaurantName})</span>
             )}
@@ -213,7 +205,6 @@ export default function EcranEstafetaPage() {
         </div>
       </div>
 
-      {/* Pending Limit Settings Card - Removido para EcranEstafetaPage */}
       {/* Tickets grid */}
       {tickets.length === 0 ? (
         <motion.div
@@ -250,12 +241,11 @@ export default function EcranEstafetaPage() {
                 >
                   <Card 
                     className={cn(
-                      "h-full transition-all duration-200 border-2 relative", // Adicionado relative para posicionamento absoluto do botão
+                      "h-full transition-all duration-200 border-2 relative",
                       status.cardClass,
                       "flex flex-col"
                     )}
                   >
-                    {/* Botão de lixeira removido para EcranEstafetaPage */}
                     <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">
                       <div className="text-center">
                         <p className="text-4xl font-mono font-extrabold tracking-wider text-gray-900">
