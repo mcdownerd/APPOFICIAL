@@ -199,8 +199,8 @@ export default function EcranEstafetaPage() {
       className="space-y-6"
     >
       {/* Header with refresh button and restaurant selector */}
-      <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-4 w-full">
-        <div className="text-center sm:text-left flex-1"> {/* Adicionado flex-1 e text-left para sm */}
+      <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-4 w-full">
+        <div className="flex-1 text-center"> {/* Removido sm:text-left, adicionado text-center */}
           <h2 className="text-3xl font-bold text-gray-800">
             {t('courierScreen')}
             {currentRestaurantName && (
@@ -212,8 +212,8 @@ export default function EcranEstafetaPage() {
           </p>
         </div>
         
-        <div className="flex items-center gap-4 mt-4 sm:mt-0 sm:ml-auto"> {/* Adicionado sm:ml-auto */}
-          {isAdmin && ( // O seletor de restaurante só aparece para admins
+        {isAdmin && ( // O seletor de restaurante e o botão de atualizar só aparecem para admins
+          <div className="flex items-center gap-4 mt-4 sm:mt-0 sm:ml-auto"> {/* Adicionado sm:ml-auto para empurrar para a direita em telas maiores */}
             <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder={t("selectRestaurant")} />
@@ -225,8 +225,6 @@ export default function EcranEstafetaPage() {
                 ))}
               </SelectContent>
             </Select>
-          )}
-          {isAdmin && ( // O botão de atualizar só aparece para admins
             <Button
               onClick={loadTickets}
               variant="outline"
@@ -236,8 +234,8 @@ export default function EcranEstafetaPage() {
               <RefreshCcwIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
               <span>{t('refresh')}</span>
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Tickets grid */}
