@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { MenuIcon, LogOutIcon, TruckIcon, UtensilsCrossedIcon, BarChart3Icon, HistoryIcon, UsersIcon, SettingsIcon, LayoutDashboardIcon, MonitorIcon, PanelLeftOpenIcon, PanelLeftCloseIcon } from "lucide-react"; // Importar novos ícones
+import { MenuIcon, LogOutIcon, TruckIcon, UtensilsCrossedIcon, BarChart3Icon, HistoryIcon, UsersIcon, SettingsIcon, MonitorIcon, PanelLeftOpenIcon, PanelLeftCloseIcon } from "lucide-react"; // Importar novos ícones
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
@@ -31,7 +31,6 @@ const navItems: NavItem[] = [
   { name: "history", path: "/historico", icon: HistoryIcon, roles: ["restaurante", "admin"] },
   { name: "timeAnalysis", path: "/analise-tempo", icon: BarChart3Icon, roles: ["admin", "restaurante"] },
   { name: "manageUsers", path: "/admin/users", icon: UsersIcon, roles: ["admin"] },
-  { name: "dashboard", path: "/dashboard", icon: LayoutDashboardIcon, roles: ["admin"] },
 ];
 
 const getRoleTheme = (role: string | undefined) => {

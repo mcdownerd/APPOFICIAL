@@ -119,21 +119,6 @@ const UserManagementPage = React.memo(() => {
     }
   });
 
-  const updateDashboardAccessCodeMutation = useMutation({
-    mutationFn: async (variables: { userId: string; code: string | null }) => {
-      if (!isAdmin) throw new Error(t("permissionDenied"));
-      return UserAPI.update(variables.userId, { dashboard_access_code: variables.code });
-    },
-    onSuccess: () => {
-      showSuccess(t("dashboardAccessCodeUpdated"));
-      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
-    },
-    onError: (error) => {
-      console.error("Failed to update dashboard access code:", error);
-      showError(t("failedToUpdateDashboardAccessCode"));
-    }
-  });
-
   const addRestaurantMutation = useMutation({
     mutationFn: async (variables: { id: string; name: string }) => {
       return RestaurantAPI.create(variables.id, variables.name);
@@ -186,10 +171,6 @@ const UserManagementPage = React.memo(() => {
     updateUserRestaurantIdMutation.mutate({ userId, restaurantId: newRestaurantId === "unassigned" ? null : newRestaurantId });
   }, [updateUserRestaurantIdMutation]);
 
-  const handleUpdateDashboardAccessCode = useCallback((userId: string, code: string) => {
-    updateDashboardAccessCodeMutation.mutate({ userId, code: code || null });
-  }, [updateDashboardAccessCodeMutation]);
-
   const handleAddRestaurant = useCallback(async () => {
     if (!newRestaurantId.trim() || !newRestaurantName.trim()) {
       showError(t("pleaseFillAllFields"));
@@ -226,7 +207,7 @@ const UserManagementPage = React.memo(() => {
     );
   }
 
-  const isAnyActionLoading = updateUserStatusMutation.isPending || updateUserRoleMutation.isPending || updateUserRestaurantIdMutation.isPending || updateDashboardAccessCodeMutation.isPending || addRestaurantMutation.isPending || updateRestaurantSettingsMutation.isPending;
+  const isAnyActionLoading = updateUserStatusMutation.isPending || updateUserRoleMutation.isPending || updateUserRestaurantIdMutation.isPending || addRestaurantMutation.isPending || updateRestaurantSettingsMutation.isPending;
 
   return (
     <motion.div
@@ -273,7 +254,6 @@ const UserManagementPage = React.memo(() => {
                     <TableHead>{t("email")}</TableHead>
                     <TableHead>{t("role")}</TableHead>
                     <TableHead>{t("restaurantId")}</TableHead>
-                    <TableHead>{t("dashboardAccessCode")}</TableHead>
                     <TableHead>{t("status")}</TableHead>
                     <TableHead>{t("createdAt")}</TableHead>
                     <TableHead className="text-right">{t("actions")}</TableHead>
@@ -323,20 +303,6 @@ const UserManagementPage = React.memo(() => {
                           </Select>
                         ) : (
                           user.restaurant_id || "N/A"
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {user.user_role === "estafeta" ? (
-                          <Input
-                            type="text"
-                            value={user.dashboard_access_code || ""}
-                            onChange={(e) => handleUpdateDashboardAccessCode(user.id, e.target.value)}
-                            placeholder={t("setAccessCode")}
-                            className="w-[120px]"
-                            disabled={isAnyActionLoading}
-                          />
-                        ) : (
-                          "N/A"
                         )}
                       </TableCell>
                       <TableCell>{getStatusBadge(user.status)}</TableCell>
