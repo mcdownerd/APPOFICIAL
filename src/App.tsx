@@ -17,6 +17,7 @@ import HistoricoPage from "./pages/HistoricoPage";
 import AnaliseTempoPage from "./pages/AnaliseTempoPage";
 import UserManagementPage from "./pages/UserManagementPage";
 import DashboardPage from "./pages/DashboardPage";
+import EcranEstafetaPage from "./pages/EcranEstafetaPage"; // Importar a nova página
 
 const queryClient = new QueryClient();
 
@@ -78,6 +79,14 @@ const App = () => (
                   element={
                     <AuthGuard allowedRoles={["admin"]}> {/* Apenas admin pode acessar o dashboard */}
                       <DashboardPage />
+                    </AuthGuard>
+                  }
+                />
+                <Route
+                  path="ecra-estafeta"
+                  element={
+                    <AuthGuard allowedRoles={["estafeta", "restaurante", "admin"]}> {/* Definir roles permitidos */}
+                      <EcranEstafetaPage />
                     </AuthGuard>
                   }
                 />

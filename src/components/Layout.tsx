@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { MenuIcon, LogOutIcon, TruckIcon, UtensilsCrossedIcon, BarChart3Icon, HistoryIcon, UsersIcon, SettingsIcon, LayoutDashboardIcon } from "lucide-react";
+import { MenuIcon, LogOutIcon, TruckIcon, UtensilsCrossedIcon, BarChart3Icon, HistoryIcon, UsersIcon, SettingsIcon, LayoutDashboardIcon, MonitorIcon } from "lucide-react"; // Importar MonitorIcon
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 // import LanguageSwitcher from "./LanguageSwitcher"; // Removido
@@ -27,6 +27,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { name: "sendCodes", path: "/estafeta", icon: TruckIcon, roles: ["estafeta", "admin"] },
   { name: "counter", path: "/balcao", icon: UtensilsCrossedIcon, roles: ["restaurante", "admin"] },
+  { name: "courierScreen", path: "/ecra-estafeta", icon: MonitorIcon, roles: ["estafeta", "restaurante", "admin"] }, // Novo item
   { name: "history", path: "/historico", icon: HistoryIcon, roles: ["restaurante", "admin"] },
   { name: "timeAnalysis", path: "/analise-tempo", icon: BarChart3Icon, roles: ["admin", "restaurante"] },
   { name: "manageUsers", path: "/admin/users", icon: UsersIcon, roles: ["admin"] },
