@@ -11,11 +11,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { MenuIcon, LogOutIcon, TruckIcon, UtensilsCrossedIcon, BarChart3Icon, HistoryIcon, UsersIcon, SettingsIcon, LayoutDashboardIcon, MonitorIcon } from "lucide-react"; // Importar MonitorIcon
+import { MenuIcon, LogOutIcon, TruckIcon, UtensilsCrossedIcon, BarChart3Icon, HistoryIcon, UsersIcon, SettingsIcon, LayoutDashboardIcon, MonitorIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
-// import LanguageSwitcher from "./LanguageSwitcher"; // Removido
 import { useTranslation } from "react-i18next";
+import { useSettings } from "@/context/SettingsContext"; // Importar useSettings
 
 interface NavItem {
   name: string;
@@ -27,11 +27,11 @@ interface NavItem {
 const navItems: NavItem[] = [
   { name: "sendCodes", path: "/estafeta", icon: TruckIcon, roles: ["estafeta", "admin"] },
   { name: "counter", path: "/balcao", icon: UtensilsCrossedIcon, roles: ["restaurante", "admin"] },
-  { name: "courierScreen", path: "/ecra-estafeta", icon: MonitorIcon, roles: ["estafeta", "restaurante", "admin"] }, // Novo item
+  { name: "courierScreen", path: "/ecra-estafeta", icon: MonitorIcon, roles: ["estafeta", "restaurante", "admin"] },
   { name: "history", path: "/historico", icon: HistoryIcon, roles: ["restaurante", "admin"] },
   { name: "timeAnalysis", path: "/analise-tempo", icon: BarChart3Icon, roles: ["admin", "restaurante"] },
   { name: "manageUsers", path: "/admin/users", icon: UsersIcon, roles: ["admin"] },
-  { name: "dashboard", path: "/dashboard", icon: LayoutDashboardIcon, roles: ["admin"] }, // Apenas admin
+  { name: "dashboard", path: "/dashboard", icon: LayoutDashboardIcon, roles: ["admin"] },
 ];
 
 const getRoleTheme = (role: string | undefined) => {
@@ -75,7 +75,7 @@ const StatusCard = ({ title, message, buttonText, onButtonClick }: { title: stri
         </Button>
       </div>
       <div className="mt-4">
-        {/* <LanguageSwitcher /> */} {/* Removido */}
+        {/* <LanguageSwitcher /> */}
       </div>
     </motion.div>
   );
@@ -83,11 +83,19 @@ const StatusCard = ({ title, message, buttonText, onButtonClick }: { title: stri
 
 const SidebarContent = ({ onClose }: { onClose?: () => void }) => {
   const { user, logout, hasRole, isLoading } = useAuth();
+  const { isEcranEstafetaEnabled, isSettingsLoading } = useSettings(); // Usar isEcranEstafetaEnabled
   const { t } = useTranslation();
   const location = useLocation();
   const theme = getRoleTheme(user?.user_role);
 
-  const filteredNavItems = navItems.filter((item) => hasRole(item.roles as any));
+  // Filtrar navItems com base no papel E na configuração do Ecrã Estafeta
+  const filteredNavItems = navItems.filter((item) => {
+    const roleMatches = hasRole(item.roles as any);
+    if (item.path === "/ecra-estafeta") {
+      return roleMatches && isEcranEstafetaEnabled && !isSettingsLoading;
+    }
+    return roleMatches;
+  });
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
@@ -146,7 +154,7 @@ const SidebarContent = ({ onClose }: { onClose?: () => void }) => {
           </div>
         )}
         <div className="mt-4">
-          {/* <LanguageSwitcher /> */} {/* Removido */}
+          {/* <LanguageSwitcher /> */}
         </div>
       </div>
     </div>
@@ -234,7 +242,7 @@ export const Layout = () => {
           <h1 className="text-xl font-bold text-gray-800">{t("deliveryFlow")}</h1>
           
           <div className="ml-auto flex items-center gap-2">
-            {/* <LanguageSwitcher /> */} {/* Removido */}
+            {/* <LanguageSwitcher /> */}
             {user && (
               <Button
                 variant="ghost"
