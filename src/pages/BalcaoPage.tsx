@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion'; // Importação de motion e AnimatePresence
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -314,7 +314,7 @@ export default function BalcaoPage() {
             <Switch
               id="pending-limit-toggle"
               checked={isPendingLimitEnabled}
-              onCheckedChange={(checked) => togglePendingLimit(checked)} {/* Corrigido aqui */}
+              onCheckedChange={(checked) => togglePendingLimit(checked)}
               disabled={isSwitchDisabled} // Disable if loading or not authorized
             />
             <Label htmlFor="pending-limit-toggle">{t("enablePendingLimit")}</Label>
