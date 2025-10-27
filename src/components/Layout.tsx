@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { MenuIcon, LogOutIcon, TruckIcon, UtensilsCrossedIcon, BarChart3Icon, HistoryIcon, UsersIcon, SettingsIcon, LayoutDashboardIcon, MonitorIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { MenuIcon, LogOutIcon, TruckIcon, UtensilsCrossedIcon, BarChart3Icon, HistoryIcon, UsersIcon, SettingsIcon, LayoutDashboardIcon, MonitorIcon, PanelLeftOpenIcon, PanelLeftCloseIcon } from "lucide-react"; // Importar novos ícones
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
@@ -261,9 +261,9 @@ export const Layout = () => {
             aria-label={t("toggleNavigationMenu")}
           >
             {isDesktopSidebarOpen ? (
-              <ChevronLeftIcon className="h-5 w-5 text-foreground" />
+              <PanelLeftOpenIcon className="h-5 w-5 text-foreground" />
             ) : (
-              <ChevronRightIcon className="h-5 w-5 text-foreground" />
+              <PanelLeftCloseIcon className="h-5 w-5 text-foreground" />
             )}
           </Button>
 
