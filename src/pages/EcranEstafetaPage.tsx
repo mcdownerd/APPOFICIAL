@@ -226,15 +226,17 @@ export default function EcranEstafetaPage() {
               </SelectContent>
             </Select>
           )}
-          <Button
-            onClick={loadTickets}
-            variant="outline"
-            disabled={refreshing}
-            className="space-x-2"
-          >
-            <RefreshCcwIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            <span>{t('refresh')}</span>
-          </Button>
+          {isAdmin && ( // O botão de atualizar só aparece para admins
+            <Button
+              onClick={loadTickets}
+              variant="outline"
+              disabled={refreshing}
+              className="space-x-2"
+            >
+              <RefreshCcwIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <span>{t('refresh')}</span>
+            </Button>
+          )}
         </div>
       </div>
 
