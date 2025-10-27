@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
-import { TicketAPI, Ticket, UserAPI } from "@/lib/api"; // Import UserAPI
+import { TicketAPI, Ticket, UserAPI, RestaurantAPI, Restaurant } from "@/lib/api"; // Import UserAPI e Restaurant
 import { showError } from "@/utils/toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -171,7 +171,7 @@ const AnaliseTempoPage = () => {
   const [dateRange, setDateRange] = useState<DateRange>({ from: subDays(new Date(), 7), to: new Date() });
   const [selectedPeriod, setSelectedPeriod] = useState("week"); // today, week, month, custom
   const [selectedRestaurant, setSelectedRestaurant] = useState("all"); // all ou restaurant_id
-  const [availableRestaurants, setAvailableRestaurants] = useState<{ id: string; name: string }[]>([]);
+  const [availableRestaurants, setAvailableRestaurants] = useState<Restaurant[]>([]); // Alterado para Restaurant[]
   const [error, setError] = useState<string | null>(null);
 
   // Effect to update dateRange when selectedPeriod changes
@@ -207,12 +207,10 @@ const AnaliseTempoPage = () => {
     const fetchRestaurants = async () => {
       if (isAdmin) {
         try {
-          const restaurantUsers = await UserAPI.filter({ user_role: "restaurante", status: "APPROVED" });
-          const uniqueRestaurantIds = Array.from(new Set(restaurantUsers.map(u => u.restaurant_id).filter(Boolean) as string[]));
-          const restaurants = uniqueRestaurantIds.map(id => ({ id, name: `Restaurante ${id.substring(0, 4)}` })); // Simple naming
-          setAvailableRestaurants(restaurants);
+          const restaurantsList = await RestaurantAPI.list(); // Buscar todos os restaurantes
+          setAvailableRestaurants(restaurantsList);
         } catch (err) {
-          console.error("Failed to fetch restaurant users:", err);
+          console.error("Failed to fetch restaurants:", err);
           showError(t("failedToLoadRestaurants"));
         }
       }
@@ -450,7 +448,7 @@ const AnaliseTempoPage = () => {
             </CardDescription>
           </div>
           <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isLoading}>
-            <RefreshCwIcon className={cn("h-4 w-4", isLoading && "animate-spin")} />
+            <RefreshCwIcon className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
           </Button>
         </CardHeader>
         <CardContent>

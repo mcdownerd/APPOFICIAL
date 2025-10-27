@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, Trash2Icon, UtensilsCrossedIcon, SettingsIcon } from 'lucide-react'; // MonitorIcon removido
-import { TicketAPI, Ticket, UserAPI } from '@/lib/api'; // Import UserAPI
+import { TicketAPI, Ticket, UserAPI, RestaurantAPI, Restaurant } from '@/lib/api'; // Import UserAPI e Restaurant
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -28,7 +28,7 @@ export default function BalcaoPage() {
   const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set());
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [selectedRestaurant, setSelectedRestaurant] = useState("all"); // 'all' or a specific restaurant_id
-  const [availableRestaurants, setAvailableRestaurants] = useState<{ id: string; name: string }[]>([]);
+  const [availableRestaurants, setAvailableRestaurants] = useState<Restaurant[]>([]); // Alterado para Restaurant[]
 
   const doubleClickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const DOUBLE_CLICK_THRESHOLD = 500; // milliseconds
@@ -38,12 +38,10 @@ export default function BalcaoPage() {
     const fetchRestaurants = async () => {
       if (isAdmin) {
         try {
-          const restaurantUsers = await UserAPI.filter({ user_role: "restaurante", status: "APPROVED" });
-          const uniqueRestaurantIds = Array.from(new Set(restaurantUsers.map(u => u.restaurant_id).filter(Boolean) as string[]));
-          const restaurants = uniqueRestaurantIds.map(id => ({ id, name: `Restaurante ${id.substring(0, 4)}` })); // Simple naming
-          setAvailableRestaurants(restaurants);
+          const restaurantsList = await RestaurantAPI.list(); // Buscar todos os restaurantes
+          setAvailableRestaurants(restaurantsList);
         } catch (err) {
-          console.error("Failed to fetch restaurant users:", err);
+          console.error("Failed to fetch restaurants:", err);
           showError(t("failedToLoadRestaurants"));
         }
       }

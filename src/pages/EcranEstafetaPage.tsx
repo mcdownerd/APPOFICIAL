@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, UtensilsCrossedIcon, MonitorIcon, AlertCircleIcon, Trash2Icon } from 'lucide-react'; // Importar Trash2Icon
-import { TicketAPI, Ticket, UserAPI } from '@/lib/api'; // Import UserAPI
+import { TicketAPI, Ticket, UserAPI, RestaurantAPI, Restaurant } from '@/lib/api'; // Import UserAPI e Restaurant
 import { showError, showSuccess } from '@/utils/toast'; // Importar showSuccess
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -26,19 +26,17 @@ export default function EcranEstafetaPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set()); // Para gerenciar o estado de processamento
   const [selectedRestaurant, setSelectedRestaurant] = useState("all"); // 'all' or a specific restaurant_id
-  const [availableRestaurants, setAvailableRestaurants] = useState<{ id: string; name: string }[]>([]);
+  const [availableRestaurants, setAvailableRestaurants] = useState<Restaurant[]>([]); // Alterado para Restaurant[]
 
   // Fetch available restaurants for admin filter
   useEffect(() => {
     const fetchRestaurants = async () => {
       if (isAdmin) {
         try {
-          const restaurantUsers = await UserAPI.filter({ user_role: "restaurante", status: "APPROVED" });
-          const uniqueRestaurantIds = Array.from(new Set(restaurantUsers.map(u => u.restaurant_id).filter(Boolean) as string[]));
-          const restaurants = uniqueRestaurantIds.map(id => ({ id, name: `Restaurante ${id.substring(0, 4)}` })); // Simple naming
-          setAvailableRestaurants(restaurants);
+          const restaurantsList = await RestaurantAPI.list(); // Buscar todos os restaurantes
+          setAvailableRestaurants(restaurantsList);
         } catch (err) {
-          console.error("Failed to fetch restaurant users:", err);
+          console.error("Failed to fetch restaurants:", err);
           showError(t("failedToLoadRestaurants"));
         }
       }
