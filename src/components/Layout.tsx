@@ -11,11 +11,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { MenuIcon, LogOutIcon, TruckIcon, UtensilsCrossedIcon, BarChart3Icon, HistoryIcon, UsersIcon, SettingsIcon, LayoutDashboardIcon, MonitorIcon } from "lucide-react";
+import { MenuIcon, LogOutIcon, TruckIcon, UtensilsCrossedIcon, BarChart3Icon, HistoryIcon, UsersIcon, SettingsIcon, LayoutDashboardIcon, MonitorIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
-import { useSettings } from "@/context/SettingsContext"; // Importar useSettings
+import { useSettings } from "@/context/SettingsContext";
 
 interface NavItem {
   name: string;
@@ -81,14 +81,13 @@ const StatusCard = ({ title, message, buttonText, onButtonClick }: { title: stri
   );
 };
 
-const SidebarContent = ({ onClose }: { onClose?: () => void }) => {
+const SidebarContent = ({ onClose, isDesktopSidebarOpen }: { onClose?: () => void; isDesktopSidebarOpen?: boolean }) => {
   const { user, logout, hasRole, isLoading } = useAuth();
-  const { isEcranEstafetaEnabled, isSettingsLoading } = useSettings(); // Usar isEcranEstafetaEnabled
+  const { isEcranEstafetaEnabled, isSettingsLoading } = useSettings();
   const { t } = useTranslation();
   const location = useLocation();
   const theme = getRoleTheme(user?.user_role);
 
-  // Filtrar navItems com base no papel E na configuração do Ecrã Estafeta
   const filteredNavItems = navItems.filter((item) => {
     const roleMatches = hasRole(item.roles as any);
     if (item.path === "/ecra-estafeta") {
@@ -116,7 +115,7 @@ const SidebarContent = ({ onClose }: { onClose?: () => void }) => {
               )}
             >
               <item.icon className="h-5 w-5" />
-              {t(item.name)}
+              {isDesktopSidebarOpen && t(item.name)} {/* Esconder texto se a sidebar estiver recolhida */}
             </Link>
           ))}
         </nav>
@@ -129,19 +128,21 @@ const SidebarContent = ({ onClose }: { onClose?: () => void }) => {
                 {user.full_name.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div className="flex-1">
-              <div className="font-medium text-sidebar-foreground">{user.full_name}</div>
-              <Badge
-                className={cn(
-                  "mt-1 text-xs font-normal",
-                  theme.bg.includes("amber") && "bg-amber-500 text-white",
-                  theme.bg.includes("purple") && "bg-purple-500 text-white",
-                  theme.bg.includes("blue") && "bg-blue-500 text-white",
-                )}
-              >
-                {t(user.user_role)}
-              </Badge>
-            </div>
+            {isDesktopSidebarOpen && ( {/* Esconder texto se a sidebar estiver recolhida */}
+              <div className="flex-1">
+                <div className="font-medium text-sidebar-foreground">{user.full_name}</div>
+                <Badge
+                  className={cn(
+                    "mt-1 text-xs font-normal",
+                    theme.bg.includes("amber") && "bg-amber-500 text-white",
+                    theme.bg.includes("purple") && "bg-purple-500 text-white",
+                    theme.bg.includes("blue") && "bg-blue-500 text-white",
+                  )}
+                >
+                  {t(user.user_role)}
+                </Badge>
+              </div>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -166,7 +167,8 @@ export const Layout = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true); // Novo estado para a sidebar desktop
 
   const theme = getRoleTheme(user?.user_role);
 
@@ -190,7 +192,6 @@ export const Layout = () => {
   }
 
   if (!isAuthenticated) {
-    // Redirect to login if not authenticated
     navigate("/login", { replace: true });
     return null;
   }
@@ -218,17 +219,28 @@ export const Layout = () => {
   }
 
   return (
-    <div className={cn("grid min-h-screen w-full lg:grid-cols-[280px_1fr]", `bg-gradient-to-br ${theme.bg}`)}>
+    <div 
+      className={cn(
+        "grid min-h-screen w-full transition-all duration-300 ease-in-out",
+        isDesktopSidebarOpen ? "lg:grid-cols-[280px_1fr]" : "lg:grid-cols-[60px_1fr]", // Ajusta a largura da sidebar
+        `bg-gradient-to-br ${theme.bg}`
+      )}
+    >
       {/* Desktop Sidebar */}
-      <aside className="hidden border-r border-sidebar-border bg-sidebar lg:block">
-        <SidebarContent />
+      <aside 
+        className={cn(
+          "hidden border-r border-sidebar-border bg-sidebar transition-all duration-300 ease-in-out lg:block",
+          isDesktopSidebarOpen ? "w-[280px]" : "w-[60px] overflow-hidden" // Controla a largura
+        )}
+      >
+        <SidebarContent isDesktopSidebarOpen={isDesktopSidebarOpen} />
       </aside>
 
       {/* Main Content Area */}
       <div className="flex flex-col">
         <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-sidebar-border bg-background px-4 lg:px-6">
           {/* Mobile Sidebar Trigger */}
-          <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+          <Sheet open={isMobileSidebarOpen} onOpenChange={setIsMobileSidebarOpen}>
             <SheetTrigger asChild className="lg:hidden">
               <Button variant="outline" size="icon" className="shrink-0">
                 <MenuIcon className="h-5 w-5 text-foreground" />
@@ -236,9 +248,25 @@ export const Layout = () => {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-64 p-0">
-              <SidebarContent onClose={() => setIsSidebarOpen(false)} />
+              <SidebarContent onClose={() => setIsMobileSidebarOpen(false)} />
             </SheetContent>
           </Sheet>
+          
+          {/* Desktop Sidebar Toggle Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden lg:flex"
+            onClick={() => setIsDesktopSidebarOpen(prev => !prev)}
+            aria-label={t("toggleNavigationMenu")}
+          >
+            {isDesktopSidebarOpen ? (
+              <ChevronLeftIcon className="h-5 w-5 text-foreground" />
+            ) : (
+              <ChevronRightIcon className="h-5 w-5 text-foreground" />
+            )}
+          </Button>
+
           <h1 className="text-xl font-bold text-gray-800">{t("deliveryFlow")}</h1>
           
           <div className="ml-auto flex items-center gap-2">
