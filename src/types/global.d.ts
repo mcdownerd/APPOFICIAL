@@ -3,19 +3,20 @@
 // Declarações para o SDK do Google Cast
 declare namespace chrome {
   namespace cast {
+    // Declarações de classes para SessionRequest e ApiConfig
+    class SessionRequest {
+      constructor(appId: string, capabilities?: Capability[], requestExtraData?: object);
+    }
+
+    class ApiConfig {
+      constructor(sessionRequest: SessionRequest, sessionListener: (session: Session) => void, receiverListener: (receiverAvailability: ReceiverAvailability) => void, autoJoinPolicy: AutoJoinPolicy, defaultActionPolicy: DefaultActionPolicy);
+    }
+
     interface Session {
       sendMessage(namespace: string, message: string | object, successCallback?: () => void, errorCallback?: (error: Error) => void): void;
       stop(successCallback?: () => void, errorCallback?: (error: Error) => void): void;
       addUpdateListener(listener: (isAlive: boolean) => void): void;
       removeUpdateListener(listener: (isAlive: boolean) => void): void;
-    }
-
-    interface SessionRequest {
-      new(appId: string, capabilities?: Capability[], requestExtraData?: object): SessionRequest;
-    }
-
-    interface ApiConfig {
-      new(sessionRequest: SessionRequest, sessionListener: (session: Session) => void, receiverListener: (receiverAvailability: ReceiverAvailability) => void, autoJoinPolicy: AutoJoinPolicy, defaultActionPolicy: DefaultActionPolicy): ApiConfig;
     }
 
     enum AutoJoinPolicy {
