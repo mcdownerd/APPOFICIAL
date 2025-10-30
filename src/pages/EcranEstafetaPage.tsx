@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { useSettings } from "@/context/SettingsContext"; // Importar useSettings
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Importar Alert components
+import CastButton from '@/components/CastButton'; // Importar o novo componente CastButton
 
 export default function EcranEstafetaPage() {
   const { user, isAdmin, isRestaurante } = useAuth();
@@ -210,8 +211,8 @@ export default function EcranEstafetaPage() {
           </p>
         </div>
         
-        {isAdmin && ( // O seletor de restaurante e o botão de atualizar só aparecem para admins
-          <div className="flex items-center gap-4 mt-4 sm:mt-0 sm:ml-auto"> {/* Adicionado sm:ml-auto para empurrar para a direita em telas maiores */}
+        <div className="flex items-center gap-4 mt-4 sm:mt-0 sm:ml-auto"> {/* Adicionado sm:ml-auto para empurrar para a direita em telas maiores */}
+          {isAdmin && ( // O seletor de restaurante só aparece para admins
             <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder={t("selectRestaurant")} />
@@ -223,17 +224,18 @@ export default function EcranEstafetaPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              onClick={loadTickets}
-              variant="outline"
-              disabled={refreshing}
-              className="space-x-2"
-            >
-              <RefreshCcwIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              <span>{t('refresh')}</span>
-            </Button>
-          </div>
-        )}
+          )}
+          <Button
+            onClick={loadTickets}
+            variant="outline"
+            disabled={refreshing}
+            className="space-x-2"
+          >
+            <RefreshCcwIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <span>{t('refresh')}</span>
+          </Button>
+          <CastButton contentUrl="/ecra-estafeta" /> {/* Adicionado o botão de Cast aqui */}
+        </div>
       </div>
 
       {/* Tickets grid */}
