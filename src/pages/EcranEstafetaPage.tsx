@@ -24,7 +24,7 @@ export default function EcranEstafetaPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set());
+  const [processingTickets, setProcessingTickets] = new Set();
   const [selectedRestaurant, setSelectedRestaurant] = useState("all");
   const [availableRestaurants, setAvailableRestaurants] = useState<Restaurant[]>([]);
 
@@ -310,11 +310,7 @@ export default function EcranEstafetaPage() {
                           </p>
                         )}
                       </div>
-                      {canDelete && ( // Dica visual para usuários autorizados
-                        <div className="text-center text-xs text-red-500 font-medium mt-2">
-                          {t("clickToRemoveTicket")}
-                        </div>
-                      )}
+                      {/* REMOVIDO: Dica visual para usuários autorizados */}
                     </CardContent>
                   </Card>
                 </motion.div>
