@@ -24,7 +24,7 @@ export default function EcranEstafetaPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [processingTickets, setProcessingTickets] = new Set();
+  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set()); // CORRIGIDO AQUI
   const [selectedRestaurant, setSelectedRestaurant] = useState("all");
   const [availableRestaurants, setAvailableRestaurants] = useState<Restaurant[]>([]);
 
@@ -310,7 +310,6 @@ export default function EcranEstafetaPage() {
                           </p>
                         )}
                       </div>
-                      {/* REMOVIDO: Dica visual para usuários autorizados */}
                     </CardContent>
                   </Card>
                 </motion.div>
