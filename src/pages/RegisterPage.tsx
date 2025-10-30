@@ -52,7 +52,7 @@ const RegisterPage = () => {
             },
           }}
           theme="light"
-          providers={['google']}
+          providers={[]}
           view="sign_up"
           redirectTo={window.location.origin + '/'} // Redireciona explicitamente para a raiz
         />

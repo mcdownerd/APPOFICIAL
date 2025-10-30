@@ -50,7 +50,7 @@ const Login = () => {
             },
           }}
           theme="light"
-          providers={['google']}
+          providers={[]}
           view="sign_in"
           redirectTo={window.location.origin + '/'} // Redireciona explicitamente para a raiz
         />
