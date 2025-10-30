@@ -250,6 +250,7 @@ export default function EcranEstafetaPage() {
               const status = getTicketStatus(ticket);
               const StatusIcon = status.icon;
               const isProcessing = processingTickets.has(ticket.id);
+              const canDelete = (isAdmin || isRestaurante) && !isProcessing;
               
               return (
                 <motion.div
@@ -265,16 +266,18 @@ export default function EcranEstafetaPage() {
                     className={cn(
                       "h-full transition-all duration-200 border-2 relative",
                       status.cardClass,
+                      canDelete ? 'cursor-pointer hover:shadow-lg hover:scale-[1.02]' : '', // Adiciona cursor e hover para usuários autorizados
                       "flex flex-col"
                     )}
+                    onClick={() => canDelete && handleSoftDelete(ticket)} // Torna o cartão clicável para remoção
                   >
-                    {(isAdmin || isRestaurante) && (
+                    {canDelete && ( // O botão de lixeira ainda existe para remoção explícita
                       <Button
                         variant="ghost"
                         size="icon"
                         className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-opacity duration-200"
                         onClick={(e) => {
-                          e.stopPropagation();
+                          e.stopPropagation(); // Previne que o clique no botão ative o clique do cartão
                           handleSoftDelete(ticket);
                         }}
                         disabled={isProcessing}
@@ -307,6 +310,11 @@ export default function EcranEstafetaPage() {
                           </p>
                         )}
                       </div>
+                      {canDelete && ( // Dica visual para usuários autorizados
+                        <div className="text-center text-xs text-red-500 font-medium mt-2">
+                          {t("clickToRemoveTicket")}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </motion.div>

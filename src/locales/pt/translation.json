@@ -177,5 +177,6 @@
   "add": "Adicionar",
   "courierScreenSettings": "Configurações do Ecrã Estafeta",
   "enableCourierScreen": "Ativar Ecrã Estafeta",
-  "courierScreenDescription": "Quando ativado, o ecrã de estafeta estará visível para os usuários associados a este restaurante."
+  "courierScreenDescription": "Quando ativado, o ecrã de estafeta estará visível para os usuários associados a este restaurante.",
+  "clickToRemoveTicket": "Clique para remover ticket"
 }
