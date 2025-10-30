@@ -8,7 +8,6 @@
   "hidePassword": "Esconder password",
   "login": "Entrar",
   "loggingIn": "Entrando...",
-  "testEmailsHint": "Use emails como \"admin@example.com\", \"restaurant1@example.com\", \"restaurant2@example.com\", \"estafeta@example.com\", \"pending@example.com\", \"rejected@example.com\" para testar os papéis.",
   "noAccount": "Não tem conta?",
   "register": "Registar",
   "awaitingApproval": "Aguardando Aprovação",
@@ -65,7 +64,6 @@
   "failedToConfirmTicket": "Falha ao confirmar ticket.",
   "clickAgainToRemove": "Clique novamente para remover.",
   "ticketRemovedSuccessfully": "Ticket removido com sucesso!",
-  "failedToRemoveTicket": "Falha ao remover ticket.",
   "failedToLoadActiveTickets": "Falha ao carregar tickets ativos.",
   "ticketHistory": "Histórico de Tickets",
   "removedTickets": "Tickets Removidos",
@@ -178,5 +176,6 @@
   "courierScreenSettings": "Configurações do Ecrã Estafeta",
   "enableCourierScreen": "Ativar Ecrã Estafeta",
   "courierScreenDescription": "Quando ativado, o ecrã de estafeta estará visível para os usuários associados a este restaurante.",
-  "clickToRemoveTicket": "Clique para remover ticket"
+  "clickToRemoveTicket": "Clique para remover ticket",
+  "ordersReady": "Pedidos Prontos"
 }
