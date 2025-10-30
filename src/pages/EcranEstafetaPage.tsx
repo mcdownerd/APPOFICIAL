@@ -6,35 +6,33 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, UtensilsCrossedIcon, MonitorIcon, AlertCircleIcon, Trash2Icon } from 'lucide-react'; // Importar Trash2Icon
-import { TicketAPI, Ticket, UserAPI, RestaurantAPI, Restaurant } from '@/lib/api'; // Import UserAPI e Restaurant
-import { showError, showSuccess } from '@/utils/toast'; // Importar showSuccess
+import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, UtensilsCrossedIcon, MonitorIcon, AlertCircleIcon, Trash2Icon } from 'lucide-react';
+import { TicketAPI, Ticket, UserAPI, RestaurantAPI, Restaurant } from '@/lib/api';
+import { showError, showSuccess } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
-import { useSettings } from "@/context/SettingsContext"; // Importar useSettings
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Importar Alert components
-import CastButton from '@/components/CastButton'; // Importar o novo componente CastButton
+import { useSettings } from "@/context/SettingsContext";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function EcranEstafetaPage() {
   const { user, isAdmin, isRestaurante } = useAuth();
   const { t, i18n } = useTranslation();
-  const { isEcranEstafetaEnabled, isSettingsLoading } = useSettings(); // Usar isEcranEstafetaEnabled e isSettingsLoading
+  const { isEcranEstafetaEnabled, isSettingsLoading } = useSettings();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set()); // Para gerenciar o estado de processamento
-  const [selectedRestaurant, setSelectedRestaurant] = useState("all"); // 'all' or a specific restaurant_id
-  const [availableRestaurants, setAvailableRestaurants] = useState<Restaurant[]>([]); // Alterado para Restaurant[]
+  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set());
+  const [selectedRestaurant, setSelectedRestaurant] = useState("all");
+  const [availableRestaurants, setAvailableRestaurants] = useState<Restaurant[]>([]);
 
-  // Fetch available restaurants for admin filter
   useEffect(() => {
     const fetchRestaurants = async () => {
       if (isAdmin) {
         try {
-          const restaurantsList = await RestaurantAPI.list(); // Buscar todos os restaurantes
+          const restaurantsList = await RestaurantAPI.list();
           setAvailableRestaurants(restaurantsList);
         } catch (err) {
           console.error("Failed to fetch restaurants:", err);
@@ -46,7 +44,6 @@ export default function EcranEstafetaPage() {
   }, [isAdmin, t]);
 
   const loadTickets = useCallback(async () => {
-    // Não carregar tickets se a funcionalidade não estiver habilitada
     if (!isEcranEstafetaEnabled || !user || (!isAdmin && user.user_role === "restaurante" && !user.restaurant_id)) {
       setLoading(false);
       setRefreshing(false);
@@ -76,12 +73,11 @@ export default function EcranEstafetaPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, isAdmin, t, selectedRestaurant, isEcranEstafetaEnabled]); // Adicionar isEcranEstafetaEnabled
+  }, [user, isAdmin, t, selectedRestaurant, isEcranEstafetaEnabled]);
 
   useEffect(() => {
     loadTickets();
     
-    // Auto-refresh every 5 seconds
     const interval = setInterval(loadTickets, 5000);
     return () => {
       clearInterval(interval);
@@ -90,7 +86,6 @@ export default function EcranEstafetaPage() {
 
   const handleSoftDelete = async (ticket: Ticket) => {
     if (!user || processingTickets.has(ticket.id)) return;
-    // Apenas admin e restaurante podem apagar tickets nesta tela
     if (!isAdmin && !isRestaurante) {
       showError(t("permissionDenied"));
       return;
@@ -121,7 +116,6 @@ export default function EcranEstafetaPage() {
   };
 
   const getTicketStatus = (ticket: Ticket) => {
-    // Sempre retorna CONFIRMADO para o Ecrã Estafeta
     return {
       label: t('acknowledged'),
       icon: CheckCircleIcon,
@@ -130,19 +124,17 @@ export default function EcranEstafetaPage() {
     };
   };
 
-  // Determine the currently selected restaurant name for display
   const currentRestaurantName = isAdmin && selectedRestaurant !== "all"
     ? availableRestaurants.find(r => r.id === selectedRestaurant)?.name || selectedRestaurant
     : null;
 
-  // Helper to get restaurant name for a ticket
   const getRestaurantNameForTicket = (restaurantId: string | undefined) => {
     if (!restaurantId) return t("none");
     const restaurant = availableRestaurants.find(r => r.id === restaurantId);
     return restaurant ? restaurant.name : `Restaurante ${restaurantId.substring(0, 4)}`;
   };
 
-  if (loading || isSettingsLoading) { // Add isSettingsLoading to overall loading state
+  if (loading || isSettingsLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="flex items-center space-x-2">
@@ -153,7 +145,6 @@ export default function EcranEstafetaPage() {
     );
   }
 
-  // Mensagem de funcionalidade desabilitada
   if (!isEcranEstafetaEnabled) {
     return (
       <motion.div
@@ -197,9 +188,8 @@ export default function EcranEstafetaPage() {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6"
     >
-      {/* Header with refresh button and restaurant selector */}
       <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-4 w-full">
-        <div className="flex-1 text-center"> {/* Removido sm:text-left, adicionado text-center */}
+        <div className="flex-1 text-center">
           <h2 className="text-3xl font-bold text-gray-800">
             {t('courierScreen')}
             {currentRestaurantName && (
@@ -211,8 +201,8 @@ export default function EcranEstafetaPage() {
           </p>
         </div>
         
-        <div className="flex items-center gap-4 mt-4 sm:mt-0 sm:ml-auto"> {/* Adicionado sm:ml-auto para empurrar para a direita em telas maiores */}
-          {isAdmin && ( // O seletor de restaurante só aparece para admins
+        <div className="flex items-center gap-4 mt-4 sm:mt-0 sm:ml-auto">
+          {isAdmin && (
             <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder={t("selectRestaurant")} />
@@ -234,11 +224,9 @@ export default function EcranEstafetaPage() {
             <RefreshCcwIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             <span>{t('refresh')}</span>
           </Button>
-          <CastButton contentUrl="/ecra-estafeta" /> {/* Adicionado o botão de Cast aqui */}
         </div>
       </div>
 
-      {/* Tickets grid */}
       {tickets.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -280,13 +268,13 @@ export default function EcranEstafetaPage() {
                       "flex flex-col"
                     )}
                   >
-                    {(isAdmin || isRestaurante) && ( // Botão de lixeira só aparece para Admin e Restaurante
+                    {(isAdmin || isRestaurante) && (
                       <Button
                         variant="ghost"
                         size="icon"
                         className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-opacity duration-200"
                         onClick={(e) => {
-                          e.stopPropagation(); // Previne que o clique no botão ative o clique do cartão
+                          e.stopPropagation();
                           handleSoftDelete(ticket);
                         }}
                         disabled={isProcessing}
