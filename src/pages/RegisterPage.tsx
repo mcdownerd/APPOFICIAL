@@ -63,9 +63,6 @@ const RegisterPage = () => {
               {t("backToLogin")}
             </a>
           </p>
-          <p className="text-xs text-gray-400 mt-2">
-            {t("testEmailsHint")}
-          </p>
         </div>
       </div>
       <div className="mt-4">
