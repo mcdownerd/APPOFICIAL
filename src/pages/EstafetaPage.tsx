@@ -180,6 +180,8 @@ const EstafetaPage = () => {
   console.log("EstafetaPage: isPendingLimitEnabled (final check for canSubmit):", isPendingLimitEnabled);
   console.log("EstafetaPage: pendingTicketsCount (final check for canSubmit):", pendingTicketsCount);
   console.log("EstafetaPage: isSettingsLoading (final check for canSubmit):", isSettingsLoading);
+  console.log("EstafetaPage: isCodeValid:", isCodeValid); // Novo log
+  console.log("EstafetaPage: user?.restaurant_id:", user?.restaurant_id); // Novo log
   console.log("EstafetaPage: canSubmit:", canSubmit);
   // --- END DEBUG LOGS ---
 
