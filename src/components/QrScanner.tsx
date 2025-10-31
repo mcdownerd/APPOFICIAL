@@ -1,14 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { QrReader } from 'react-qr-reader';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CameraIcon, XIcon, AlertCircleIcon, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
-import { useCameraAccess } from "@/hooks/use-camera-access"; // Importar o novo hook
-import jsQR from "jsqr"; // Importar jsqr
 
 interface QrScannerProps {
   isOpen: boolean;
@@ -19,64 +18,97 @@ interface QrScannerProps {
 
 const QrScanner = ({ isOpen, onClose, onScan, isLoading }: QrScannerProps) => {
   const { t } = useTranslation();
-  const { videoRef, isCameraAvailable, cameraAccessError, stopCamera } = useCameraAccess(); // Usar o novo hook
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameId = useRef<number | null>(null);
-  const lastScanTime = useRef<number>(0);
-  const SCAN_INTERVAL_MS = 200; // Scan every 200ms
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isCameraReady, setIsCameraReady] = useState(false); // New state to track if camera stream is active
 
-  const scanQrCode = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current || !isCameraAvailable) {
-      animationFrameId.current = requestAnimationFrame(scanQrCode);
-      return;
-    }
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const context = canvas.getContext("2d");
-
-    if (context && video.readyState === video.HAVE_ENOUGH_DATA) {
-      canvas.height = video.videoHeight;
-      canvas.width = video.videoWidth;
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: "dontInvert",
-      });
-
-      if (code && Date.now() - lastScanTime.current > SCAN_INTERVAL_MS) {
-        onScan(code.data);
-        lastScanTime.current = Date.now();
-        // Optionally stop scanning after a successful scan if desired,
-        // but for continuous scanning, just let it continue.
-      }
-    }
-    animationFrameId.current = requestAnimationFrame(scanQrCode);
-  }, [videoRef, canvasRef, isCameraAvailable, onScan]);
+  // Ref to hold the timeout ID
+  const cameraTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cameraInitializedRef = useRef(false); // To track if camera has attempted to initialize
 
   useEffect(() => {
-    if (isOpen && isCameraAvailable) {
-      console.log("QR Scanner: Starting QR scan loop.");
-      animationFrameId.current = requestAnimationFrame(scanQrCode);
-    } else if (animationFrameId.current) {
-      console.log("QR Scanner: Stopping QR scan loop.");
-      cancelAnimationFrame(animationFrameId.current);
-      animationFrameId.current = null;
-    }
+    if (isOpen) {
+      setCameraError(null);
+      setIsCameraReady(false); // Reset camera ready state
+      cameraInitializedRef.current = false; // Reset initialization flag
+      
+      // Set a timeout to assume generic error if camera doesn't become ready in 10 seconds
+      cameraTimeoutRef.current = setTimeout(() => {
+        if (!isCameraReady && !cameraError && !cameraInitializedRef.current) { // Only set generic error if not ready, no specific error, and no initialization attempt
+          setCameraError(t("genericCameraError"));
+          console.log("QR Scanner: Timeout reached, setting generic camera error.");
+        }
+      }, 10000); // 10 seconds timeout
 
-    return () => {
-      if (animationFrameId.current) {
-        cancelAnimationFrame(animationFrameId.current);
-        animationFrameId.current = null;
+      return () => {
+        if (cameraTimeoutRef.current) {
+          clearTimeout(cameraTimeoutRef.current);
+          cameraTimeoutRef.current = null;
+        }
+      };
+    } else {
+      // When dialog closes, clear any pending timeout
+      if (cameraTimeoutRef.current) {
+        clearTimeout(cameraTimeoutRef.current);
+        cameraTimeoutRef.current = null;
       }
-    };
-  }, [isOpen, isCameraAvailable, scanQrCode]);
+    }
+  }, [isOpen, isCameraReady, cameraError, t]);
+
+  const handleScanResult = useCallback((result: any, error: any) => {
+    console.log("QR Scanner: handleScanResult called. Result:", result, "Error:", error);
+    cameraInitializedRef.current = true; // Mark that camera initialization has been attempted
+
+    if (error) {
+      // Clear the timeout as we've received an error
+      if (cameraTimeoutRef.current) {
+        clearTimeout(cameraTimeoutRef.current);
+        cameraTimeoutRef.current = null;
+      }
+
+      // Set specific error message based on error type
+      if (error.name === "NotAllowedError") {
+        setCameraError(t("cameraPermissionDenied"));
+      } else if (error.name === "NotFoundError") {
+        setCameraError(t("noCameraFound"));
+      } else if (error.name === "NotReadableError") {
+        setCameraError(t("cameraInUse"));
+      } else if (error.name === "OverconstrainedError") {
+        setCameraError(t("cameraConstraintsError"));
+      } else if (error.name === "AbortError") {
+        setCameraError(t("cameraAborted"));
+      } else {
+        setCameraError(t("genericCameraError"));
+      }
+      setIsCameraReady(false); // Camera is not ready if there's a media error
+    } else if (result) {
+      // If we get a result, it means the camera stream is active and scanning.
+      // Set camera ready state if not already set.
+      if (!isCameraReady) {
+        setIsCameraReady(true);
+        // Clear the timeout as the camera is now ready
+        if (cameraTimeoutRef.current) {
+          clearTimeout(cameraTimeoutRef.current);
+          cameraTimeoutRef.current = null;
+        }
+        console.log("QR Scanner: Camera is now ready, clearing timeout.");
+      }
+      onScan(result.text);
+      setCameraError(null); // Clear any previous camera errors on successful scan
+    }
+    // If no result and no error, it means the camera is still trying to initialize or waiting for a scan.
+    // The timeout will handle the case where it never becomes ready.
+  }, [onScan, isCameraReady, t]);
 
   const handleClose = useCallback(() => {
-    stopCamera(); // Parar a câmara ao fechar o diálogo
+    setCameraError(null);
+    setIsCameraReady(false); // Reset for next open
+    cameraInitializedRef.current = false; // Reset initialization flag
+    if (cameraTimeoutRef.current) {
+      clearTimeout(cameraTimeoutRef.current);
+      cameraTimeoutRef.current = null;
+    }
     onClose();
-  }, [onClose, stopCamera]);
+  }, [onClose]);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -88,21 +120,25 @@ const QrScanner = ({ isOpen, onClose, onScan, isLoading }: QrScannerProps) => {
           <DialogDescription>{t("pointCameraToCode")}</DialogDescription>
         </DialogHeader>
         <div className="relative w-full aspect-video bg-gray-200 flex items-center justify-center">
-          {(!isCameraAvailable && !cameraAccessError) ? (
+          {(!isCameraReady && !cameraError) ? ( // Show loading if not ready and no error
             <div className="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 text-white">
               <Loader2 className="h-8 w-8 animate-spin mr-2" /> {t("loadingCamera")}
             </div>
-          ) : cameraAccessError ? (
+          ) : cameraError ? ( // Show error if there's a camera error
             <Alert variant="destructive" className="m-4">
               <AlertCircleIcon className="h-4 w-4" />
               <AlertTitle>{t("cameraError")}</AlertTitle>
-              <AlertDescription>{cameraAccessError}</AlertDescription>
+              <AlertDescription>{cameraError}</AlertDescription>
             </Alert>
-          ) : (
-            <>
-              <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover"></video>
-              <canvas ref={canvasRef} className="absolute inset-0 w-full h-full hidden"></canvas> {/* Canvas oculto para processamento */}
-            </>
+          ) : ( // Otherwise, render QrReader
+            <QrReader
+              key={isOpen ? "qr-reader-active" : "qr-reader-inactive"} // Force re-mount
+              onResult={handleScanResult}
+              constraints={{ facingMode: 'environment' }} // Preferir câmara traseira
+              scanDelay={500} // Atraso entre digitalizações para evitar múltiplas leituras
+              videoContainerStyle={{ padding: '0', height: '100%', width: '100%' }}
+              videoStyle={{ objectFit: 'cover' }}
+            />
           )}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="w-3/4 h-3/4 border-2 border-dashed border-blue-500 rounded-lg opacity-75"></div>
