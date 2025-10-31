@@ -13,51 +13,50 @@ interface QrScannerProps {
   isOpen: boolean;
   onClose: () => void;
   onScan: (data: string) => void;
-  isLoading: boolean;
+  isLoading: boolean; // isLoading from parent (e.g., form submission)
 }
 
 const QrScanner = ({ isOpen, onClose, onScan, isLoading }: QrScannerProps) => {
   const { t } = useTranslation();
-  const [error, setError] = useState<string | null>(null);
-  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isCameraInitializing, setIsCameraInitializing] = useState(true); // Track initial camera load
 
   const handleScanResult = useCallback((result: any, error: any) => {
+    if (isCameraInitializing && !error) {
+      setIsCameraInitializing(false); // Camera is ready if no error on first result
+    }
+
     if (result) {
       onScan(result.text);
-      // onClose(); // Let EstafetaPage decide when to close
+      setCameraError(null); // Clear any previous camera errors on successful scan
     }
-    if (error && error.name !== "NotAllowedError" && error.name !== "NotFoundError" && error.name !== "NotReadableError" && error.name !== "OverconstrainedError" && error.name !== "AbortError") {
-      // Ignore common camera errors that are handled by onError, but log others
+
+    if (error) {
       console.error("QR Scan Error:", error);
+      setIsCameraInitializing(false); // Stop initializing on error
+      if (error.name === "NotAllowedError") {
+        setCameraError(t("cameraPermissionDenied"));
+      } else if (error.name === "NotFoundError") {
+        setCameraError(t("noCameraFound"));
+      } else if (error.name === "NotReadableError") {
+        setCameraError(t("cameraInUse"));
+      } else if (error.name === "OverconstrainedError") {
+        setCameraError(t("cameraConstraintsError"));
+      } else if (error.name === "AbortError") {
+        setCameraError(t("cameraAborted"));
+      } else {
+        setCameraError(t("genericCameraError"));
+      }
+    } else if (!result && !isCameraInitializing) {
+      // If no result and no error, and not initializing, it means it's actively scanning but found nothing yet.
+      // We don't need to set an error here, just ensure previous errors are cleared if camera recovers.
+      setCameraError(null);
     }
-  }, [onScan]);
-
-  const handleCameraError = useCallback((err: any) => {
-    console.error("Camera Error:", err);
-    if (err.name === "NotAllowedError") {
-      setError(t("cameraPermissionDenied"));
-    } else if (err.name === "NotFoundError") {
-      setError(t("noCameraFound"));
-    } else if (err.name === "NotReadableError") {
-      setError(t("cameraInUse"));
-    } else if (err.name === "OverconstrainedError") {
-      setError(t("cameraConstraintsError"));
-    } else if (err.name === "AbortError") {
-      setError(t("cameraAborted"));
-    } else {
-      setError(t("genericCameraError"));
-    }
-    setIsCameraReady(false);
-  }, [t]);
-
-  const handleLoad = useCallback(() => {
-    setIsCameraReady(true);
-    setError(null); // Clear any previous errors
-  }, []);
+  }, [onScan, isCameraInitializing, t]);
 
   const handleClose = useCallback(() => {
-    setError(null); // Clear error when closing
-    setIsCameraReady(false); // Reset camera ready state
+    setCameraError(null); // Clear error when closing
+    setIsCameraInitializing(true); // Reset for next open
     onClose();
   }, [onClose]);
 
@@ -71,22 +70,19 @@ const QrScanner = ({ isOpen, onClose, onScan, isLoading }: QrScannerProps) => {
           <DialogDescription>{t("pointCameraToCode")}</DialogDescription>
         </DialogHeader>
         <div className="relative w-full aspect-video bg-gray-200 flex items-center justify-center">
-          {!isCameraReady && !error && (
+          {(isCameraInitializing && !cameraError) ? (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 text-white">
               <Loader2 className="h-8 w-8 animate-spin mr-2" /> {t("loadingCamera")}
             </div>
-          )}
-          {error ? (
+          ) : cameraError ? (
             <Alert variant="destructive" className="m-4">
               <AlertCircleIcon className="h-4 w-4" />
               <AlertTitle>{t("cameraError")}</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{cameraError}</AlertDescription>
             </Alert>
           ) : (
             <QrReader
               onResult={handleScanResult}
-              onError={handleCameraError}
-              onLoad={handleLoad}
               constraints={{ facingMode: 'environment' }} // Prefer rear camera
               scanDelay={500} // Delay between scans to prevent multiple reads
               videoContainerStyle={{ padding: '0', height: '100%', width: '100%' }}
