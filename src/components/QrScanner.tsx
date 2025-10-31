@@ -33,30 +33,36 @@ const QrScanner = ({ isOpen, onClose, onScan, isLoading }: QrScannerProps) => {
       cameraTimeoutRef.current = setTimeout(() => {
         if (!isCameraReady && !cameraError) { // Only set generic error if not ready and no specific error yet
           setCameraError(t("genericCameraError"));
+          console.log("QR Scanner: Timeout reached, setting generic camera error.");
         }
       }, 10000); // 10 seconds timeout
 
       return () => {
         if (cameraTimeoutRef.current) {
           clearTimeout(cameraTimeoutRef.current);
+          cameraTimeoutRef.current = null;
         }
       };
     } else {
       // When dialog closes, clear any pending timeout
       if (cameraTimeoutRef.current) {
         clearTimeout(cameraTimeoutRef.current);
+        cameraTimeoutRef.current = null;
       }
     }
-  }, [isOpen, isCameraReady, cameraError, t]); // Added cameraError to dependencies
+  }, [isOpen, isCameraReady, cameraError, t]);
 
   const handleScanResult = useCallback((result: any, error: any) => {
+    console.log("QR Scanner: handleScanResult called. Result:", result, "Error:", error);
+
     // If camera becomes active, clear the timeout
-    if (!isCameraReady) {
+    if (!isCameraReady && (result || error)) { // If we get any result or error, it means the camera tried to activate
       setIsCameraReady(true);
       if (cameraTimeoutRef.current) {
         clearTimeout(cameraTimeoutRef.current);
         cameraTimeoutRef.current = null;
       }
+      console.log("QR Scanner: Camera is now ready or reported an error, clearing timeout.");
     }
 
     if (result) {
@@ -115,6 +121,7 @@ const QrScanner = ({ isOpen, onClose, onScan, isLoading }: QrScannerProps) => {
             </Alert>
           ) : ( // Otherwise, render QrReader
             <QrReader
+              key={isOpen ? "qr-reader-active" : "qr-reader-inactive"} // Force re-mount
               onResult={handleScanResult}
               constraints={{ facingMode: 'environment' }} // Preferir câmara traseira
               scanDelay={500} // Atraso entre digitalizações para evitar múltiplas leituras
