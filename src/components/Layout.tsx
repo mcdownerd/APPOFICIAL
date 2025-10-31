@@ -247,7 +247,7 @@ export const Layout = () => {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-64 p-0">
-              <SidebarContent onClose={() => setIsMobileSidebarOpen(false)} />
+              <SidebarContent onClose={() => setIsMobileSidebarOpen(false)} isDesktopSidebarOpen={true} />
             </SheetContent>
           </Sheet>
           
