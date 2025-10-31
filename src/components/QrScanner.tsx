@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { QrReader } from 'react-qr-reader';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -19,36 +19,54 @@ interface QrScannerProps {
 const QrScanner = ({ isOpen, onClose, onScan, isLoading }: QrScannerProps) => {
   const { t } = useTranslation();
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [isCameraInitializing, setIsCameraInitializing] = useState(true); // Track initial camera load
+  const [isCameraReady, setIsCameraReady] = useState(false); // New state to track if camera stream is active
+
+  // Ref to hold the timeout ID
+  const cameraTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       setCameraError(null);
-      setIsCameraInitializing(true);
-      // Adiciona um timeout para definir um erro genérico se a câmara não iniciar em 10 segundos
-      const timeoutId = setTimeout(() => {
-        if (isCameraInitializing) { // Se ainda estiver a inicializar após o timeout
-          setCameraError(t("genericCameraError")); // Assume um erro genérico se não houver feedback
-          setIsCameraInitializing(false);
+      setIsCameraReady(false); // Reset camera ready state
+      
+      // Set a timeout to assume generic error if camera doesn't become ready in 10 seconds
+      cameraTimeoutRef.current = setTimeout(() => {
+        if (!isCameraReady && !cameraError) { // Only set generic error if not ready and no specific error yet
+          setCameraError(t("genericCameraError"));
         }
-      }, 10000); // 10 segundos de timeout para a inicialização da câmara
-      return () => clearTimeout(timeoutId); // Limpa o timeout se o componente for desmontado ou o diálogo fechado
+      }, 10000); // 10 seconds timeout
+
+      return () => {
+        if (cameraTimeoutRef.current) {
+          clearTimeout(cameraTimeoutRef.current);
+        }
+      };
+    } else {
+      // When dialog closes, clear any pending timeout
+      if (cameraTimeoutRef.current) {
+        clearTimeout(cameraTimeoutRef.current);
+      }
     }
-  }, [isOpen, isCameraInitializing, t]); // Adicionado isCameraInitializing às dependências
+  }, [isOpen, isCameraReady, cameraError, t]); // Added cameraError to dependencies
 
   const handleScanResult = useCallback((result: any, error: any) => {
-    if (isCameraInitializing) {
-      setIsCameraInitializing(false); // A câmara tentou iniciar, para o spinner de carregamento inicial
+    // If camera becomes active, clear the timeout
+    if (!isCameraReady) {
+      setIsCameraReady(true);
+      if (cameraTimeoutRef.current) {
+        clearTimeout(cameraTimeoutRef.current);
+        cameraTimeoutRef.current = null;
+      }
     }
 
     if (result) {
       onScan(result.text);
-      setCameraError(null); // Limpa quaisquer erros anteriores da câmara em caso de digitalização bem-sucedida
+      setCameraError(null); // Clear any previous camera errors on successful scan
     }
 
     if (error) {
       console.error("QR Scan Error:", error);
-      // Define o erro da câmara com base no tipo de erro
+      // Set specific error message based on error type
       if (error.name === "NotAllowedError") {
         setCameraError(t("cameraPermissionDenied"));
       } else if (error.name === "NotFoundError") {
@@ -62,16 +80,16 @@ const QrScanner = ({ isOpen, onClose, onScan, isLoading }: QrScannerProps) => {
       } else {
         setCameraError(t("genericCameraError"));
       }
-    } else if (!result && !isCameraInitializing) {
-      // Se não houver resultado e nenhum erro, e não estiver a inicializar, significa que está a digitalizar ativamente, mas não encontrou nada ainda.
-      // Não precisamos de definir um erro aqui, apenas garantir que os erros anteriores são limpos se a câmara recuperar.
-      setCameraError(null);
     }
-  }, [onScan, isCameraInitializing, t]);
+  }, [onScan, isCameraReady, t]);
 
   const handleClose = useCallback(() => {
-    setCameraError(null); // Limpa o erro ao fechar
-    setIsCameraInitializing(true); // Reinicia para a próxima abertura
+    setCameraError(null);
+    setIsCameraReady(false); // Reset for next open
+    if (cameraTimeoutRef.current) {
+      clearTimeout(cameraTimeoutRef.current);
+      cameraTimeoutRef.current = null;
+    }
     onClose();
   }, [onClose]);
 
@@ -85,17 +103,17 @@ const QrScanner = ({ isOpen, onClose, onScan, isLoading }: QrScannerProps) => {
           <DialogDescription>{t("pointCameraToCode")}</DialogDescription>
         </DialogHeader>
         <div className="relative w-full aspect-video bg-gray-200 flex items-center justify-center">
-          {(isCameraInitializing && !cameraError) ? (
+          {(!isCameraReady && !cameraError) ? ( // Show loading if not ready and no error
             <div className="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 text-white">
               <Loader2 className="h-8 w-8 animate-spin mr-2" /> {t("loadingCamera")}
             </div>
-          ) : cameraError ? (
+          ) : cameraError ? ( // Show error if there's a camera error
             <Alert variant="destructive" className="m-4">
               <AlertCircleIcon className="h-4 w-4" />
               <AlertTitle>{t("cameraError")}</AlertTitle>
               <AlertDescription>{cameraError}</AlertDescription>
             </Alert>
-          ) : (
+          ) : ( // Otherwise, render QrReader
             <QrReader
               onResult={handleScanResult}
               constraints={{ facingMode: 'environment' }} // Preferir câmara traseira
