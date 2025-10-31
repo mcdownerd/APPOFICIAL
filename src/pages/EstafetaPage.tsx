@@ -9,20 +9,22 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TruckIcon, ClockIcon, CheckCircleIcon, SendIcon } from 'lucide-react';
+import { TruckIcon, ClockIcon, CheckCircleIcon, SendIcon, CameraIcon } from 'lucide-react'; // Adicionado CameraIcon
 import { motion } from "framer-motion";
 import { parseISO, isPast, addMinutes } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import QrScanner from "@/components/QrScanner"; // Importar o novo componente
 
 const EstafetaPage = () => {
   const { user } = useAuth();
-  const { isPendingLimitEnabled, isSettingsLoading } = useSettings(); // Use isSettingsLoading
+  const { isPendingLimitEnabled, isSettingsLoading } = useSettings();
   const { t } = useTranslation();
   const [code, setCode] = useState("");
   const [recentTickets, setRecentTickets] = useState<Ticket[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingTicketsCount, setPendingTicketsCount] = useState(0);
+  const [isScanning, setIsScanning] = useState(false); // Novo estado para controlar a visibilidade do scanner
 
   // DEBUG LOGS
   useEffect(() => {
@@ -148,6 +150,29 @@ const EstafetaPage = () => {
     }
   };
 
+  const handleScan = useCallback((scannedData: string) => {
+    console.log("Scanned data:", scannedData);
+    // Extrair os últimos 4 caracteres alfanuméricos
+    const extractedCode = scannedData.replace(/[^A-Z0-9]/g, '').slice(-4);
+
+    if (extractedCode.length === 4) {
+      setCode(extractedCode);
+      showSuccess(t("codeScannedSuccessfully", { code: extractedCode }));
+      setIsScanning(false); // Fechar scanner após digitalização bem-sucedida
+    } else {
+      showError(t("invalidCodeFormat"));
+      // Manter o scanner aberto para que o usuário possa tentar novamente
+    }
+  }, [t]);
+
+  const handleOpenScanner = () => {
+    setIsScanning(true);
+  };
+
+  const handleCloseScanner = () => {
+    setIsScanning(false);
+  };
+
   const isCodeValid = code.length === 4 && /^[A-Z0-9]{4}$/.test(code);
   const canSubmit = isCodeValid && !isSubmitting && !isSettingsLoading && (isPendingLimitEnabled ? pendingTicketsCount < 4 : true) && !!user?.restaurant_id;
 
@@ -169,13 +194,13 @@ const EstafetaPage = () => {
           <div className="p-3 rounded-full bg-gradient-to-r from-estafeta to-estafeta-dark text-white mb-2">
             <TruckIcon className="h-8 w-8" />
           </div>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">{t("courierCenter")}</h2> {/* Ajustado tamanho da fonte */}
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">{t("courierCenter")}</h2>
         </div>
 
         <Card className="w-full max-w-md">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg sm:text-xl md:text-2xl">{t("sendNewCode")}</CardTitle> {/* Ajustado tamanho da fonte */}
+              <CardTitle className="text-lg sm:text-xl md:text-2xl">{t("sendNewCode")}</CardTitle>
               <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
                 <ClockIcon className="mr-1 h-3 w-3" /> {t("pending")}: {pendingTicketsCount}
               </Badge>
@@ -183,16 +208,27 @@ const EstafetaPage = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <Input
-                type="text"
-                placeholder="XXXX"
-                maxLength={4}
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4))}
-                // Ajustado tamanho da fonte
-                className="text-xl sm:text-2xl text-center font-mono tracking-widest border-estafeta focus:ring-estafeta-dark focus:border-estafeta-dark"
-                disabled={isSubmitting || isSettingsLoading || (isPendingLimitEnabled && pendingTicketsCount >= 4) || !user?.restaurant_id}
-              />
+              <div className="flex items-center gap-2"> {/* Wrapper para input e botão de digitalização */}
+                <Input
+                  type="text"
+                  placeholder="XXXX"
+                  maxLength={4}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4))}
+                  className="flex-1 text-xl sm:text-2xl text-center font-mono tracking-widest border-estafeta focus:ring-estafeta-dark focus:border-estafeta-dark"
+                  disabled={isSubmitting || isSettingsLoading || (isPendingLimitEnabled && pendingTicketsCount >= 4) || !user?.restaurant_id}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={handleOpenScanner}
+                  disabled={isSubmitting || isSettingsLoading || (isPendingLimitEnabled && pendingTicketsCount >= 4) || !user?.restaurant_id}
+                  aria-label={t("scanCode")}
+                >
+                  <CameraIcon className="h-5 w-5" />
+                </Button>
+              </div>
               <p className="text-sm text-gray-500 text-center">{t("fourCharactersHint")}</p>
               {isPendingLimitEnabled && pendingTicketsCount >= 4 && (
                 <p className="text-sm text-red-600 text-center font-medium">
@@ -222,11 +258,11 @@ const EstafetaPage = () => {
         </Card>
       </div>
 
-      <div className="w-full flex justify-center"> {/* Novo wrapper div para centralizar o cartão */}
-        <Card className="w-full max-w-md"> {/* Adicionado max-w-md a este cartão */}
+      <div className="w-full flex justify-center">
+        <Card className="w-full max-w-md">
           <CardHeader className="flex flex-row items-center gap-2">
             <ClockIcon className="h-5 w-5 text-gray-600" />
-            <CardTitle className="text-lg sm:text-xl md:text-2xl">{t("lastSevenCodesSent")}</CardTitle> {/* Ajustado tamanho da fonte */}
+            <CardTitle className="text-lg sm:text-xl md:text-2xl">{t("lastSevenCodesSent")}</CardTitle>
           </CardHeader>
           <CardContent>
             {recentTickets.length === 0 ? (
@@ -277,6 +313,14 @@ const EstafetaPage = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* QR Scanner Dialog */}
+      <QrScanner
+        isOpen={isScanning}
+        onClose={handleCloseScanner}
+        onScan={handleScan}
+        isLoading={isSubmitting}
+      />
     </motion.div>
   );
 };
