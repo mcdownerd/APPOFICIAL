@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { QrReader } from 'react-qr-reader';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -21,19 +21,34 @@ const QrScanner = ({ isOpen, onClose, onScan, isLoading }: QrScannerProps) => {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isCameraInitializing, setIsCameraInitializing] = useState(true); // Track initial camera load
 
+  useEffect(() => {
+    if (isOpen) {
+      setCameraError(null);
+      setIsCameraInitializing(true);
+      // Adiciona um timeout para definir um erro genérico se a câmara não iniciar em 10 segundos
+      const timeoutId = setTimeout(() => {
+        if (isCameraInitializing) { // Se ainda estiver a inicializar após o timeout
+          setCameraError(t("genericCameraError")); // Assume um erro genérico se não houver feedback
+          setIsCameraInitializing(false);
+        }
+      }, 10000); // 10 segundos de timeout para a inicialização da câmara
+      return () => clearTimeout(timeoutId); // Limpa o timeout se o componente for desmontado ou o diálogo fechado
+    }
+  }, [isOpen, isCameraInitializing, t]); // Adicionado isCameraInitializing às dependências
+
   const handleScanResult = useCallback((result: any, error: any) => {
-    if (isCameraInitializing && !error) {
-      setIsCameraInitializing(false); // Camera is ready if no error on first result
+    if (isCameraInitializing) {
+      setIsCameraInitializing(false); // A câmara tentou iniciar, para o spinner de carregamento inicial
     }
 
     if (result) {
       onScan(result.text);
-      setCameraError(null); // Clear any previous camera errors on successful scan
+      setCameraError(null); // Limpa quaisquer erros anteriores da câmara em caso de digitalização bem-sucedida
     }
 
     if (error) {
       console.error("QR Scan Error:", error);
-      setIsCameraInitializing(false); // Stop initializing on error
+      // Define o erro da câmara com base no tipo de erro
       if (error.name === "NotAllowedError") {
         setCameraError(t("cameraPermissionDenied"));
       } else if (error.name === "NotFoundError") {
@@ -48,15 +63,15 @@ const QrScanner = ({ isOpen, onClose, onScan, isLoading }: QrScannerProps) => {
         setCameraError(t("genericCameraError"));
       }
     } else if (!result && !isCameraInitializing) {
-      // If no result and no error, and not initializing, it means it's actively scanning but found nothing yet.
-      // We don't need to set an error here, just ensure previous errors are cleared if camera recovers.
+      // Se não houver resultado e nenhum erro, e não estiver a inicializar, significa que está a digitalizar ativamente, mas não encontrou nada ainda.
+      // Não precisamos de definir um erro aqui, apenas garantir que os erros anteriores são limpos se a câmara recuperar.
       setCameraError(null);
     }
   }, [onScan, isCameraInitializing, t]);
 
   const handleClose = useCallback(() => {
-    setCameraError(null); // Clear error when closing
-    setIsCameraInitializing(true); // Reset for next open
+    setCameraError(null); // Limpa o erro ao fechar
+    setIsCameraInitializing(true); // Reinicia para a próxima abertura
     onClose();
   }, [onClose]);
 
@@ -83,8 +98,8 @@ const QrScanner = ({ isOpen, onClose, onScan, isLoading }: QrScannerProps) => {
           ) : (
             <QrReader
               onResult={handleScanResult}
-              constraints={{ facingMode: 'environment' }} // Prefer rear camera
-              scanDelay={500} // Delay between scans to prevent multiple reads
+              constraints={{ facingMode: 'environment' }} // Preferir câmara traseira
+              scanDelay={500} // Atraso entre digitalizações para evitar múltiplas leituras
               videoContainerStyle={{ padding: '0', height: '100%', width: '100%' }}
               videoStyle={{ objectFit: 'cover' }}
             />
