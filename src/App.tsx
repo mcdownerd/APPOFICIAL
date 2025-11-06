@@ -8,7 +8,7 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import RegisterPage from "./pages/RegisterPage";
 import { SessionContextProvider } from "./context/AuthContext";
-import { SettingsProvider } from "./context/SettingsContext"; // Import SettingsProvider
+// import { SettingsProvider } from "./context/SettingsContext"; // Removido
 import { Layout } from "./components/Layout";
 import { AuthGuard } from "./components/AuthGuard";
 import EstafetaPage from "./pages/EstafetaPage";
@@ -26,7 +26,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <SessionContextProvider>
-          <SettingsProvider> {/* Adicionado SettingsProvider aqui */}
+          {/* Removido SettingsProvider aqui */}
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<RegisterPage />} />
@@ -75,7 +75,7 @@ const App = () => (
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </SettingsProvider> {/* Fechamento do SettingsProvider */}
+          {/* Fechamento do SettingsProvider */}
         </SessionContextProvider>
       </BrowserRouter>
     </TooltipProvider>
