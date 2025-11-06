@@ -52,18 +52,36 @@ const EstafetaPage = () => {
       });
 
       ticketsToDisplay.sort((a, b) => {
-        if (a.soft_deleted && !b.soft_deleted) return -1;
-        if (!a.soft_deleted && b.soft_deleted) return 1;
+        const aIsConfirmed = a.status === "CONFIRMADO" && !a.soft_deleted;
+        const bIsConfirmed = b.status === "CONFIRMADO" && !b.soft_deleted;
+        const aIsPending = a.status === "PENDING" && !a.soft_deleted;
+        const bIsPending = b.status === "PENDING" && !b.soft_deleted;
+
+        // Prioridade 1: CONFIRMADO (não soft-deleted)
+        if (aIsConfirmed && !bIsConfirmed) return -1;
+        if (!aIsConfirmed && bIsConfirmed) return 1;
+
+        // Prioridade 2: PENDENTE (não soft-deleted)
+        if (aIsPending && !bIsPending) return -1;
+        if (!aIsPending && bIsPending) return 1;
+
+        // Prioridade 3: Soft-deleted (vem depois dos ativos)
+        if (!a.soft_deleted && b.soft_deleted) return -1;
+        if (a.soft_deleted && !b.soft_deleted) return 1;
+
+        // Ordenação secundária: por data (mais recente primeiro)
+        let dateA: Date;
+        let dateB: Date;
 
         if (a.soft_deleted && b.soft_deleted) {
-          const deletedDateA = a.deleted_at ? parseISO(a.deleted_at).getTime() : 0;
-          const deletedDateB = b.deleted_at ? parseISO(b.deleted_at).getTime() : 0;
-          return deletedDateB - deletedDateA;
+          dateA = a.deleted_at ? parseISO(a.deleted_at) : new Date(0);
+          dateB = b.deleted_at ? parseISO(b.deleted_at) : new Date(0);
+        } else {
+          dateA = parseISO(a.created_date);
+          dateB = parseISO(b.created_date);
         }
 
-        const createdDateA = parseISO(a.created_date).getTime();
-        const createdDateB = parseISO(b.created_date).getTime();
-        return createdDateB - createdDateA;
+        return dateB.getTime() - dateA.getTime(); // Ordem decrescente (mais recente primeiro)
       });
 
       setRecentTickets(ticketsToDisplay.slice(0, 7));
@@ -261,7 +279,7 @@ const EstafetaPage = () => {
                             <ClockIcon className="mr-1 h-3 w-3" /> {t("pending")}
                           </Badge>
                         )}
-                        {!isSoftDeleted && ticket.status === "CONFIRMADO" && ( // Condição adicionada aqui
+                        {!isSoftDeleted && ticket.status === "CONFIRMADO" && ( // Mostrar botão de apagar apenas se não estiver soft-deleted e status for CONFIRMADO
                           <Button
                             variant="ghost"
                             size="icon"
