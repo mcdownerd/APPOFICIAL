@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { MenuIcon, LogOutIcon, TruckIcon, UtensilsCrossedIcon, BarChart3Icon, HistoryIcon, UsersIcon, SettingsIcon, PanelLeftOpenIcon, PanelLeftCloseIcon, MonitorIcon, PackageIcon } from "lucide-react"; // Adicionado PackageIcon
+import { MenuIcon, LogOutIcon, TruckIcon, UtensilsCrossedIcon, BarChart3Icon, HistoryIcon, UsersIcon, SettingsIcon, PanelLeftOpenIcon, PanelLeftCloseIcon, MonitorIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
@@ -26,7 +26,6 @@ interface NavItem {
 const navItems: NavItem[] = [
   { name: "sendCodes", path: "/estafeta", icon: TruckIcon, roles: ["estafeta", "admin"] },
   { name: "counter", path: "/balcao", icon: UtensilsCrossedIcon, roles: ["restaurante", "admin"] },
-  { name: "orderManagement", path: "/order-management", icon: PackageIcon, roles: ["restaurante", "admin"] }, // Novo item de navegação
   { name: "ecranEstafeta", path: "/ecran-estafeta", icon: MonitorIcon, roles: ["restaurante", "admin"] },
   { name: "history", path: "/historico", icon: HistoryIcon, roles: ["restaurante", "admin"] },
   { name: "timeAnalysis", path: "/analise-tempo", icon: BarChart3Icon, roles: ["admin", "restaurante"] },

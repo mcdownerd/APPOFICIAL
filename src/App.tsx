@@ -8,7 +8,6 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import RegisterPage from "./pages/RegisterPage";
 import { SessionContextProvider } from "./context/AuthContext";
-// import { SettingsProvider } from "./context/SettingsContext"; // Removido
 import { Layout } from "./components/Layout";
 import { AuthGuard } from "./components/AuthGuard";
 import EstafetaPage from "./pages/EstafetaPage";
@@ -17,7 +16,6 @@ import HistoricoPage from "./pages/HistoricoPage";
 import AnaliseTempoPage from "./pages/AnaliseTempoPage";
 import UserManagementPage from "./pages/UserManagementPage";
 import EcranEstafetaPage from "./pages/EcranEstafetaPage";
-import OrderManagementPage from "./pages/OrderManagementPage"; // Importar a nova página
 
 const queryClient = new QueryClient();
 
@@ -28,7 +26,6 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <SessionContextProvider>
-          {/* SettingsProvider removido */}
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<RegisterPage />} />
@@ -82,18 +79,9 @@ const App = () => (
                     </AuthGuard>
                   }
                 />
-                <Route // Nova rota para OrderManagementPage
-                  path="order-management"
-                  element={
-                    <AuthGuard allowedRoles={["restaurante", "admin"]}>
-                      <OrderManagementPage />
-                    </AuthGuard>
-                  }
-                />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
-          {/* Fechamento do SettingsProvider */}
         </SessionContextProvider>
       </BrowserRouter>
     </TooltipProvider>
