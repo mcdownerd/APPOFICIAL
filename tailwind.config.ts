@@ -66,6 +66,10 @@ export default {
           DEFAULT: "#fb923c",
           dark: "#f97316",
         },
+        "ecran-estafeta": { // Nova cor adicionada
+          DEFAULT: "#1e40af", // blue-800
+          dark: "#1e3a8a", // blue-900
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -16,6 +16,7 @@ import BalcaoPage from "./pages/BalcaoPage";
 import HistoricoPage from "./pages/HistoricoPage";
 import AnaliseTempoPage from "./pages/AnaliseTempoPage";
 import UserManagementPage from "./pages/UserManagementPage";
+import EcranEstafetaPage from "./pages/EcranEstafetaPage"; // Importar a nova página
 
 const queryClient = new QueryClient();
 
@@ -26,7 +27,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <SessionContextProvider>
-          {/* Removido SettingsProvider aqui */}
+          {/* SettingsProvider removido */}
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<RegisterPage />} />
@@ -69,6 +70,14 @@ const App = () => (
                   element={
                     <AuthGuard allowedRoles={["admin"]}>
                       <UserManagementPage />
+                    </AuthGuard>
+                  }
+                />
+                <Route // Nova rota para EcranEstafetaPage
+                  path="ecran-estafeta"
+                  element={
+                    <AuthGuard allowedRoles={["restaurante", "admin"]}>
+                      <EcranEstafetaPage />
                     </AuthGuard>
                   }
                 />

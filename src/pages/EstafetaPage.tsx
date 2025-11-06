@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useSettings } from "@/context/SettingsContext";
+// import { useSettings } from "@/context/SettingsContext"; // Removido
 import { TicketAPI, Ticket } from "@/lib/api";
 import { showSuccess, showError } from "@/utils/toast";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import { useTranslation } from "react-i18next";
 
 const EstafetaPage = () => {
   const { user } = useAuth();
-  const { isPendingLimitEnabled, isSettingsLoading } = useSettings();
+  // const { isPendingLimitEnabled, isSettingsLoading } = useSettings(); // Removido
   const { t } = useTranslation();
   const [code, setCode] = useState("");
   const [recentTickets, setRecentTickets] = useState<Ticket[]>([]);
@@ -25,10 +25,10 @@ const EstafetaPage = () => {
   const [pendingTicketsCount, setPendingTicketsCount] = useState(0);
 
   useEffect(() => {
-    console.log("EstafetaPage: isPendingLimitEnabled from Context:", isPendingLimitEnabled);
-    console.log("EstafetaPage: isSettingsLoading from Context:", isSettingsLoading);
+    // console.log("EstafetaPage: isPendingLimitEnabled from Context:", isPendingLimitEnabled); // Removido
+    // console.log("EstafetaPage: isSettingsLoading from Context:", isSettingsLoading); // Removido
     console.log("EstafetaPage: User restaurant_id:", user?.restaurant_id);
-  }, [isPendingLimitEnabled, isSettingsLoading, user?.restaurant_id]);
+  }, [/* isPendingLimitEnabled, isSettingsLoading, */ user?.restaurant_id]); // Removido dependências
 
   const fetchRecentTickets = useCallback(async () => {
     if (!user) return;
@@ -80,8 +80,8 @@ const EstafetaPage = () => {
 
   const fetchPendingTicketsCount = useCallback(async () => {
     try {
-      const pendingTickets = await TicketAPI.filter({ status: "PENDING", soft_deleted: false, restaurant_id: user?.restaurant_id });
-      setPendingTicketsCount(pendingTickets.length);
+      // A contagem de tickets pendentes agora é sempre 0, pois o limite de pendentes foi removido
+      setPendingTicketsCount(0); 
     } catch (error) {
       console.error("Failed to fetch pending tickets count:", error);
       showError(t("pendingTicketsCountFailed"));
@@ -112,10 +112,11 @@ const EstafetaPage = () => {
       return;
     }
 
-    if (isPendingLimitEnabled && pendingTicketsCount >= 4) {
-      showError(t("pendingLimitReached"));
-      return;
-    }
+    // Lógica de limite de pendentes removida
+    // if (isPendingLimitEnabled && pendingTicketsCount >= 4) {
+    //   showError(t("pendingLimitReached"));
+    //   return;
+    // }
 
     setIsSubmitting(true);
     try {
@@ -139,11 +140,12 @@ const EstafetaPage = () => {
   };
 
   const isCodeValid = code.length === 4 && /^[A-Z0-9]{4}$/.test(code);
-  const canSubmit = isCodeValid && !isSubmitting && !isSettingsLoading && (isPendingLimitEnabled ? pendingTicketsCount < 4 : true) && !!user?.restaurant_id;
+  // canSubmit agora não depende de isPendingLimitEnabled ou isSettingsLoading
+  const canSubmit = isCodeValid && !isSubmitting && !!user?.restaurant_id; 
 
-  console.log("EstafetaPage: isPendingLimitEnabled (final check for canSubmit):", isPendingLimitEnabled);
-  console.log("EstafetaPage: pendingTicketsCount (final check for canSubmit):", pendingTicketsCount);
-  console.log("EstafetaPage: isSettingsLoading (final check for canSubmit):", isSettingsLoading);
+  // console.log("EstafetaPage: isPendingLimitEnabled (final check for canSubmit):", isPendingLimitEnabled); // Removido
+  // console.log("EstafetaPage: pendingTicketsCount (final check for canSubmit):", pendingTicketsCount); // Removido
+  // console.log("EstafetaPage: isSettingsLoading (final check for canSubmit):", isSettingsLoading); // Removido
   console.log("EstafetaPage: canSubmit:", canSubmit);
 
   return (
@@ -164,9 +166,7 @@ const EstafetaPage = () => {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg sm:text-xl md:text-2xl">{t("sendNewCode")}</CardTitle>
-              <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-                <ClockIcon className="mr-1 h-3 w-3" /> {t("pending")}: {pendingTicketsCount}
-              </Badge>
+              {/* Badge de tickets pendentes removido */}
             </div>
           </CardHeader>
           <CardContent>
@@ -178,14 +178,10 @@ const EstafetaPage = () => {
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4))}
                 className="text-xl sm:text-2xl text-center font-mono tracking-widest border-estafeta focus:ring-estafeta-dark focus:border-estafeta-dark"
-                disabled={isSubmitting || isSettingsLoading || (isPendingLimitEnabled && pendingTicketsCount >= 4) || !user?.restaurant_id}
+                disabled={isSubmitting || !user?.restaurant_id} // Simplificado
               />
               <p className="text-sm text-gray-500 text-center">{t("fourCharactersHint")}</p>
-              {isPendingLimitEnabled && pendingTicketsCount >= 4 && (
-                <p className="text-sm text-red-600 text-center font-medium">
-                  {t("pendingLimitReached")}
-                </p>
-              )}
+              {/* Mensagem de limite de pendentes removida */}
               {!user?.restaurant_id && (
                 <p className="text-sm text-red-600 text-center font-medium">
                   {t("userNotAssignedToRestaurant")}

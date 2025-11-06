@@ -39,6 +39,7 @@ export interface Restaurant {
   id: string;
   name: string;
   pending_limit_enabled: boolean;
+  ecran_estafeta_enabled: boolean; // Adicionado
   created_at: string;
   updated_at: string;
 }
@@ -180,7 +181,7 @@ export const RestaurantAPI = {
   create: async (id: string, name: string): Promise<Restaurant> => {
     const { data, error } = await supabase
       .from('restaurants')
-      .insert({ id, name, pending_limit_enabled: true })
+      .insert({ id, name, pending_limit_enabled: true, ecran_estafeta_enabled: false }) // Adicionado ecran_estafeta_enabled
       .select()
       .single();
 
@@ -198,6 +199,7 @@ export const RestaurantAPI = {
       id: data.id,
       name: data.name,
       pending_limit_enabled: data.pending_limit_enabled,
+      ecran_estafeta_enabled: data.ecran_estafeta_enabled, // Adicionado
       created_at: data.created_at,
       updated_at: data.updated_at,
     };
@@ -214,6 +216,7 @@ export const RestaurantAPI = {
       id: r.id,
       name: r.name,
       pending_limit_enabled: r.pending_limit_enabled,
+      ecran_estafeta_enabled: r.ecran_estafeta_enabled, // Adicionado
       created_at: r.created_at,
       updated_at: r.updated_at,
     }));
@@ -237,6 +240,7 @@ export const RestaurantAPI = {
       id: data.id,
       name: data.name,
       pending_limit_enabled: data.pending_limit_enabled,
+      ecran_estafeta_enabled: data.ecran_estafeta_enabled, // Adicionado
       created_at: data.created_at,
       updated_at: data.updated_at,
     };
