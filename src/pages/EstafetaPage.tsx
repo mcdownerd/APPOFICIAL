@@ -261,7 +261,7 @@ const EstafetaPage = () => {
                             <ClockIcon className="mr-1 h-3 w-3" /> {t("pending")}
                           </Badge>
                         )}
-                        {!isSoftDeleted && ( // Mostrar botão de apagar apenas se não estiver soft-deleted
+                        {!isSoftDeleted && ticket.status === "CONFIRMADO" && ( // Condição adicionada aqui
                           <Button
                             variant="ghost"
                             size="icon"
