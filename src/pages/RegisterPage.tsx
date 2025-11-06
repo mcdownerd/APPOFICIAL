@@ -19,7 +19,6 @@ const RegisterPage = () => {
   useEffect(() => {
     if (isLoading) return;
     if (isAuthenticated && !isApproved) {
-      // After signup, show pending status via Layout
       navigate("/", { replace: true });
     } else if (isAuthenticated && isApproved && user) {
       const firstPath = user.user_role === 'admin' ? '/admin/users' :
@@ -54,7 +53,7 @@ const RegisterPage = () => {
           theme="light"
           providers={[]}
           view="sign_up"
-          redirectTo={window.location.origin + '/'} // Redireciona explicitamente para a raiz
+          redirectTo={window.location.origin + '/'}
         />
         <div className="mt-4 text-center">
           <p className="text-sm text-gray-500">

@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion'; // Importação de motion e AnimatePresence
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, Trash2Icon, UtensilsCrossedIcon, SettingsIcon } from 'lucide-react'; // MonitorIcon removido
-import { TicketAPI, Ticket, UserAPI, RestaurantAPI, Restaurant } from '@/lib/api'; // Import UserAPI e Restaurant
+import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, Trash2Icon, UtensilsCrossedIcon, SettingsIcon } from 'lucide-react';
+import { TicketAPI, Ticket, UserAPI, RestaurantAPI, Restaurant } from '@/lib/api';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -16,29 +16,28 @@ import { cn } from "@/lib/utils";
 import { useSettings } from "@/context/SettingsContext";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function BalcaoPage() {
   const { user, isAdmin, isRestaurante } = useAuth();
   const { t, i18n } = useTranslation();
-  const { isPendingLimitEnabled, togglePendingLimit, isEcranEstafetaEnabled, toggleEcranEstafeta, isSettingsLoading } = useSettings(); // Usar novas props
+  const { isPendingLimitEnabled, togglePendingLimit, isSettingsLoading } = useSettings();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set());
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
-  const [selectedRestaurant, setSelectedRestaurant] = useState("all"); // 'all' or a specific restaurant_id
-  const [availableRestaurants, setAvailableRestaurants] = useState<Restaurant[]>([]); // Alterado para Restaurant[]
+  const [selectedRestaurant, setSelectedRestaurant] = useState("all");
+  const [availableRestaurants, setAvailableRestaurants] = useState<Restaurant[]>([]);
 
   const doubleClickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const DOUBLE_CLICK_THRESHOLD = 500; // milliseconds
+  const DOUBLE_CLICK_THRESHOLD = 500;
 
-  // Fetch available restaurants for admin filter
   useEffect(() => {
     const fetchRestaurants = async () => {
       if (isAdmin) {
         try {
-          const restaurantsList = await RestaurantAPI.list(); // Buscar todos os restaurantes
+          const restaurantsList = await RestaurantAPI.list();
           setAvailableRestaurants(restaurantsList);
         } catch (err) {
           console.error("Failed to fetch restaurants:", err);
@@ -79,12 +78,11 @@ export default function BalcaoPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, isAdmin, t, selectedRestaurant]); // Add selectedRestaurant to dependencies
+  }, [user, isAdmin, t, selectedRestaurant]);
 
   useEffect(() => {
     loadTickets();
     
-    // Auto-refresh every 5 seconds
     const interval = setInterval(loadTickets, 5000);
     return () => {
       clearInterval(interval);
@@ -103,20 +101,16 @@ export default function BalcaoPage() {
     if (processingTickets.has(ticket.id)) return;
 
     if (ticket.status === 'PENDING') {
-      // Acknowledge ticket
       await handleAcknowledge(ticket);
     } else if (ticket.status === 'CONFIRMADO') {
       if (pendingDelete === ticket.id) {
-        // This is the second click on the same ticket
         if (doubleClickTimeoutRef.current) {
           clearTimeout(doubleClickTimeoutRef.current);
-          doubleClickTimeoutRef.current = null; // Clear the ref
+          doubleClickTimeoutRef.current = null;
         }
         await handleSoftDelete(ticket);
-        setPendingDelete(null); // Clear pendingDelete after successful deletion
+        setPendingDelete(null);
       } else {
-        // This is the first click on this ticket (or a new first click after timeout)
-        // Clear any existing pending delete for other tickets
         if (doubleClickTimeoutRef.current) {
           clearTimeout(doubleClickTimeoutRef.current);
           doubleClickTimeoutRef.current = null;
@@ -125,7 +119,7 @@ export default function BalcaoPage() {
         showInfo(t('clickAgainToRemove'));
         
         doubleClickTimeoutRef.current = setTimeout(() => {
-          setPendingDelete(null); // Reset pendingDelete if no second click within threshold
+          setPendingDelete(null);
           doubleClickTimeoutRef.current = null;
         }, DOUBLE_CLICK_THRESHOLD);
       }
@@ -210,22 +204,19 @@ export default function BalcaoPage() {
     };
   };
 
-  // Determine the currently selected restaurant name for display
   const currentRestaurantName = isAdmin && selectedRestaurant !== "all"
     ? availableRestaurants.find(r => r.id === selectedRestaurant)?.name || selectedRestaurant
     : null;
 
-  // Helper to get restaurant name for a ticket
   const getRestaurantNameForTicket = (restaurantId: string | undefined) => {
     if (!restaurantId) return t("none");
     const restaurant = availableRestaurants.find(r => r.id === restaurantId);
     return restaurant ? restaurant.name : `Restaurante ${restaurantId.substring(0, 4)}`;
   };
 
-  // Determine if the switch should be disabled
   const isSwitchDisabled = isSettingsLoading || (!isAdmin && !isRestaurante);
 
-  if (loading || isSettingsLoading) { // Add isSettingsLoading to overall loading state
+  if (loading || isSettingsLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="flex items-center space-x-2">
@@ -261,7 +252,6 @@ export default function BalcaoPage() {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6"
     >
-      {/* Header with refresh button and restaurant selector */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold text-gray-800">
@@ -301,7 +291,6 @@ export default function BalcaoPage() {
         </div>
       </div>
 
-      {/* Pending Limit Settings Card */}
       <Card className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -313,7 +302,7 @@ export default function BalcaoPage() {
               id="pending-limit-toggle"
               checked={isPendingLimitEnabled}
               onCheckedChange={(checked) => togglePendingLimit(checked)}
-              disabled={isSwitchDisabled} // Disable if loading or not authorized
+              disabled={isSwitchDisabled}
             />
             <Label htmlFor="pending-limit-toggle">{t("enablePendingLimit")}</Label>
           </div>
@@ -323,7 +312,6 @@ export default function BalcaoPage() {
         </p>
       </Card>
 
-      {/* Tickets grid */}
       {tickets.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -361,7 +349,7 @@ export default function BalcaoPage() {
                 >
                   <Card 
                     className={cn(
-                      "h-full cursor-pointer transition-all duration-200 border-2 relative", // Adicionado relative para posicionamento absoluto do botão
+                      "h-full cursor-pointer transition-all duration-200 border-2 relative",
                       status.cardClass,
                       status.clickable ? 'hover:shadow-lg hover:scale-105' : '',
                       isPendingDelete ? 'ring-4 ring-red-500 shadow-xl' : 'hover-lift',
@@ -370,13 +358,13 @@ export default function BalcaoPage() {
                     )}
                     onClick={() => !isProcessing && handleTicketClick(ticket)}
                   >
-                    {ticket.status === 'CONFIRMADO' && ( // Botão de lixeira só aparece para tickets CONFIRMADOS
+                    {ticket.status === 'CONFIRMADO' && (
                       <Button
                         variant="ghost"
                         size="icon"
                         className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-opacity duration-200"
                         onClick={(e) => {
-                          e.stopPropagation(); // Previne que o clique no botão ative o clique do cartão
+                          e.stopPropagation();
                           handleSoftDelete(ticket);
                         }}
                         disabled={isProcessing}

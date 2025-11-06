@@ -19,7 +19,6 @@ const Login = () => {
   useEffect(() => {
     if (isLoading) return;
     if (isAuthenticated && isApproved && user) {
-      // Redirect to first allowed page
       const firstPath = user.user_role === 'admin' ? '/admin/users' :
                         user.user_role === 'restaurante' ? '/balcao' :
                         '/estafeta';
@@ -27,7 +26,7 @@ const Login = () => {
     }
   }, [isAuthenticated, isApproved, user, isLoading, navigate]);
 
-  if (isLoading || (isAuthenticated && !isApproved)) return null; // Layout handles pending/rejected
+  if (isLoading || (isAuthenticated && !isApproved)) return null;
 
   return (
     <motion.div
@@ -43,7 +42,7 @@ const Login = () => {
             variables: {
               default: {
                 colors: {
-                  brand: '#3b82f6', // Blue for primary
+                  brand: '#3b82f6',
                   brandAccent: '#1d4ed8',
                 },
               },
@@ -52,7 +51,7 @@ const Login = () => {
           theme="light"
           providers={[]}
           view="sign_in"
-          redirectTo={window.location.origin + '/'} // Redireciona explicitamente para a raiz
+          redirectTo={window.location.origin + '/'}
         />
         <div className="mt-4 text-center">
           <p className="text-sm text-gray-500">

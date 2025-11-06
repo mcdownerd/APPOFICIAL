@@ -62,9 +62,9 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        estafeta: { // Nova cor para estafeta
-          DEFAULT: "#fb923c", // orange-400
-          dark: "#f97316", // orange-500
+        estafeta: {
+          DEFAULT: "#fb923c",
+          dark: "#f97316",
         },
       },
       borderRadius: {

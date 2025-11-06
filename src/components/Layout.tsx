@@ -11,11 +11,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { MenuIcon, LogOutIcon, TruckIcon, UtensilsCrossedIcon, BarChart3Icon, HistoryIcon, UsersIcon, SettingsIcon, MonitorIcon, PanelLeftOpenIcon, PanelLeftCloseIcon } from "lucide-react"; // Importar novos ícones
+import { MenuIcon, LogOutIcon, TruckIcon, UtensilsCrossedIcon, BarChart3Icon, HistoryIcon, UsersIcon, SettingsIcon, PanelLeftOpenIcon, PanelLeftCloseIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
-import { useSettings } from "@/context/SettingsContext";
 
 interface NavItem {
   name: string;
@@ -27,7 +26,6 @@ interface NavItem {
 const navItems: NavItem[] = [
   { name: "sendCodes", path: "/estafeta", icon: TruckIcon, roles: ["estafeta", "admin"] },
   { name: "counter", path: "/balcao", icon: UtensilsCrossedIcon, roles: ["restaurante", "admin"] },
-  { name: "courierScreen", path: "/ecra-estafeta", icon: MonitorIcon, roles: ["estafeta", "restaurante", "admin"] },
   { name: "history", path: "/historico", icon: HistoryIcon, roles: ["restaurante", "admin"] },
   { name: "timeAnalysis", path: "/analise-tempo", icon: BarChart3Icon, roles: ["admin", "restaurante"] },
   { name: "manageUsers", path: "/admin/users", icon: UsersIcon, roles: ["admin"] },
@@ -82,18 +80,13 @@ const StatusCard = ({ title, message, buttonText, onButtonClick }: { title: stri
 
 const SidebarContent = ({ onClose, isDesktopSidebarOpen }: { onClose?: () => void; isDesktopSidebarOpen?: boolean }) => {
   const { user, logout, hasRole, isLoading } = useAuth();
-  const { isEcranEstafetaEnabled, isSettingsLoading } = useSettings();
   const { t } = useTranslation();
   const location = useLocation();
   const theme = getRoleTheme(user?.user_role);
 
-  const filteredNavItems = navItems.filter((item) => {
-    const roleMatches = hasRole(item.roles as any);
-    if (item.path === "/ecra-estafeta") {
-      return roleMatches && isEcranEstafetaEnabled && !isSettingsLoading;
-    }
-    return roleMatches;
-  });
+  const filteredNavItems = navItems.filter((item) =>
+    hasRole(item.roles as any)
+  );
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
@@ -114,7 +107,7 @@ const SidebarContent = ({ onClose, isDesktopSidebarOpen }: { onClose?: () => voi
               )}
             >
               <item.icon className="h-5 w-5" />
-              {isDesktopSidebarOpen && t(item.name)} {/* Esconder texto se a sidebar estiver recolhida */}
+              {isDesktopSidebarOpen && t(item.name)}
             </Link>
           ))}
         </nav>
@@ -127,8 +120,8 @@ const SidebarContent = ({ onClose, isDesktopSidebarOpen }: { onClose?: () => voi
                 {user.full_name.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            {isDesktopSidebarOpen && ( // Esconder texto se a sidebar estiver recolhida
-              <div className="flex-1"> 
+            {isDesktopSidebarOpen && (
+              <div className="flex-1">
                 <div className="font-medium text-sidebar-foreground">{user.full_name}</div>
                 <Badge
                   className={cn(
@@ -167,7 +160,7 @@ export const Layout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true); // Novo estado para a sidebar desktop
+  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
 
   const theme = getRoleTheme(user?.user_role);
 
@@ -218,18 +211,18 @@ export const Layout = () => {
   }
 
   return (
-    <div 
+    <div
       className={cn(
         "grid min-h-screen w-full transition-all duration-300 ease-in-out",
-        isDesktopSidebarOpen ? "lg:grid-cols-[280px_1fr]" : "lg:grid-cols-[60px_1fr]", // Ajusta a largura da sidebar
+        isDesktopSidebarOpen ? "lg:grid-cols-[280px_1fr]" : "lg:grid-cols-[60px_1fr]",
         `bg-gradient-to-br ${theme.bg}`
       )}
     >
       {/* Desktop Sidebar */}
-      <aside 
+      <aside
         className={cn(
           "hidden border-r border-sidebar-border bg-sidebar transition-all duration-300 ease-in-out lg:block",
-          isDesktopSidebarOpen ? "w-[280px]" : "w-[60px] overflow-hidden" // Controla a largura
+          isDesktopSidebarOpen ? "w-[280px]" : "w-[60px] overflow-hidden"
         )}
       >
         <SidebarContent isDesktopSidebarOpen={isDesktopSidebarOpen} />
@@ -250,7 +243,7 @@ export const Layout = () => {
               <SidebarContent onClose={() => setIsMobileSidebarOpen(false)} isDesktopSidebarOpen={true} />
             </SheetContent>
           </Sheet>
-          
+
           {/* Desktop Sidebar Toggle Button */}
           <Button
             variant="ghost"
@@ -267,7 +260,7 @@ export const Layout = () => {
           </Button>
 
           <h1 className="text-xl font-bold text-gray-800">{t("deliveryFlow")}</h1>
-          
+
           <div className="ml-auto flex items-center gap-2">
             {/* <LanguageSwitcher /> */}
             {user && (

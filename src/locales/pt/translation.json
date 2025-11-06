@@ -27,7 +27,6 @@
   "helloUser": "Olá, {{userName}}! Use o menu lateral para navegar.",
   "sendCodes": "Enviar Códigos",
   "counter": "Balcão",
-  "courierScreen": "Ecrã Estafeta",
   "history": "Histórico",
   "timeAnalysis": "Análise de Tempo",
   "manageUsers": "Gerenciamento de Usuários",
@@ -173,9 +172,6 @@
   "restaurantIdAlreadyExists": "O ID do restaurante já existe. Por favor, escolha outro.",
   "failedToAddRestaurant": "Falha ao adicionar restaurante. Por favor, tente novamente.",
   "add": "Adicionar",
-  "courierScreenSettings": "Configurações do Ecrã Estafeta",
-  "enableCourierScreen": "Ativar Ecrã Estafeta",
-  "courierScreenDescription": "Quando ativado, o ecrã de estafeta estará visível para os usuários associados a este restaurante.",
   "clickToRemoveTicket": "Clique para remover ticket",
   "ordersReady": "Pedidos Prontos"
 }

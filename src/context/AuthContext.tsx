@@ -33,19 +33,19 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const rolePaths: Record<UserRole, string[]> = {
-  admin: ["/analise-tempo", "/balcao", "/estafeta", "/historico", "/admin/users", "/ecra-estafeta"],
-  restaurante: ["/balcao", "/historico", "/ecra-estafeta"],
-  estafeta: ["/estafeta", "/ecra-estafeta"],
+  admin: ["/analise-tempo", "/balcao", "/estafeta", "/historico", "/admin/users"],
+  restaurante: ["/balcao", "/historico"],
+  estafeta: ["/estafeta"],
 };
 
 export const SessionContextProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Start as true
+  const [isLoading, setIsLoading] = useState(true);
   const { t } = useTranslation();
 
   const loadUser = useCallback(async (sessionUser: any, event?: string) => {
     console.log(`[AuthContext] loadUser called. Event: ${event}, SessionUser:`, sessionUser);
-    setIsLoading(true); // Always set loading to true at the start of user loading attempt
+    setIsLoading(true);
     try {
       if (sessionUser) {
         const currentUser = await UserAPI.me();
@@ -72,15 +72,14 @@ export const SessionContextProvider = ({ children }: { children: ReactNode }) =>
       showError(t("authErrorOccurred"));
       setUser(null);
     } finally {
-      setIsLoading(false); // Ensure loading is set to false after user loading attempt
+      setIsLoading(false);
       console.log("[AuthContext] isLoading set to false.");
     }
   }, [t, showSuccess, showError]);
 
   useEffect(() => {
-    let isMounted = true; // Flag to prevent state updates on unmounted component
+    let isMounted = true;
 
-    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
       console.log("[AuthContext] Auth state change detected. Event:", event, "Session:", session);
@@ -88,7 +87,7 @@ export const SessionContextProvider = ({ children }: { children: ReactNode }) =>
     });
 
     return () => {
-      isMounted = false; // Cleanup: set flag to false
+      isMounted = false;
       subscription.unsubscribe();
       console.log("[AuthContext] Auth state change subscription unsubscribed.");
     };
@@ -98,12 +97,10 @@ export const SessionContextProvider = ({ children }: { children: ReactNode }) =>
     setIsLoading(true);
     try {
       await UserAPI.login(email, password);
-      // loadUser will be called by onAuthStateChange after successful login
     } catch (error) {
       showError(t("loginFailed"));
       throw error;
     } finally {
-      // isLoading will be set by onAuthStateChange after login
     }
   };
 
@@ -111,7 +108,6 @@ export const SessionContextProvider = ({ children }: { children: ReactNode }) =>
     setIsLoading(true);
     try {
       await UserAPI.register(fullName, email, password);
-      // loadUser will be called by onAuthStateChange after successful registration
     } catch (error: any) {
       if (error.message?.includes('already registered')) {
         showError(t("emailAlreadyExists"));
@@ -120,7 +116,6 @@ export const SessionContextProvider = ({ children }: { children: ReactNode }) =>
       }
       throw error;
     } finally {
-      // isLoading will be set by onAuthStateChange after registration
     }
   };
 
@@ -128,12 +123,10 @@ export const SessionContextProvider = ({ children }: { children: ReactNode }) =>
     setIsLoading(true);
     try {
       await supabaseSignOut();
-      // loadUser will be called by onAuthStateChange after successful logout
     } catch (error) {
       showError(t("failedToLogout"));
       throw error;
     } finally {
-      // isLoading will be set by onAuthStateChange after logout
     }
   };
 

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
-import { TicketAPI, Ticket, UserAPI, RestaurantAPI, Restaurant } from "@/lib/api"; // Import UserAPI e RestaurantAPI
+import { TicketAPI, Ticket, UserAPI, RestaurantAPI, Restaurant } from "@/lib/api";
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,21 +21,18 @@ import { format, parseISO, differenceInMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-// Interface para o estado de ordenação
 interface SortConfig {
-  key: 'code' | 'status' | 'created_by_user_email' | 'deleted_at' | 'pendingTime' | 'restaurantName'; // Added 'restaurantName'
+  key: 'code' | 'status' | 'created_by_user_email' | 'deleted_at' | 'pendingTime' | 'restaurantName';
   direction: 'asc' | 'desc';
 }
 
-// Estende a interface Ticket para incluir o valor numérico do tempo pendente para ordenação
 interface TicketWithPendingTime extends Ticket {
   pendingTimeValue: number;
-  restaurantNameDisplay: string; // Added for display and sorting
+  restaurantNameDisplay: string;
 }
 
-// Função auxiliar para calcular e formatar a duração do tempo pendente
 const getPendingDuration = (ticket: Ticket, t: any): { display: string; value: number } => {
   const createdDate = parseISO(ticket.created_date);
   let endDate: Date | null = null;
@@ -45,11 +42,11 @@ const getPendingDuration = (ticket: Ticket, t: any): { display: string; value: n
   } else if (ticket.soft_deleted && ticket.deleted_at) {
     endDate = parseISO(ticket.deleted_at);
   } else if (ticket.soft_deleted) {
-    endDate = new Date(); // Tempo até agora
+    endDate = new Date();
   }
 
   const totalMinutes = endDate ? differenceInMinutes(endDate, createdDate) : 0;
-  const absoluteMinutes = Math.max(0, totalMinutes); // Garante que o valor seja não-negativo
+  const absoluteMinutes = Math.max(0, totalMinutes);
 
   if (absoluteMinutes < 1) {
     return { display: t("lessThanOneMin"), value: absoluteMinutes };
@@ -67,7 +64,6 @@ const getPendingDuration = (ticket: Ticket, t: any): { display: string; value: n
   return { display: parts.length > 0 ? parts.join(" ") : "0min", value: absoluteMinutes };
 };
 
-// Função para formatar data com dia da semana
 const formatDateWithWeekday = (dateString: string, locale: any) => {
   const date = parseISO(dateString);
   return format(date, "dd/MM/yyyy (EEEE) HH:mm", { locale });
@@ -79,17 +75,15 @@ const HistoricoPage = () => {
   const [deletedTickets, setDeletedTickets] = useState<TicketWithPendingTime[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [selectedRestaurant, setSelectedRestaurant] = useState("all"); // 'all' or a specific restaurant_id
-  const [availableRestaurants, setAvailableRestaurants] = useState<Restaurant[]>([]); // Alterado para Restaurant[]
-  // Estado para a configuração de ordenação, padrão para 'Removido Em' decrescente
+  const [selectedRestaurant, setSelectedRestaurant] = useState("all");
+  const [availableRestaurants, setAvailableRestaurants] = useState<Restaurant[]>([]);
   const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'deleted_at', direction: 'desc' });
 
-  // Fetch available restaurants for admin filter
   useEffect(() => {
     const fetchRestaurants = async () => {
       if (isAdmin) {
         try {
-          const restaurantsList = await RestaurantAPI.list(); // Buscar todos os restaurantes
+          const restaurantsList = await RestaurantAPI.list();
           setAvailableRestaurants(restaurantsList);
         } catch (err) {
           console.error("Failed to fetch restaurants:", err);
@@ -118,21 +112,18 @@ const HistoricoPage = () => {
         }
         tickets = await TicketAPI.filter(filter, "-deleted_at");
       } else if (user?.user_role === "restaurante" && user.restaurant_id) {
-        // Restaurante vê tickets removidos associados ao seu restaurant_id
         filter.restaurant_id = user.restaurant_id;
         tickets = await TicketAPI.filter(filter, "-deleted_at");
       } else {
         tickets = [];
       }
 
-      // Adiciona o valor numérico do tempo pendente e o nome do restaurante para ordenação
       const ticketsWithPendingTime: TicketWithPendingTime[] = tickets.map(ticket => ({
         ...ticket,
         pendingTimeValue: getPendingDuration(ticket, t).value,
         restaurantNameDisplay: getRestaurantNameForTicket(ticket.restaurant_id),
       }));
 
-      // Aplica a ordenação no lado do cliente
       if (sortConfig) {
         ticketsWithPendingTime.sort((a, b) => {
           let aValue: any;
@@ -147,7 +138,7 @@ const HistoricoPage = () => {
               aValue = a.deleted_at ? parseISO(a.deleted_at).getTime() : 0;
               bValue = b.deleted_at ? parseISO(b.deleted_at).getTime() : 0;
               break;
-            case 'created_by_user_email': // Use new field
+            case 'created_by_user_email':
               aValue = a.created_by_user_email || '';
               bValue = b.created_by_user_email || '';
               break;
@@ -181,7 +172,7 @@ const HistoricoPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, isAdmin, t, sortConfig, getRestaurantNameForTicket, selectedRestaurant]); // Adicionado selectedRestaurant
+  }, [user, isAdmin, t, sortConfig, getRestaurantNameForTicket, selectedRestaurant]);
 
   useEffect(() => {
     fetchDeletedTickets();
@@ -210,7 +201,7 @@ const HistoricoPage = () => {
       if (prevConfig?.key === key) {
         return { ...prevConfig, direction: prevConfig.direction === 'asc' ? 'desc' : 'asc' };
       }
-      return { key, direction: 'asc' }; // Padrão para ascendente ao mudar de coluna
+      return { key, direction: 'asc' };
     });
   };
 
@@ -322,7 +313,7 @@ const HistoricoPage = () => {
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell>{getRestaurantNameForTicket(ticket.restaurant_id)}</TableCell> {/* Display restaurant name */}
+                        <TableCell>{getRestaurantNameForTicket(ticket.restaurant_id)}</TableCell>
                         <TableCell>{ticket.created_by_user_email}</TableCell>
                         <TableCell className="flex items-center gap-2">
                           <CalendarIcon className="h-4 w-4 text-gray-500" />

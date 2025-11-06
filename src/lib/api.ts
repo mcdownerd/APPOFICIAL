@@ -2,7 +2,6 @@ import { formatISO, parseISO, differenceInMinutes } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import type { AuthResponse } from '@supabase/supabase-js';
 
-// --- Interfaces (mantidas iguais) ---
 export type UserRole = "admin" | "restaurante" | "estafeta";
 export type UserStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -12,11 +11,11 @@ export interface User {
   full_name: string;
   user_role: UserRole;
   status: UserStatus;
-  created_date: string; // ISO date string
+  created_date: string;
   restaurant_id?: string;
 }
 
-export type TicketStatus = "PENDING" | "CONFIRMADO"; // Alterado de "ACKNOWLEDGED" para "CONFIRMADO"
+export type TicketStatus = "PENDING" | "CONFIRMADO";
 
 export interface Ticket {
   id: string;
@@ -24,29 +23,26 @@ export interface Ticket {
   status: TicketStatus;
   created_by_ip: string;
   acknowledged_at: string | null;
-  acknowledged_by_user_id: string | null; // User ID (UUID)
-  acknowledged_by_user_email: string | null; // User Email
+  acknowledged_by_user_id: string | null;
+  acknowledged_by_user_email: string | null;
   soft_deleted: boolean;
   deleted_at: string | null;
-  deleted_by_user_id: string | null; // User ID (UUID)
-  deleted_by_user_email: string | null; // User Email
+  deleted_by_user_id: string | null;
+  deleted_by_user_email: string | null;
   created_date: string;
-  created_by_user_id: string; // User ID (UUID)
-  created_by_user_email: string; // User Email
+  created_by_user_id: string;
+  created_by_user_email: string;
   restaurant_id?: string;
 }
 
-// Nova interface para Restaurante
 export interface Restaurant {
   id: string;
   name: string;
   pending_limit_enabled: boolean;
-  ecran_estafeta_enabled: boolean; // Nova coluna
   created_at: string;
   updated_at: string;
 }
 
-// --- Supabase Auth Helpers ---
 export const signInWithPassword = async (email: string, password: string): Promise<AuthResponse> => {
   return supabase.auth.signInWithPassword({ email, password });
 };
@@ -67,7 +63,6 @@ export const signOut = async () => {
   return supabase.auth.signOut();
 };
 
-// --- User API (usando profiles table) ---
 export const UserAPI = {
   me: async (): Promise<User | null> => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -108,7 +103,6 @@ export const UserAPI = {
     if (error) throw error;
     if (!data.session) throw new Error("No session after signup");
 
-    // Auto-login after signup
     const loginResponse = await signInWithPassword(email, password);
     if (loginResponse.error) throw loginResponse.error;
 
@@ -130,14 +124,12 @@ export const UserAPI = {
   ): Promise<User[]> => {
     let supabaseQuery = supabase.from('profiles').select('*');
 
-    // Apply filters
     for (const [key, value] of Object.entries(query)) {
       if (value !== undefined) {
         supabaseQuery = supabaseQuery.eq(key, value);
       }
     }
 
-    // Order (Supabase uses ascending by default; for desc, use order('-field'))
     const orderField = order.startsWith('-') ? order.substring(1) : order;
     const orderDir = order.startsWith('-') ? 'desc' : 'asc';
     supabaseQuery = supabaseQuery.order(orderField, { ascending: orderDir === 'asc' });
@@ -184,17 +176,16 @@ export const UserAPI = {
   },
 };
 
-// --- Restaurant API ---
 export const RestaurantAPI = {
   create: async (id: string, name: string): Promise<Restaurant> => {
     const { data, error } = await supabase
       .from('restaurants')
-      .insert({ id, name, pending_limit_enabled: true, ecran_estafeta_enabled: false }) // Default to false
+      .insert({ id, name, pending_limit_enabled: true })
       .select()
       .single();
 
     if (error) {
-      if (error.code === '23505') { // Unique violation error code
+      if (error.code === '23505') {
         const customError = new Error("Restaurant ID already exists.");
         (customError as any).statusCode = 409;
         throw customError;
@@ -207,7 +198,6 @@ export const RestaurantAPI = {
       id: data.id,
       name: data.name,
       pending_limit_enabled: data.pending_limit_enabled,
-      ecran_estafeta_enabled: data.ecran_estafeta_enabled, // Nova coluna
       created_at: data.created_at,
       updated_at: data.updated_at,
     };
@@ -224,7 +214,6 @@ export const RestaurantAPI = {
       id: r.id,
       name: r.name,
       pending_limit_enabled: r.pending_limit_enabled,
-      ecran_estafeta_enabled: r.ecran_estafeta_enabled, // Nova coluna
       created_at: r.created_at,
       updated_at: r.updated_at,
     }));
@@ -248,15 +237,12 @@ export const RestaurantAPI = {
       id: data.id,
       name: data.name,
       pending_limit_enabled: data.pending_limit_enabled,
-      ecran_estafeta_enabled: data.ecran_estafeta_enabled, // Nova coluna
       created_at: data.created_at,
       updated_at: data.updated_at,
     };
   },
 };
 
-
-// --- Ticket API ---
 export const TicketAPI = {
   filter: async (
     query: Partial<Ticket>,
@@ -267,9 +253,7 @@ export const TicketAPI = {
       .from('tickets')
       .select('*');
     
-    // Apply filters
     for (const [key, value] of Object.entries(query)) {
-      // Map new interface fields to database column names
       let dbKey = key;
       if (key === 'acknowledged_by_user_id') dbKey = 'acknowledged_by';
       if (key === 'acknowledged_by_user_email') dbKey = 'acknowledged_by_email';
@@ -283,7 +267,6 @@ export const TicketAPI = {
       }
     }
 
-    // Order
     const orderField = order.startsWith('-') ? order.substring(1) : order;
     const orderDir = order.startsWith('-') ? 'desc' : 'asc';
     supabaseQuery = supabaseQuery.order(orderField, { ascending: orderDir === 'asc' });
@@ -296,24 +279,23 @@ export const TicketAPI = {
     return data.map(ticket => ({
       id: ticket.id,
       code: ticket.code,
-      status: ticket.status === "ACKED" ? "CONFIRMADO" : ticket.status, // Convert ACKED to CONFIRMADO
+      status: ticket.status === "ACKED" ? "CONFIRMADO" : ticket.status,
       created_by_ip: ticket.created_by_ip,
       acknowledged_at: ticket.acknowledged_at || null,
-      acknowledged_by_user_id: ticket.acknowledged_by || null, // Map to new field
-      acknowledged_by_user_email: ticket.acknowledged_by_email || null, // Map to new field
+      acknowledged_by_user_id: ticket.acknowledged_by || null,
+      acknowledged_by_user_email: ticket.acknowledged_by_email || null,
       soft_deleted: ticket.soft_deleted,
       deleted_at: ticket.deleted_at || null,
-      deleted_by_user_id: ticket.deleted_by || null, // Map to new field
-      deleted_by_user_email: ticket.deleted_by_email || null, // Map to new field
+      deleted_by_user_id: ticket.deleted_by || null,
+      deleted_by_user_email: ticket.deleted_by_email || null,
       created_date: ticket.created_date,
-      created_by_user_id: ticket.created_by || '', // Corrigido aqui
-      created_by_user_email: ticket.created_by_email || '', // Corrigido aqui
+      created_by_user_id: ticket.created_by || '',
+      created_by_user_email: ticket.created_by_email || '',
       restaurant_id: ticket.restaurant_id,
     }));
   },
 
   list: async (order: string = "created_date", limit?: number): Promise<Ticket[]> => {
-    // This now correctly defaults to soft_deleted: false
     return TicketAPI.filter({}, order, limit);
   },
 
@@ -321,13 +303,12 @@ export const TicketAPI = {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) throw new Error("User not authenticated.");
 
-    // Check for duplicate active code within the same restaurant
     const { data: existing } = await supabase
       .from('tickets')
       .select('id')
       .eq('code', payload.code.toUpperCase())
       .eq('soft_deleted', false)
-      .eq('restaurant_id', payload.restaurant_id || null) // Filter by restaurant_id
+      .eq('restaurant_id', payload.restaurant_id || null)
       .maybeSingle();
 
     if (existing) {
@@ -340,10 +321,10 @@ export const TicketAPI = {
       .from('tickets')
       .insert({
         code: payload.code.toUpperCase(),
-        created_by: session.user.id, // Use user ID
-        created_by_email: session.user.email, // Use user email
-        created_by_ip: '127.0.0.1', // Use real IP in production
-        restaurant_id: payload.restaurant_id || null, // Save restaurant_id
+        created_by: session.user.id,
+        created_by_email: session.user.email,
+        created_by_ip: '127.0.0.1',
+        restaurant_id: payload.restaurant_id || null,
       })
       .select()
       .single();
@@ -354,7 +335,7 @@ export const TicketAPI = {
     return {
       id: data.id,
       code: data.code,
-      status: data.status === "ACKED" ? "CONFIRMADO" : data.status, // Convert ACKED to CONFIRMADO
+      status: data.status === "ACKED" ? "CONFIRMADO" : data.status,
       created_by_ip: data.created_by_ip,
       acknowledged_at: null,
       acknowledged_by_user_id: null,
@@ -379,7 +360,6 @@ export const TicketAPI = {
       updated_at: new Date().toISOString() 
     };
 
-    // Map new interface fields to database column names for update
     if (payload.acknowledged_by_user_id !== undefined) {
       updatePayload.acknowledged_by = payload.acknowledged_by_user_id;
       delete updatePayload.acknowledged_by_user_id;
@@ -405,17 +385,16 @@ export const TicketAPI = {
       delete updatePayload.created_by_user_email;
     }
 
-    // Convert CONFIRMADO back to ACKED for database if needed
     if (updatePayload.status === "CONFIRMADO") {
       updatePayload.status = "ACKED";
       updatePayload.acknowledged_at = new Date().toISOString();
-      updatePayload.acknowledged_by = session.user.id; // Use user ID
-      updatePayload.acknowledged_by_email = session.user.email; // Use user email
+      updatePayload.acknowledged_by = session.user.id;
+      updatePayload.acknowledged_by_email = session.user.email;
     }
     if (updatePayload.soft_deleted === true) {
       updatePayload.deleted_at = new Date().toISOString();
-      updatePayload.deleted_by = session.user.id; // Use user ID
-      updatePayload.deleted_by_email = session.user.email; // Use user email
+      updatePayload.deleted_by = session.user.id;
+      updatePayload.deleted_by_email = session.user.email;
     }
 
     let supabaseQuery = supabase
@@ -423,26 +402,19 @@ export const TicketAPI = {
       .update(updatePayload)
       .eq('id', id);
 
-    // REMOVIDO: O filtro de restaurant_id no lado do cliente para updates.
-    // A RLS já garante que apenas usuários autorizados (admin ou restaurante do ticket) podem atualizar.
-    // if (payload.restaurant_id !== undefined) {
-    //   supabaseQuery = supabaseQuery.eq('restaurant_id', payload.restaurant_id);
-    // }
-
     const { data, error } = await supabaseQuery
       .select()
-      .maybeSingle(); // Alterado de .single() para .maybeSingle()
+      .maybeSingle();
 
     if (error) throw error;
     if (!data) {
-      // Se não houver dados, significa que o ticket não foi encontrado ou o usuário não tem permissão.
       throw new Error("Ticket not found or user does not have permission to update it. Check RLS policies.");
     }
 
     return {
       id: data.id,
       code: data.code,
-      status: data.status === "ACKED" ? "CONFIRMADO" : data.status, // Convert ACKED to CONFIRMADO
+      status: data.status === "ACKED" ? "CONFIRMADO" : data.status,
       created_by_ip: data.created_by_ip,
       acknowledged_at: data.acknowledged_at || null,
       acknowledged_by_user_id: data.acknowledged_by || null,
@@ -459,7 +431,6 @@ export const TicketAPI = {
   },
 };
 
-// Rate limiting would need server-side (Edge Function), but for now, client-side mock remains optional
 let lastCreateTime = 0;
 const RATE_LIMIT_INTERVAL = 5000;
 const MAX_REQUESTS = 3;

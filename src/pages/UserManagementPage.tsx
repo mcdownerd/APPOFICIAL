@@ -33,27 +33,24 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { UsersIcon, CheckCircleIcon, XCircleIcon, RefreshCcwIcon, UserCogIcon, PlusCircleIcon, Loader2, SettingsIcon, MonitorIcon } from "lucide-react";
+import { UsersIcon, CheckCircleIcon, XCircleIcon, RefreshCcwIcon, PlusCircleIcon, Loader2, SettingsIcon } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Switch } from "@/components/ui/switch"; // Import Switch
+import { Switch } from "@/components/ui/switch";
 
 const UserManagementPage = React.memo(() => {
   const { user: currentUser, isAdmin } = useAuth();
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
 
-  // State for Add Restaurant Dialog
   const [isAddRestaurantDialogOpen, setIsAddRestaurantDialogOpen] = useState(false);
   const [newRestaurantId, setNewRestaurantId] = useState("");
   const [newRestaurantName, setNewRestaurantName] = useState("");
 
-  // State for Manage Restaurant Settings Dialog
   const [isManageRestaurantsDialogOpen, setIsManageRestaurantsDialogOpen] = useState(false);
 
-  // Query para buscar todos os usuários
   const { data: users, isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery<User[], Error>({
     queryKey: ["allUsers"],
     queryFn: async () => {
@@ -61,19 +58,17 @@ const UserManagementPage = React.memo(() => {
       return UserAPI.filter({}, "-created_date");
     },
     enabled: isAdmin,
-    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
+    staleTime: 1000 * 60 * 5,
   });
 
-  // Query para buscar todos os IDs de restaurantes
   const { data: restaurants, isLoading: isLoadingRestaurants, refetch: refetchRestaurants } = useQuery<Restaurant[], Error>({
     queryKey: ["allRestaurants"],
     queryFn: async () => {
       return RestaurantAPI.list();
     },
-    staleTime: 1000 * 60 * 10, // Cache por 10 minutos
+    staleTime: 1000 * 60 * 10,
   });
 
-  // Mutations para atualizar status, papel e restaurant_id do usuário
   const updateUserStatusMutation = useMutation({
     mutationFn: async (variables: { userId: string; status: UserStatus }) => {
       if (!isAdmin) throw new Error(t("permissionDenied"));
@@ -128,7 +123,7 @@ const UserManagementPage = React.memo(() => {
       setIsAddRestaurantDialogOpen(false);
       setNewRestaurantId("");
       setNewRestaurantName("");
-      queryClient.invalidateQueries({ queryKey: ["allRestaurants"] }); // Refetch restaurant IDs
+      queryClient.invalidateQueries({ queryKey: ["allRestaurants"] });
     },
     onError: (error: any) => {
       console.error("Failed to add restaurant:", error);
@@ -148,7 +143,6 @@ const UserManagementPage = React.memo(() => {
     onSuccess: (data, variables) => {
       showSuccess(t("restaurantSettingsUpdated", { restaurantName: data.name }));
       queryClient.invalidateQueries({ queryKey: ["allRestaurants"] });
-      // Invalidate settings context if the current user's restaurant settings were updated
       if (currentUser?.restaurant_id === variables.restaurantId) {
         queryClient.invalidateQueries({ queryKey: ["settings", currentUser.restaurant_id] });
       }
@@ -179,7 +173,7 @@ const UserManagementPage = React.memo(() => {
     addRestaurantMutation.mutate({ id: newRestaurantId.trim(), name: newRestaurantName.trim() });
   }, [newRestaurantId, newRestaurantName, addRestaurantMutation, t]);
 
-  const handleToggleRestaurantSetting = useCallback((restaurantId: string, setting: 'pending_limit_enabled' | 'ecran_estafeta_enabled', currentValue: boolean) => {
+  const handleToggleRestaurantSetting = useCallback((restaurantId: string, setting: 'pending_limit_enabled', currentValue: boolean) => {
     updateRestaurantSettingsMutation.mutate({
       restaurantId,
       payload: { [setting]: !currentValue }
@@ -295,7 +289,6 @@ const UserManagementPage = React.memo(() => {
                               {restaurants?.map(r => (
                                 <SelectItem key={r.id} value={r.id}>{r.name} ({r.id})</SelectItem>
                               ))}
-                              {/* If a user has a restaurant_id not in the current list, display it as an option */}
                               {!restaurants?.some(r => r.id === user.restaurant_id) && user.restaurant_id && (
                                 <SelectItem value={user.restaurant_id}>{user.restaurant_id} (current)</SelectItem>
                               )}
@@ -340,7 +333,6 @@ const UserManagementPage = React.memo(() => {
         </CardContent>
       </Card>
 
-      {/* Add Restaurant Dialog */}
       <Dialog open={isAddRestaurantDialogOpen} onOpenChange={setIsAddRestaurantDialogOpen}>
         <DialogContent className="sm:max-w-[425px]" aria-labelledby="add-restaurant-dialog-title">
           <DialogHeader>
@@ -391,7 +383,6 @@ const UserManagementPage = React.memo(() => {
         </DialogContent>
       </Dialog>
 
-      {/* Manage Restaurant Settings Dialog */}
       <Dialog open={isManageRestaurantsDialogOpen} onOpenChange={setIsManageRestaurantsDialogOpen}>
         <DialogContent className="sm:max-w-2xl" aria-labelledby="manage-restaurants-dialog-title">
           <DialogHeader>
@@ -413,7 +404,6 @@ const UserManagementPage = React.memo(() => {
                   <Card key={restaurant.id} className="p-4">
                     <CardTitle className="text-lg mb-2">{restaurant.name} ({restaurant.id})</CardTitle>
                     <div className="space-y-3">
-                      {/* Pending Limit Setting */}
                       <div className="flex items-center justify-between">
                         <Label htmlFor={`pending-limit-${restaurant.id}`} className="flex flex-col">
                           <span>{t("enablePendingLimit")}</span>
@@ -423,19 +413,6 @@ const UserManagementPage = React.memo(() => {
                           id={`pending-limit-${restaurant.id}`}
                           checked={restaurant.pending_limit_enabled}
                           onCheckedChange={(checked) => handleToggleRestaurantSetting(restaurant.id, 'pending_limit_enabled', restaurant.pending_limit_enabled)}
-                          disabled={updateRestaurantSettingsMutation.isPending && updateRestaurantSettingsMutation.variables?.restaurantId === restaurant.id}
-                        />
-                      </div>
-                      {/* Ecran Estafeta Setting */}
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor={`ecran-estafeta-${restaurant.id}`} className="flex flex-col">
-                          <span>{t("enableCourierScreen")}</span>
-                          <span className="text-xs text-muted-foreground">{t("courierScreenDescription")}</span>
-                        </Label>
-                        <Switch
-                          id={`ecran-estafeta-${restaurant.id}`}
-                          checked={restaurant.ecran_estafeta_enabled}
-                          onCheckedChange={(checked) => handleToggleRestaurantSetting(restaurant.id, 'ecran_estafeta_enabled', restaurant.ecran_estafeta_enabled)}
                           disabled={updateRestaurantSettingsMutation.isPending && updateRestaurantSettingsMutation.variables?.restaurantId === restaurant.id}
                         />
                       </div>

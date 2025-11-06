@@ -17,14 +17,13 @@ import { useTranslation } from "react-i18next";
 
 const EstafetaPage = () => {
   const { user } = useAuth();
-  const { isPendingLimitEnabled, isSettingsLoading } = useSettings(); // Use isSettingsLoading
+  const { isPendingLimitEnabled, isSettingsLoading } = useSettings();
   const { t } = useTranslation();
   const [code, setCode] = useState("");
   const [recentTickets, setRecentTickets] = useState<Ticket[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingTicketsCount, setPendingTicketsCount] = useState(0);
 
-  // DEBUG LOGS
   useEffect(() => {
     console.log("EstafetaPage: isPendingLimitEnabled from Context:", isPendingLimitEnabled);
     console.log("EstafetaPage: isSettingsLoading from Context:", isSettingsLoading);
@@ -34,9 +33,8 @@ const EstafetaPage = () => {
   const fetchRecentTickets = useCallback(async () => {
     if (!user) return;
     try {
-      // Fetch all tickets by the user, including soft-deleted ones
       const allUserTickets = await TicketAPI.filter(
-        { created_by_user_id: user.id, soft_deleted: undefined }, // Use created_by_user_id
+        { created_by_user_id: user.id, soft_deleted: undefined },
         "-created_date",
       );
 
@@ -45,27 +43,20 @@ const EstafetaPage = () => {
 
       allUserTickets.forEach(ticket => {
         if (ticket.soft_deleted) {
-          // Se o ticket foi soft-deleted, verificar se já passou 1 minuto desde deleted_at
           if (ticket.deleted_at) {
             const deletedAtDate = parseISO(ticket.deleted_at);
             const oneMinuteAfterDeletion = addMinutes(deletedAtDate, 1);
             if (isPast(oneMinuteAfterDeletion)) {
-              // Se já passou 1 minuto desde a exclusão, não incluir na lista
               return; 
             }
           } else {
-            // Se soft_deleted é true mas deleted_at é null (caso improvável), 
-            // podemos optar por não mostrar ou mostrar por um tempo padrão.
-            // Por simplicidade, vamos ignorar se deleted_at for null para tickets soft_deleted.
             return;
           }
         }
-        // Incluir tickets que não foram soft-deleted ou que foram soft-deleted há menos de 1 minuto
         ticketsToDisplay.push(ticket);
       });
 
       ticketsToDisplay.sort((a, b) => {
-        // Sort logic remains the same, prioritizing soft-deleted first, then by date
         if (a.soft_deleted && !b.soft_deleted) return -1;
         if (!a.soft_deleted && b.soft_deleted) return 1;
 
@@ -89,7 +80,6 @@ const EstafetaPage = () => {
 
   const fetchPendingTicketsCount = useCallback(async () => {
     try {
-      // Filter pending tickets by the current user's restaurant_id
       const pendingTickets = await TicketAPI.filter({ status: "PENDING", soft_deleted: false, restaurant_id: user?.restaurant_id });
       setPendingTicketsCount(pendingTickets.length);
     } catch (error) {
@@ -151,12 +141,10 @@ const EstafetaPage = () => {
   const isCodeValid = code.length === 4 && /^[A-Z0-9]{4}$/.test(code);
   const canSubmit = isCodeValid && !isSubmitting && !isSettingsLoading && (isPendingLimitEnabled ? pendingTicketsCount < 4 : true) && !!user?.restaurant_id;
 
-  // --- DEBUG LOGS ---
   console.log("EstafetaPage: isPendingLimitEnabled (final check for canSubmit):", isPendingLimitEnabled);
   console.log("EstafetaPage: pendingTicketsCount (final check for canSubmit):", pendingTicketsCount);
   console.log("EstafetaPage: isSettingsLoading (final check for canSubmit):", isSettingsLoading);
   console.log("EstafetaPage: canSubmit:", canSubmit);
-  // --- END DEBUG LOGS ---
 
   return (
     <motion.div
@@ -169,13 +157,13 @@ const EstafetaPage = () => {
           <div className="p-3 rounded-full bg-gradient-to-r from-estafeta to-estafeta-dark text-white mb-2">
             <TruckIcon className="h-8 w-8" />
           </div>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">{t("courierCenter")}</h2> {/* Ajustado tamanho da fonte */}
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">{t("courierCenter")}</h2>
         </div>
 
         <Card className="w-full max-w-md">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg sm:text-xl md:text-2xl">{t("sendNewCode")}</CardTitle> {/* Ajustado tamanho da fonte */}
+              <CardTitle className="text-lg sm:text-xl md:text-2xl">{t("sendNewCode")}</CardTitle>
               <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
                 <ClockIcon className="mr-1 h-3 w-3" /> {t("pending")}: {pendingTicketsCount}
               </Badge>
@@ -189,7 +177,6 @@ const EstafetaPage = () => {
                 maxLength={4}
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4))}
-                // Ajustado tamanho da fonte
                 className="text-xl sm:text-2xl text-center font-mono tracking-widest border-estafeta focus:ring-estafeta-dark focus:border-estafeta-dark"
                 disabled={isSubmitting || isSettingsLoading || (isPendingLimitEnabled && pendingTicketsCount >= 4) || !user?.restaurant_id}
               />
@@ -222,11 +209,11 @@ const EstafetaPage = () => {
         </Card>
       </div>
 
-      <div className="w-full flex justify-center"> {/* Novo wrapper div para centralizar o cartão */}
-        <Card className="w-full max-w-md"> {/* Adicionado max-w-md a este cartão */}
+      <div className="w-full flex justify-center">
+        <Card className="w-full max-w-md">
           <CardHeader className="flex flex-row items-center gap-2">
             <ClockIcon className="h-5 w-5 text-gray-600" />
-            <CardTitle className="text-lg sm:text-xl md:text-2xl">{t("lastSevenCodesSent")}</CardTitle> {/* Ajustado tamanho da fonte */}
+            <CardTitle className="text-lg sm:text-xl md:text-2xl">{t("lastSevenCodesSent")}</CardTitle>
           </CardHeader>
           <CardContent>
             {recentTickets.length === 0 ? (
@@ -241,7 +228,6 @@ const EstafetaPage = () => {
                     transition={{ duration: 0.3 }}
                     className={cn(
                       "flex items-center justify-between rounded-lg border p-3 shadow-sm",
-                      // Prioridade: soft_deleted (azul), depois CONFIRMADO (verde), depois PENDING (amarelo)
                       ticket.soft_deleted ? "bg-blue-50 border-blue-200" : 
                       ticket.status === "CONFIRMADO" ? "bg-green-50 border-green-200" : 
                       "bg-yellow-50 border-yellow-200"
