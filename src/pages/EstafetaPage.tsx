@@ -231,7 +231,7 @@ const EstafetaPage = () => {
                       transition={{ duration: 0.3 }}
                       className={cn(
                         "flex items-center justify-between rounded-lg border p-3 shadow-sm relative",
-                        isSoftDeleted ? "bg-blue-50 border-blue-200" :
+                        isSoftDeleted ? "bg-blue-50 border-blue-200" : // Estilo para tickets soft-deleted
                         ticket.status === "CONFIRMADO" ? "bg-green-50 border-green-200" :
                         "bg-yellow-50 border-yellow-200",
                         isTicketProcessing && "opacity-60 cursor-not-allowed"
@@ -240,7 +240,7 @@ const EstafetaPage = () => {
                       <Badge
                         className={cn(
                           "text-base font-bold px-3 py-1",
-                          isSoftDeleted ? "bg-blue-200 text-blue-900" :
+                          isSoftDeleted ? "bg-blue-200 text-blue-900" : // Estilo para o código de tickets soft-deleted
                           ticket.status === "CONFIRMADO" ? "bg-green-200 text-green-900" :
                           "bg-yellow-200 text-yellow-900"
                         )}
@@ -248,11 +248,8 @@ const EstafetaPage = () => {
                         {ticket.code}
                       </Badge>
                       <div className="flex items-center gap-2">
-                        {isSoftDeleted ? (
-                          <Badge variant="outline" className="bg-blue-100 text-blue-800">
-                            <CheckCircleIcon className="mr-1 h-3 w-3" /> {t("ready")}
-                          </Badge>
-                        ) : ticket.status === "CONFIRMADO" ? (
+                        {/* Removida a condição isSoftDeleted para o status "PRONTO" */}
+                        {ticket.status === "CONFIRMADO" ? (
                           <Badge variant="outline" className="bg-green-100 text-green-800">
                             <CheckCircleIcon className="mr-1 h-3 w-3" /> {t("acknowledged")}
                           </Badge>
@@ -261,7 +258,7 @@ const EstafetaPage = () => {
                             <ClockIcon className="mr-1 h-3 w-3" /> {t("pending")}
                           </Badge>
                         )}
-                        {!isSoftDeleted && ticket.status === "CONFIRMADO" && ( // Condição adicionada aqui
+                        {!isSoftDeleted && ticket.status === "CONFIRMADO" && (
                           <Button
                             variant="ghost"
                             size="icon"
