@@ -34,6 +34,7 @@ export default function OrderManagementPage() {
   const [recentTickets, setRecentTickets] = useState<Ticket[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingTicketsCount, setPendingTicketsCount] = useState(0); // Still a no-op
+  const [processingRecentDelete, setProcessingRecentDelete] = useState<string | null>(null); // Novo estado para gerenciar o carregamento da exclusão
 
   // State for viewing tickets (from BalcaoPage)
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -166,6 +167,28 @@ export default function OrderManagementPage() {
       console.error("Error creating ticket:", error);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSoftDeleteRecentTicket = async (ticket: Ticket) => {
+    if (!user || processingRecentDelete === ticket.id) return;
+
+    setProcessingRecentDelete(ticket.id);
+    try {
+      await TicketAPI.update(ticket.id, {
+        soft_deleted: true,
+        deleted_by_user_id: user.id,
+        deleted_by_user_email: user.email,
+        restaurant_id: ticket.restaurant_id,
+      });
+      showSuccess(t('ticketRemovedSuccessfully'));
+      fetchRecentTickets(); // Re-fetch recent tickets to update the list
+      loadTickets(); // Also refresh active tickets
+    } catch (error) {
+      console.error('Error soft deleting recent ticket:', error);
+      showError(t('failedToRemoveTicket'));
+    } finally {
+      setProcessingRecentDelete(null);
     }
   };
 
@@ -472,44 +495,71 @@ export default function OrderManagementPage() {
                 <p className="text-center text-gray-500">{t("noRecentCodes")}</p>
               ) : (
                 <div className="flex flex-col gap-2">
-                  {recentTickets.map((ticket) => (
-                    <motion.div
-                      key={ticket.id}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.3 }}
-                      className={cn(
-                        "flex items-center justify-between rounded-lg border p-3 shadow-sm",
-                        ticket.soft_deleted ? "bg-blue-50 border-blue-200" :
-                        ticket.status === "CONFIRMADO" ? "bg-green-50 border-green-200" :
-                        "bg-yellow-50 border-yellow-200"
-                      )}
-                    >
-                      <Badge
+                  {recentTickets.map((ticket) => {
+                    const isTicketProcessing = processingRecentDelete === ticket.id;
+                    const isSoftDeleted = ticket.soft_deleted;
+
+                    return (
+                      <motion.div
+                        key={ticket.id}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.3 }}
                         className={cn(
-                          "text-base font-bold px-3 py-1",
-                          ticket.soft_deleted ? "bg-blue-200 text-blue-900" :
-                          ticket.status === "CONFIRMADO" ? "bg-green-200 text-green-900" :
-                          "bg-yellow-200 text-yellow-900"
+                          "flex items-center justify-between rounded-lg border p-3 shadow-sm relative",
+                          isSoftDeleted ? "bg-blue-50 border-blue-200" :
+                          ticket.status === "CONFIRMADO" ? "bg-green-50 border-green-200" :
+                          "bg-yellow-50 border-yellow-200",
+                          isTicketProcessing && "opacity-60 cursor-not-allowed"
                         )}
                       >
-                        {ticket.code}
-                      </Badge>
-                      {ticket.soft_deleted ? (
-                        <Badge variant="outline" className="bg-blue-100 text-blue-800">
-                          <CheckCircleIcon className="mr-1 h-3 w-3" /> {t("ready")}
+                        <Badge
+                          className={cn(
+                            "text-base font-bold px-3 py-1",
+                            isSoftDeleted ? "bg-blue-200 text-blue-900" :
+                            ticket.status === "CONFIRMADO" ? "bg-green-200 text-green-900" :
+                            "bg-yellow-200 text-yellow-900"
+                          )}
+                        >
+                          {ticket.code}
                         </Badge>
-                      ) : ticket.status === "CONFIRMADO" ? (
-                        <Badge variant="outline" className="bg-green-100 text-green-800">
-                          <CheckCircleIcon className="mr-1 h-3 w-3" /> {t("acknowledged")}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
-                          <ClockIcon className="mr-1 h-3 w-3" /> {t("pending")}
-                        </Badge>
-                      )}
-                    </motion.div>
-                  ))}
+                        <div className="flex items-center gap-2">
+                          {isSoftDeleted ? (
+                            <Badge variant="outline" className="bg-blue-100 text-blue-800">
+                              <CheckCircleIcon className="mr-1 h-3 w-3" /> {t("ready")}
+                            </Badge>
+                          ) : ticket.status === "CONFIRMADO" ? (
+                            <Badge variant="outline" className="bg-green-100 text-green-800">
+                              <CheckCircleIcon className="mr-1 h-3 w-3" /> {t("acknowledged")}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
+                              <ClockIcon className="mr-1 h-3 w-3" /> {t("pending")}
+                            </Badge>
+                          )}
+                          {!isSoftDeleted && ( // Mostrar botão de apagar apenas se não estiver soft-deleted
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-500 hover:text-red-700 transition-opacity duration-200"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSoftDeleteRecentTicket(ticket);
+                              }}
+                              disabled={isTicketProcessing}
+                              aria-label={t('removeTicket')}
+                            >
+                              {isTicketProcessing ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2Icon className="h-5 w-5" />
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
