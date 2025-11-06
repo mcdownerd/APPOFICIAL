@@ -33,8 +33,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const rolePaths: Record<UserRole, string[]> = {
-  admin: ["/analise-tempo", "/balcao", "/estafeta", "/historico", "/admin/users", "/ecran-estafeta"], // Adicionado /ecran-estafeta
-  restaurante: ["/balcao", "/historico", "/ecran-estafeta"], // Adicionado /ecran-estafeta
+  admin: ["/analise-tempo", "/balcao", "/estafeta", "/historico", "/admin/users", "/ecran-estafeta", "/order-management"], // Adicionado /order-management
+  restaurante: ["/balcao", "/historico", "/ecran-estafeta", "/order-management"], // Adicionado /order-management
   estafeta: ["/estafeta"],
 };
 

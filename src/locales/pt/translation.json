@@ -175,5 +175,6 @@
   "ordersReady": "Pedidos Prontos",
   "ecranEstafeta": "Ecrã Estafeta",
   "ecranEstafetaDisabled": "Ecrã Estafeta Desativado",
-  "ecranEstafetaDisabledMessage": "O ecrã do estafeta está desativado para este restaurante. Por favor, contacte o administrador para o ativar."
+  "ecranEstafetaDisabledMessage": "O ecrã do estafeta está desativado para este restaurante. Por favor, contacte o administrador para o ativar.",
+  "orderManagement": "Gestão de Pedidos"
 }

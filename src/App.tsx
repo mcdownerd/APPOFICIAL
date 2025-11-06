@@ -16,7 +16,8 @@ import BalcaoPage from "./pages/BalcaoPage";
 import HistoricoPage from "./pages/HistoricoPage";
 import AnaliseTempoPage from "./pages/AnaliseTempoPage";
 import UserManagementPage from "./pages/UserManagementPage";
-import EcranEstafetaPage from "./pages/EcranEstafetaPage"; // Importar a nova página
+import EcranEstafetaPage from "./pages/EcranEstafetaPage";
+import OrderManagementPage from "./pages/OrderManagementPage"; // Importar a nova página
 
 const queryClient = new QueryClient();
 
@@ -73,11 +74,19 @@ const App = () => (
                     </AuthGuard>
                   }
                 />
-                <Route // Nova rota para EcranEstafetaPage
+                <Route
                   path="ecran-estafeta"
                   element={
                     <AuthGuard allowedRoles={["restaurante", "admin"]}>
                       <EcranEstafetaPage />
+                    </AuthGuard>
+                  }
+                />
+                <Route // Nova rota para OrderManagementPage
+                  path="order-management"
+                  element={
+                    <AuthGuard allowedRoles={["restaurante", "admin"]}>
+                      <OrderManagementPage />
                     </AuthGuard>
                   }
                 />
