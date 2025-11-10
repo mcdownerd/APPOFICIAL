@@ -37,6 +37,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useAuth } from "@/context/AuthContext"; // Adicionado: Importação do useAuth
 
 const UserManagementPage = React.memo(() => {
   const { user: currentUser, isAdmin } = useAuth();
