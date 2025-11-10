@@ -6,16 +6,13 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, Trash2Icon, UtensilsCrossedIcon } from 'lucide-react'; // Removido SettingsIcon
+import { Loader2, RefreshCcwIcon, ClockIcon, CheckCircleIcon, Trash2Icon, UtensilsCrossedIcon } from 'lucide-react';
 import { TicketAPI, Ticket, UserAPI, RestaurantAPI, Restaurant } from '@/lib/api';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
-// import { useSettings } from "@/context/SettingsContext"; // Removido
-// import { Switch } from "@/components/ui/switch"; // Removido
-// import { Label } from "@/components/ui/label"; // Removido
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function BalcaoPage() {
@@ -25,7 +22,7 @@ export default function BalcaoPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set()); // Corrigido: removido 'new' antes de useState
+  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set());
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [selectedRestaurant, setSelectedRestaurant] = useState("all");
   const [availableRestaurants, setAvailableRestaurants] = useState<Restaurant[]>([]);

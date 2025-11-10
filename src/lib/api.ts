@@ -38,8 +38,8 @@ export interface Ticket {
 export interface Restaurant {
   id: string;
   name: string;
-  pending_limit_enabled: boolean;
-  ecran_estafeta_enabled: boolean; // Adicionado
+  // pending_limit_enabled: boolean; // Removido
+  ecran_estafeta_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -181,7 +181,7 @@ export const RestaurantAPI = {
   create: async (id: string, name: string): Promise<Restaurant> => {
     const { data, error } = await supabase
       .from('restaurants')
-      .insert({ id, name, pending_limit_enabled: true, ecran_estafeta_enabled: false }) // Adicionado ecran_estafeta_enabled
+      .insert({ id, name, ecran_estafeta_enabled: false }) // Removido pending_limit_enabled
       .select()
       .single();
 
@@ -198,8 +198,8 @@ export const RestaurantAPI = {
     return {
       id: data.id,
       name: data.name,
-      pending_limit_enabled: data.pending_limit_enabled,
-      ecran_estafeta_enabled: data.ecran_estafeta_enabled, // Adicionado
+      // pending_limit_enabled: data.pending_limit_enabled, // Removido
+      ecran_estafeta_enabled: data.ecran_estafeta_enabled,
       created_at: data.created_at,
       updated_at: data.updated_at,
     };
@@ -215,8 +215,8 @@ export const RestaurantAPI = {
     return data.map(r => ({
       id: r.id,
       name: r.name,
-      pending_limit_enabled: r.pending_limit_enabled,
-      ecran_estafeta_enabled: r.ecran_estafeta_enabled, // Adicionado
+      // pending_limit_enabled: r.pending_limit_enabled, // Removido
+      ecran_estafeta_enabled: r.ecran_estafeta_enabled,
       created_at: r.created_at,
       updated_at: r.updated_at,
     }));
@@ -239,8 +239,8 @@ export const RestaurantAPI = {
     return {
       id: data.id,
       name: data.name,
-      pending_limit_enabled: data.pending_limit_enabled,
-      ecran_estafeta_enabled: data.ecran_estafeta_enabled, // Adicionado
+      // pending_limit_enabled: data.pending_limit_enabled, // Removido
+      ecran_estafeta_enabled: data.ecran_estafeta_enabled,
       created_at: data.created_at,
       updated_at: data.updated_at,
     };
@@ -437,7 +437,6 @@ export const TicketAPI = {
 
 let lastCreateTime = 0;
 const RATE_LIMIT_INTERVAL = 5000;
-const MAX_REQUESTS = 3;
 let requestCount = 0;
 
 const originalTicketCreate = TicketAPI.create;
@@ -448,11 +447,12 @@ TicketAPI.create = async (payload: { code: string; restaurant_id?: string }): Pr
     lastCreateTime = now;
   }
   requestCount++;
-  if (requestCount > MAX_REQUESTS) {
-    const error = new Error("RATE_LIMIT_EXCEEDED") as any;
-    error.statusCode = 429;
-    error.retryAfter = 30;
-    throw error;
-  }
+  // Removido o limite de MAX_REQUESTS para permitir mais de 3 pedidos pendentes
+  // if (requestCount > MAX_REQUESTS) {
+  //   const error = new Error("RATE_LIMIT_EXCEEDED") as any;
+  //   error.statusCode = 429;
+  //   error.retryAfter = 30;
+  //   throw error;
+  // }
   return originalTicketCreate(payload);
 };
