@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { useAuth } from "@/context/AuthContext";
 import { UserAPI, User, UserStatus, UserRole, RestaurantAPI, Restaurant } from "@/lib/api";
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
@@ -33,12 +32,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { UsersIcon, CheckCircleIcon, XCircleIcon, RefreshCcwIcon, PlusCircleIcon, Loader2 } from "lucide-react"; // Removido SettingsIcon
+import { UsersIcon, CheckCircleIcon, XCircleIcon, RefreshCcwIcon, PlusCircleIcon, Loader2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-// import { Switch } from "@/components/ui/switch"; // Removido
 
 const UserManagementPage = React.memo(() => {
   const { user: currentUser, isAdmin } = useAuth();
@@ -48,8 +46,6 @@ const UserManagementPage = React.memo(() => {
   const [isAddRestaurantDialogOpen, setIsAddRestaurantDialogOpen] = useState(false);
   const [newRestaurantId, setNewRestaurantId] = useState("");
   const [newRestaurantName, setNewRestaurantName] = useState("");
-
-  // const [isManageRestaurantsDialogOpen, setIsManageRestaurantsDialogOpen] = useState(false); // Removido
 
   const { data: users, isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery<User[], Error>({
     queryKey: ["allUsers"],
@@ -126,7 +122,7 @@ const UserManagementPage = React.memo(() => {
       queryClient.invalidateQueries({ queryKey: ["allRestaurants"] });
     },
     onError: (error: any) => {
-      console.error("Failed to add restaurant:", error);
+      console.error("Failed to add restaurant:", error); // Log do erro completo
       if (error.statusCode === 409) {
         showError(t("restaurantIdAlreadyExists"));
       } else {
@@ -134,24 +130,6 @@ const UserManagementPage = React.memo(() => {
       }
     }
   });
-
-  // const updateRestaurantSettingsMutation = useMutation({ // Removido
-  //   mutationFn: async (variables: { restaurantId: string; payload: Partial<Restaurant> }) => {
-  //     if (!isAdmin) throw new Error(t("permissionDenied"));
-  //     return RestaurantAPI.update(variables.restaurantId, variables.payload);
-  //   },
-  //   onSuccess: (data, variables) => {
-  //     showSuccess(t("restaurantSettingsUpdated", { restaurantName: data.name }));
-  //     queryClient.invalidateQueries({ queryKey: ["allRestaurants"] });
-  //     if (currentUser?.restaurant_id === variables.restaurantId) {
-  //       queryClient.invalidateQueries({ queryKey: ["settings", currentUser.restaurant_id] });
-  //     }
-  //   },
-  //   onError: (error) => {
-  //     console.error("Failed to update restaurant settings:", error);
-  //     showError(t("failedToUpdateRestaurantSettings"));
-  //   }
-  // });
 
   const handleUpdateUserStatus = useCallback((userId: string, status: UserStatus) => {
     updateUserStatusMutation.mutate({ userId, status });
@@ -166,19 +144,13 @@ const UserManagementPage = React.memo(() => {
   }, [updateUserRestaurantIdMutation]);
 
   const handleAddRestaurant = useCallback(async () => {
+    console.log("Attempting to add restaurant with ID:", newRestaurantId, "and Name:", newRestaurantName); // Adicionado log
     if (!newRestaurantId.trim() || !newRestaurantName.trim()) {
       showError(t("pleaseFillAllFields"));
       return;
     }
     addRestaurantMutation.mutate({ id: newRestaurantId.trim(), name: newRestaurantName.trim() });
   }, [newRestaurantId, newRestaurantName, addRestaurantMutation, t]);
-
-  // const handleToggleRestaurantSetting = useCallback((restaurantId: string, setting: 'pending_limit_enabled', currentValue: boolean) => { // Removido
-  //   updateRestaurantSettingsMutation.mutate({
-  //     restaurantId,
-  //     payload: { [setting]: !currentValue }
-  //   });
-  // }, [updateRestaurantSettingsMutation]);
 
   const getStatusBadge = useCallback((status: UserStatus) => {
     switch (status) {
@@ -201,7 +173,7 @@ const UserManagementPage = React.memo(() => {
     );
   }
 
-  const isAnyActionLoading = updateUserStatusMutation.isPending || updateUserRoleMutation.isPending || updateUserRestaurantIdMutation.isPending || addRestaurantMutation.isPending; // Removido updateRestaurantSettingsMutation.isPending
+  const isAnyActionLoading = updateUserStatusMutation.isPending || updateUserRoleMutation.isPending || updateUserRestaurantIdMutation.isPending || addRestaurantMutation.isPending;
 
   return (
     <motion.div
@@ -215,7 +187,6 @@ const UserManagementPage = React.memo(() => {
           <h2 className="text-3xl font-bold text-gray-800">{t("userManagement")}</h2>
         </div>
         <div className="flex items-center gap-2">
-          {/* Botão 'Manage Restaurants' removido */}
           <Button variant="outline" onClick={() => setIsAddRestaurantDialogOpen(true)}>
             <PlusCircleIcon className="mr-2 h-4 w-4" /> {t("addRestaurant")}
           </Button>
@@ -380,8 +351,6 @@ const UserManagementPage = React.memo(() => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Diálogo de gestão de restaurantes removido */}
     </motion.div>
   );
 });
