@@ -4,10 +4,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { TicketAPI, Ticket, RestaurantAPI, Restaurant } from '@/lib/api';
-import { showError } from '@/utils/toast';
+import { showError, showSuccess } from '@/utils/toast'; // Import showSuccess
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCcwIcon, UtensilsCrossedIcon, MonitorIcon, CheckCircleIcon, ClockIcon } from 'lucide-react';
+import { Loader2, RefreshCcwIcon, UtensilsCrossedIcon, MonitorIcon, CheckCircleIcon, ClockIcon, Trash2Icon } from 'lucide-react'; // Import Trash2Icon
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useTranslation } from "react-i18next";
@@ -22,6 +22,7 @@ export default function EcranEstafetaPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set()); // New state for processing deletion
   const [selectedRestaurant, setSelectedRestaurant] = useState("all");
   const [availableRestaurants, setAvailableRestaurants] = useState<Restaurant[]>([]);
   const [restaurantEcranEnabled, setRestaurantEcranEnabled] = useState<boolean>(false);
@@ -108,12 +109,43 @@ export default function EcranEstafetaPage() {
     return () => clearInterval(interval);
   }, [loadTickets]);
 
+  const handleSoftDelete = async (ticket: Ticket) => {
+    if (!user) {
+      showError(t("userNotAuthenticated"));
+      return;
+    }
+    if (processingTickets.has(ticket.id)) return;
+
+    setProcessingTickets(prev => new Set(prev).add(ticket.id));
+    
+    try {
+      await TicketAPI.update(ticket.id, {
+        soft_deleted: true,
+        deleted_by_user_id: user.id,
+        deleted_by_user_email: user.email,
+        restaurant_id: ticket.restaurant_id,
+      });
+      
+      showSuccess(t('ticketRemovedSuccessfully'));
+      await loadTickets(); // Reload tickets to remove the deleted one from display
+    } catch (error) {
+      console.error('Error soft deleting ticket:', error);
+      showError(t('failedToRemoveTicket'));
+    } finally {
+      setProcessingTickets(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(ticket.id);
+        return newSet;
+      });
+    }
+  };
+
   const getTicketStatus = (ticket: Ticket) => {
     // No Ecrã Estafeta, tickets PENDING devem aparecer como CONFIRMADO/PRONTO
     // para o estafeta ver que o pedido foi recebido e está a ser processado.
     // O status real no backend e no balcão permanece PENDING.
     return {
-      label: t('ordersReady'), // Sempre mostrar como "PRONTO" no ecrã do estafeta
+      label: t('ordersReady'), // Sempre mostrar como "PEDIDO PRONTO" no ecrã do estafeta
       icon: CheckCircleIcon,
       className: 'bg-green-100 text-green-800 border-green-200',
       cardClass: 'border-green-300 bg-green-50',
@@ -242,6 +274,7 @@ export default function EcranEstafetaPage() {
             {tickets.map((ticket, index) => {
               const status = getTicketStatus(ticket);
               const StatusIcon = status.icon;
+              const isProcessing = processingTickets.has(ticket.id); // Define isProcessing for current ticket
               
               return (
                 <motion.div
@@ -257,9 +290,27 @@ export default function EcranEstafetaPage() {
                     className={cn(
                       "h-full transition-all duration-200 border-2 relative",
                       status.cardClass,
+                      isProcessing ? 'opacity-60 cursor-not-allowed' : '', // Apply opacity when processing
                       "flex flex-col"
                     )}
                   >
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-opacity duration-200"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent any parent click handlers
+                        handleSoftDelete(ticket);
+                      }}
+                      disabled={isProcessing}
+                      aria-label={t('removeTicket')}
+                    >
+                      {isProcessing ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <Trash2Icon className="h-5 w-5" />
+                      )}
+                    </Button>
                     <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">
                       <div className="text-center">
                         <p className="text-4xl font-mono font-extrabold tracking-wider text-gray-900">
