@@ -293,8 +293,8 @@ export const TicketAPI = {
       deleted_by_user_id: ticket.deleted_by || null,
       deleted_by_user_email: ticket.deleted_by_email || null,
       created_date: ticket.created_date,
-      created_by_user_id: ticket.created_by || '',
-      created_by_user_email: ticket.created_by_user_email || '',
+      created_by_user_id: ticket.created_by || '', // Corrigido aqui
+      created_by_user_email: ticket.created_by_email || '', // Corrigido aqui
       restaurant_id: ticket.restaurant_id,
     }));
   },
@@ -307,7 +307,7 @@ export const TicketAPI = {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) throw new Error("User not authenticated.");
 
-    const initialStatus = payload.status || "PENDING"; // Permite definir o status inicial
+    const initialStatus = payload.status || "PENDING"; // Default to PENDING if not provided
     const dbStatus = initialStatus === "CONFIRMADO" ? "ACKED" : initialStatus;
 
     const { data: existing } = await supabase
@@ -333,7 +333,6 @@ export const TicketAPI = {
       status: dbStatus,
     };
 
-    // Se o status inicial for CONFIRMADO, preenche os campos de reconhecimento
     if (initialStatus === "CONFIRMADO") {
       insertPayload.acknowledged_at = new Date().toISOString();
       insertPayload.acknowledged_by = session.user.id;
