@@ -174,5 +174,10 @@
   "add": "Adicionar",
   "clickToRemoveTicket": "Clique para remover ticket",
   "ordersReady": "Pedidos Prontos",
-  "ecranEstafeta": "Ecrã Estafeta"
+  "ecranEstafeta": "Ecrã Estafeta",
+  "ecranEstafetaDisabled": "Ecrã Estafeta Desativado",
+  "ecranEstafetaDisabledMessage": "O Ecrã Estafeta está desativado para este restaurante. Por favor, entre em contato com um administrador para ativá-lo.",
+  "failedToLoadRestaurantSettings": "Falha ao carregar configurações do restaurante.",
+  "noConfirmedTickets": "Nenhum ticket confirmado",
+  "awaitingNewConfirmedCodes": "Aguardando novos códigos confirmados para exibição."
 }
