@@ -78,7 +78,8 @@ export default function EcranEstafetaPage() {
     setRefreshing(true);
     try {
       let fetchedTickets: Ticket[] = [];
-      const filter: Partial<Ticket> = { soft_deleted: false, status: "CONFIRMADO" }; // Apenas tickets CONFIRMADO
+      // Buscar todos os tickets ativos (PENDING e CONFIRMADO)
+      const filter: Partial<Ticket> = { soft_deleted: false }; 
 
       if (isAdmin) {
         if (selectedRestaurant !== "all") {
@@ -91,7 +92,7 @@ export default function EcranEstafetaPage() {
       } else {
         fetchedTickets = [];
       }
-      setTickets(fetchedTickets); // Não precisa mais filtrar por status aqui
+      setTickets(fetchedTickets);
     } catch (error) {
       console.error('Error loading tickets:', error);
       showError(t('failedToLoadActiveTickets'));
@@ -108,9 +109,18 @@ export default function EcranEstafetaPage() {
   }, [loadTickets]);
 
   const getTicketStatus = (ticket: Ticket) => {
-    // No Ecran Estafeta, todos os tickets exibidos já são CONFIRMADO
+    if (ticket.status === 'PENDING') {
+      return {
+        label: t('pending'),
+        icon: ClockIcon,
+        className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+        cardClass: 'border-yellow-300 bg-yellow-50',
+      };
+    }
+    
+    // Para tickets CONFIRMADO
     return {
-      label: t('ordersReady'),
+      label: t('ordersReady'), // Ou 'Confirmado' se preferir
       icon: CheckCircleIcon,
       className: 'bg-green-100 text-green-800 border-green-200',
       cardClass: 'border-green-300 bg-green-50',
@@ -226,9 +236,9 @@ export default function EcranEstafetaPage() {
           <Card className="shadow-lg">
             <CardContent className="py-12">
               <MonitorIcon className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
-              <h3 className="text-lg font-medium mb-2 text-gray-800">{t('noConfirmedTickets')}</h3>
+              <h3 className="text-lg font-medium mb-2 text-gray-800">{t('noActiveTickets')}</h3>
               <p className="text-muted-foreground">
-                {t('awaitingNewConfirmedCodes')}
+                {t('awaitingNewCodes')}
               </p>
             </CardContent>
           </Card>
