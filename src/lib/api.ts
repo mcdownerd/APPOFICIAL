@@ -294,7 +294,7 @@ export const TicketAPI = {
       deleted_by_user_email: ticket.deleted_by_email || null,
       created_date: ticket.created_date,
       created_by_user_id: ticket.created_by || '',
-      created_by_user_email: ticket.created_by_email || '',
+      created_by_user_email: ticket.created_by_user_email || '',
       restaurant_id: ticket.restaurant_id,
     }));
   },
@@ -303,9 +303,12 @@ export const TicketAPI = {
     return TicketAPI.filter({}, order, limit);
   },
 
-  create: async (payload: { code: string; restaurant_id?: string }): Promise<Ticket> => {
+  create: async (payload: { code: string; restaurant_id?: string; status?: TicketStatus }): Promise<Ticket> => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) throw new Error("User not authenticated.");
+
+    const initialStatus = payload.status || "PENDING"; // Permite definir o status inicial
+    const dbStatus = initialStatus === "CONFIRMADO" ? "ACKED" : initialStatus;
 
     const { data: existing } = await supabase
       .from('tickets')
@@ -321,15 +324,25 @@ export const TicketAPI = {
       throw error;
     }
 
+    const insertPayload: any = {
+      code: payload.code.toUpperCase(),
+      created_by: session.user.id,
+      created_by_email: session.user.email,
+      created_by_ip: '127.0.0.1',
+      restaurant_id: payload.restaurant_id || null,
+      status: dbStatus,
+    };
+
+    // Se o status inicial for CONFIRMADO, preenche os campos de reconhecimento
+    if (initialStatus === "CONFIRMADO") {
+      insertPayload.acknowledged_at = new Date().toISOString();
+      insertPayload.acknowledged_by = session.user.id;
+      insertPayload.acknowledged_by_email = session.user.email;
+    }
+
     const { data, error } = await supabase
       .from('tickets')
-      .insert({
-        code: payload.code.toUpperCase(),
-        created_by: session.user.id,
-        created_by_email: session.user.email,
-        created_by_ip: '127.0.0.1',
-        restaurant_id: payload.restaurant_id || null,
-      })
+      .insert(insertPayload)
       .select()
       .single();
 
@@ -341,16 +354,16 @@ export const TicketAPI = {
       code: data.code,
       status: data.status === "ACKED" ? "CONFIRMADO" : data.status,
       created_by_ip: data.created_by_ip,
-      acknowledged_at: null,
-      acknowledged_by_user_id: null,
-      acknowledged_by_user_email: null,
+      acknowledged_at: data.acknowledged_at || null,
+      acknowledged_by_user_id: data.acknowledged_by || null,
+      acknowledged_by_user_email: data.acknowledged_by_email || null,
       soft_deleted: false,
       deleted_at: null,
       deleted_by_user_id: null,
       deleted_by_user_email: null,
       created_date: data.created_date,
       created_by_user_id: data.created_by || '',
-      created_by_user_email: data.created_by_email || '',
+      created_by_user_email: data.created_by_user_email || '',
       restaurant_id: data.restaurant_id,
     };
   },
@@ -432,7 +445,7 @@ export const TicketAPI = {
       deleted_by_user_email: data.deleted_by_email || null,
       created_date: data.created_date,
       created_by_user_id: data.created_by || '',
-      created_by_user_email: data.created_by_email || '',
+      created_by_user_email: data.created_by_user_email || '',
       restaurant_id: data.restaurant_id,
     };
   },
@@ -443,7 +456,7 @@ const RATE_LIMIT_INTERVAL = 5000;
 let requestCount = 0;
 
 const originalTicketCreate = TicketAPI.create;
-TicketAPI.create = async (payload: { code: string; restaurant_id?: string }): Promise<Ticket> => {
+TicketAPI.create = async (payload: { code: string; restaurant_id?: string; status?: TicketStatus }): Promise<Ticket> => {
   const now = Date.now();
   if (now - lastCreateTime > RATE_LIMIT_INTERVAL) {
     requestCount = 0;
