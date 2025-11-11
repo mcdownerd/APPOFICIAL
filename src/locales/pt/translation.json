@@ -174,5 +174,12 @@
   "add": "Adicionar",
   "clickToRemoveTicket": "Clique para remover ticket",
   "ordersReady": "Pedidos Prontos",
-  "ecranEstafeta": "Ecrã Estafeta"
+  "ecranEstafeta": "Ecrã Estafeta",
+  "ecranEstafetaStatusUpdated": "Status do Ecrã Estafeta atualizado para {{status}}.",
+  "failedToUpdateEcranEstafetaStatus": "Falha ao atualizar status do Ecrã Estafeta.",
+  "enabled": "ativado",
+  "disabled": "desativado",
+  "manageRestaurants": "Gerenciar Restaurantes",
+  "noRestaurantsFound": "Nenhum restaurante encontrado.",
+  "updatedAt": "Atualizado Em"
 }
