@@ -293,8 +293,8 @@ export const TicketAPI = {
       deleted_by_user_id: ticket.deleted_by || null,
       deleted_by_user_email: ticket.deleted_by_email || null,
       created_date: ticket.created_date,
-      created_by_user_id: data.created_by || '',
-      created_by_user_email: data.created_by_user_email || '',
+      created_by_user_id: ticket.created_by || '', // Corrigido aqui
+      created_by_user_email: ticket.created_by_email || '', // Corrigido aqui
       restaurant_id: ticket.restaurant_id,
     }));
   },
