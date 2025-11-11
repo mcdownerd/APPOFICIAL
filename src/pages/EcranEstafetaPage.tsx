@@ -195,11 +195,12 @@ export default function EcranEstafetaPage() {
     };
   };
 
-  const currentRestaurantName = isAdmin && selectedRestaurant !== "all"
-    ? availableRestaurants.find(r => r.id === selectedRestaurant)?.name || selectedRestaurant
-    : (isRestaurante && user?.restaurant_id
-      ? availableRestaurants.find(r => r.id === user.restaurant_id)?.name || user.restaurant_id
-      : null);
+  // Removido: currentRestaurantName não é mais necessário no título
+  // const currentRestaurantName = isAdmin && selectedRestaurant !== "all"
+  //   ? availableRestaurants.find(r => r.id === selectedRestaurant)?.name || selectedRestaurant
+  //   : (isRestaurante && user?.restaurant_id
+  //     ? availableRestaurants.find(r => r.id === user.restaurant_id)?.name || user.restaurant_id
+  //     : null);
 
   if (loading) {
     return (
@@ -260,9 +261,7 @@ export default function EcranEstafetaPage() {
         <div>
           <h2 className="text-3xl font-bold text-gray-800">
             {t('ecranEstafeta')}
-            {currentRestaurantName && (
-              <span className="ml-2 text-blue-600">({currentRestaurantName})</span>
-            )}
+            {/* Removido: currentRestaurantName não é mais exibido no título */}
           </h2>
           <p className="text-muted-foreground">
             {t('activeTicketsDescription', { count: tickets.length })}
