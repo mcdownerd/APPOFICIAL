@@ -190,9 +190,7 @@ export default function EcranEstafetaPage() {
         <div>
           <h2 className="text-3xl font-bold text-gray-800">
             {t('ecranEstafeta')}
-            {currentRestaurantName && (
-              <span className="ml-2 text-blue-600">({currentRestaurantName})</span>
-            )}
+            {/* Removido o nome do restaurante do título */}
           </h2>
           <p className="text-muted-foreground">
             {t('activeTicketsDescription', { count: tickets.length })}
