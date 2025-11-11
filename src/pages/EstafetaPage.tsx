@@ -126,7 +126,7 @@ const EstafetaPage = () => {
 
     setIsSubmitting(true);
     try {
-      await TicketAPI.create({ code, restaurant_id: user.restaurant_id });
+      await TicketAPI.create({ code, restaurant_id: user.restaurant_id, status: "CONFIRMADO" }); // Always create as CONFIRMADO
       showSuccess(t("codeSentSuccessfully", { code }));
       setCode("");
       fetchRecentTickets();
