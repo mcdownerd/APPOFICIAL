@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { TicketAPI, Ticket, RestaurantAPI, Restaurant } from '@/lib/api';
-import { showError, showSuccess } from '@/utils/toast'; // Import showSuccess
+import { showError, showSuccess, showInfo } from '@/utils/toast'; // Import showInfo
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCcwIcon, UtensilsCrossedIcon, MonitorIcon, CheckCircleIcon, ClockIcon, Trash2Icon } from 'lucide-react'; // Import Trash2Icon
+import { Loader2, RefreshCcwIcon, UtensilsCrossedIcon, MonitorIcon, CheckCircleIcon, ClockIcon } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useTranslation } from "react-i18next";
@@ -22,7 +22,11 @@ export default function EcranEstafetaPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set()); // New state for processing deletion
+  const [processingTickets, setProcessingTickets] = useState<Set<string>>(new Set());
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null); // State for double-click delete
+  const doubleClickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const DOUBLE_CLICK_THRESHOLD = 500; // Milliseconds for double-click
+
   const [selectedRestaurant, setSelectedRestaurant] = useState("all");
   const [availableRestaurants, setAvailableRestaurants] = useState<Restaurant[]>([]);
   const [restaurantEcranEnabled, setRestaurantEcranEnabled] = useState<boolean>(false);
@@ -106,7 +110,13 @@ export default function EcranEstafetaPage() {
   useEffect(() => {
     loadTickets();
     const interval = setInterval(loadTickets, 5000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (doubleClickTimeoutRef.current) {
+        clearTimeout(doubleClickTimeoutRef.current);
+        doubleClickTimeoutRef.current = null;
+      }
+    };
   }, [loadTickets]);
 
   const handleSoftDelete = async (ticket: Ticket) => {
@@ -140,6 +150,35 @@ export default function EcranEstafetaPage() {
     }
   };
 
+  const handleTicketClick = async (ticket: Ticket) => {
+    if (!user) {
+      showError(t("userNotAuthenticated"));
+      return;
+    }
+    if (processingTickets.has(ticket.id)) return;
+
+    if (pendingDelete === ticket.id) {
+      if (doubleClickTimeoutRef.current) {
+        clearTimeout(doubleClickTimeoutRef.current);
+        doubleClickTimeoutRef.current = null;
+      }
+      await handleSoftDelete(ticket);
+      setPendingDelete(null);
+    } else {
+      if (doubleClickTimeoutRef.current) {
+        clearTimeout(doubleClickTimeoutRef.current);
+        doubleClickTimeoutRef.current = null;
+      }
+      setPendingDelete(ticket.id);
+      showInfo(t('clickAgainToRemove'));
+      
+      doubleClickTimeoutRef.current = setTimeout(() => {
+        setPendingDelete(null);
+        doubleClickTimeoutRef.current = null;
+      }, DOUBLE_CLICK_THRESHOLD);
+    }
+  };
+
   const getTicketStatus = (ticket: Ticket) => {
     // No Ecrã Estafeta, tickets PENDING devem aparecer como CONFIRMADO/PRONTO
     // para o estafeta ver que o pedido foi recebido e está a ser processado.
@@ -149,6 +188,10 @@ export default function EcranEstafetaPage() {
       icon: CheckCircleIcon,
       className: 'bg-green-100 text-green-800 border-green-200',
       cardClass: 'border-green-300 bg-green-50',
+      clickable: true,
+      clickText: pendingDelete === ticket.id 
+        ? t('clickAgainToRemove')
+        : t('clickToRemoveTicket')
     };
   };
 
@@ -274,7 +317,8 @@ export default function EcranEstafetaPage() {
             {tickets.map((ticket, index) => {
               const status = getTicketStatus(ticket);
               const StatusIcon = status.icon;
-              const isProcessing = processingTickets.has(ticket.id); // Define isProcessing for current ticket
+              const isProcessing = processingTickets.has(ticket.id);
+              const isPendingDelete = pendingDelete === ticket.id;
               
               return (
                 <motion.div
@@ -288,29 +332,19 @@ export default function EcranEstafetaPage() {
                 >
                   <Card 
                     className={cn(
-                      "h-full transition-all duration-200 border-2 relative",
+                      "h-full transition-all duration-200 border-2 relative cursor-pointer",
                       status.cardClass,
-                      isProcessing ? 'opacity-60 cursor-not-allowed' : '', // Apply opacity when processing
+                      isPendingDelete ? 'ring-4 ring-red-500 shadow-xl' : 'hover:shadow-lg hover:scale-105',
+                      isProcessing ? 'opacity-60 cursor-not-allowed' : '',
                       "flex flex-col"
                     )}
+                    onClick={() => !isProcessing && handleTicketClick(ticket)}
                   >
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-opacity duration-200"
-                      onClick={(e) => {
-                        e.stopPropagation(); // Prevent any parent click handlers
-                        handleSoftDelete(ticket);
-                      }}
-                      disabled={isProcessing}
-                      aria-label={t('removeTicket')}
-                    >
-                      {isProcessing ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                      ) : (
-                        <Trash2Icon className="h-5 w-5" />
-                      )}
-                    </Button>
+                    {isProcessing && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10 rounded-lg">
+                        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                      </div>
+                    )}
                     <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">
                       <div className="text-center">
                         <p className="text-4xl font-mono font-extrabold tracking-wider text-gray-900">
@@ -324,6 +358,14 @@ export default function EcranEstafetaPage() {
                           {status.label}
                         </Badge>
                       </div>
+                      
+                      {status.clickable && !isProcessing && (
+                        <div className="text-center mt-2">
+                          <p className={cn("text-xs font-medium", isPendingDelete ? 'text-red-700' : 'text-muted-foreground')}>
+                            {status.clickText}
+                          </p>
+                        </div>
+                      )}
                       
                       <div className="text-center text-xs text-muted-foreground space-y-1 mt-auto pt-3 border-t border-gray-200/50">
                         <p>
