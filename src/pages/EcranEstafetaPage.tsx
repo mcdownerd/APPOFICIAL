@@ -359,24 +359,9 @@ export default function EcranEstafetaPage() {
                         </Badge>
                       </div>
                       
-                      {status.clickable && !isProcessing && (
-                        <div className="text-center mt-2">
-                          <p className={cn("text-xs font-medium", isPendingDelete ? 'text-red-700' : 'text-muted-foreground')}>
-                            {status.clickText}
-                          </p>
-                        </div>
-                      )}
+                      {/* Removido: status.clickable e status.clickText */}
                       
-                      <div className="text-center text-xs text-muted-foreground space-y-1 mt-auto pt-3 border-t border-gray-200/50">
-                        <p>
-                          {t('created')}: {format(parseISO(ticket.created_date), 'HH:mm', { locale: i18n.language === 'pt' ? ptBR : undefined })}
-                        </p>
-                        {ticket.acknowledged_at && (
-                          <p>
-                            {t('confirmed')}: {format(parseISO(ticket.acknowledged_at), 'HH:mm', { locale: i18n.language === 'pt' ? ptBR : undefined })}
-                          </p>
-                        )}
-                      </div>
+                      {/* Removido: Detalhes de data/hora */}
                     </CardContent>
                   </Card>
                 </motion.div>
