@@ -174,14 +174,5 @@
   "add": "Adicionar",
   "clickToRemoveTicket": "Clique para remover ticket",
   "ordersReady": "Pedidos Prontos",
-  "ecranEstafeta": "Ecrã Estafeta",
-  "ecranEstafetaStatusUpdated": "Status do Ecrã Estafeta atualizado para {{status}}.",
-  "failedToUpdateEcranEstafetaStatus": "Falha ao atualizar status do Ecrã Estafeta.",
-  "enabled": "ativado",
-  "disabled": "desativado",
-  "manageRestaurants": "Gerenciar Restaurantes",
-  "noRestaurantsFound": "Nenhum restaurante encontrado.",
-  "updatedAt": "Atualizado Em",
-  "ecranEstafetaDisabled": "Ecrã Estafeta Desativado",
-  "ecranEstafetaDisabledMessage": "O Ecrã Estafeta está desativado para este restaurante. Por favor, peça a um administrador para ativá-lo na página de Gerenciamento de Usuários."
+  "ecranEstafeta": "Ecrã Estafeta"
 }

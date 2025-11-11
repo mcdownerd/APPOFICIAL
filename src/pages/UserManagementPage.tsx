@@ -32,13 +32,12 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { UsersIcon, CheckCircleIcon, XCircleIcon, RefreshCcwIcon, PlusCircleIcon, Loader2, MonitorIcon } from "lucide-react";
+import { UsersIcon, CheckCircleIcon, XCircleIcon, RefreshCcwIcon, PlusCircleIcon, Loader2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useAuth } from "@/context/AuthContext";
-import { Switch } from "@/components/ui/switch"; // Importar o componente Switch
+import { useAuth } from "@/context/AuthContext"; // Adicionado: Importação do useAuth
 
 const UserManagementPage = React.memo(() => {
   const { user: currentUser, isAdmin } = useAuth();
@@ -124,27 +123,12 @@ const UserManagementPage = React.memo(() => {
       queryClient.invalidateQueries({ queryKey: ["allRestaurants"] });
     },
     onError: (error: any) => {
-      console.error("Failed to add restaurant:", error);
+      console.error("Failed to add restaurant:", error); // Log do erro completo
       if (error.statusCode === 409) {
         showError(t("restaurantIdAlreadyExists"));
       } else {
         showError(t("failedToAddRestaurant"));
       }
-    }
-  });
-
-  const updateRestaurantEcranStatusMutation = useMutation({
-    mutationFn: async (variables: { restaurantId: string; enabled: boolean }) => {
-      if (!isAdmin) throw new Error(t("permissionDenied"));
-      return RestaurantAPI.update(variables.restaurantId, { ecran_estafeta_enabled: variables.enabled });
-    },
-    onSuccess: (data, variables) => {
-      showSuccess(t("ecranEstafetaStatusUpdated", { status: variables.enabled ? t("enabled") : t("disabled") }));
-      queryClient.invalidateQueries({ queryKey: ["allRestaurants"] });
-    },
-    onError: (error) => {
-      console.error("Failed to update ecran estafeta status:", error);
-      showError(t("failedToUpdateEcranEstafetaStatus"));
     }
   });
 
@@ -161,17 +145,13 @@ const UserManagementPage = React.memo(() => {
   }, [updateUserRestaurantIdMutation]);
 
   const handleAddRestaurant = useCallback(async () => {
-    console.log("Attempting to add restaurant with ID:", newRestaurantId, "and Name:", newRestaurantName);
+    console.log("Attempting to add restaurant with ID:", newRestaurantId, "and Name:", newRestaurantName); // Adicionado log
     if (!newRestaurantId.trim() || !newRestaurantName.trim()) {
       showError(t("pleaseFillAllFields"));
       return;
     }
     addRestaurantMutation.mutate({ id: newRestaurantId.trim(), name: newRestaurantName.trim() });
   }, [newRestaurantId, newRestaurantName, addRestaurantMutation, t]);
-
-  const handleToggleEcranEstafeta = useCallback((restaurantId: string, enabled: boolean) => {
-    updateRestaurantEcranStatusMutation.mutate({ restaurantId, enabled });
-  }, [updateRestaurantEcranStatusMutation]);
 
   const getStatusBadge = useCallback((status: UserStatus) => {
     switch (status) {
@@ -194,7 +174,7 @@ const UserManagementPage = React.memo(() => {
     );
   }
 
-  const isAnyActionLoading = updateUserStatusMutation.isPending || updateUserRoleMutation.isPending || updateUserRestaurantIdMutation.isPending || addRestaurantMutation.isPending || updateRestaurantEcranStatusMutation.isPending;
+  const isAnyActionLoading = updateUserStatusMutation.isPending || updateUserRoleMutation.isPending || updateUserRestaurantIdMutation.isPending || addRestaurantMutation.isPending;
 
   return (
     <motion.div
@@ -313,61 +293,6 @@ const UserManagementPage = React.memo(() => {
                             {updateUserStatusMutation.isPending && updateUserStatusMutation.variables?.userId === user.id && updateUserStatusMutation.variables?.status === "REJECTED" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircleIcon className="mr-2 h-4 w-4" />} {t("reject")}
                           </Button>
                         )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-2xl font-bold">{t("manageRestaurants")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoadingRestaurants ? (
-            <div className="flex items-center justify-center p-8">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-500 border-t-transparent"></div>
-            </div>
-          ) : restaurants?.length === 0 ? (
-            <p className="text-center text-gray-500">{t("noRestaurantsFound")}</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("restaurantId")}</TableHead>
-                    <TableHead>{t("restaurantName")}</TableHead>
-                    <TableHead>{t("ecranEstafeta")}</TableHead>
-                    <TableHead>{t("createdAt")}</TableHead>
-                    <TableHead>{t("updatedAt")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {restaurants?.map((restaurant) => (
-                    <TableRow key={restaurant.id}>
-                      <TableCell className="font-medium">{restaurant.id}</TableCell>
-                      <TableCell>{restaurant.name}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            checked={restaurant.ecran_estafeta_enabled}
-                            onCheckedChange={(checked) => handleToggleEcranEstafeta(restaurant.id, checked)}
-                            disabled={isAnyActionLoading}
-                          />
-                          {updateRestaurantEcranStatusMutation.isPending && updateRestaurantEcranStatusMutation.variables?.restaurantId === restaurant.id && (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {format(parseISO(restaurant.created_at), "dd/MM/yyyy HH:mm", { locale: i18n.language === 'pt' ? ptBR : undefined })}
-                      </TableCell>
-                      <TableCell>
-                        {format(parseISO(restaurant.updated_at), "dd/MM/yyyy HH:mm", { locale: i18n.language === 'pt' ? ptBR : undefined })}
                       </TableCell>
                     </TableRow>
                   ))}

@@ -13,8 +13,8 @@ import { ptBR } from 'date-fns/locale';
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { supabase } from '@/integrations/supabase/client';
+import { Button } from "@/components/ui/button"; // Adicionado: Importação do componente Button
+import { supabase } from '@/integrations/supabase/client'; // Adicionado: Importação direta do supabase client
 
 export default function EcranEstafetaPage() {
   const { user, isAdmin, isRestaurante } = useAuth();
@@ -43,7 +43,7 @@ export default function EcranEstafetaPage() {
 
   const fetchRestaurantEcranSetting = useCallback(async (restaurantId: string) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabase // Corrigido: Usando 'supabase' diretamente
         .from('restaurants')
         .select('ecran_estafeta_enabled')
         .eq('id', restaurantId)
@@ -78,7 +78,7 @@ export default function EcranEstafetaPage() {
     setRefreshing(true);
     try {
       let fetchedTickets: Ticket[] = [];
-      const filter: Partial<Ticket> = { soft_deleted: false, status: "CONFIRMADO" }; // Filter for CONFIRMADO tickets
+      const filter: Partial<Ticket> = { soft_deleted: false };
 
       if (isAdmin) {
         if (selectedRestaurant !== "all") {
@@ -91,7 +91,7 @@ export default function EcranEstafetaPage() {
       } else {
         fetchedTickets = [];
       }
-      setTickets(fetchedTickets); // No need for client-side filter anymore
+      setTickets(fetchedTickets.filter(ticket => ticket.status === "PENDING" || ticket.status === "CONFIRMADO"));
     } catch (error) {
       console.error('Error loading tickets:', error);
       showError(t('failedToLoadActiveTickets'));
@@ -108,10 +108,17 @@ export default function EcranEstafetaPage() {
   }, [loadTickets]);
 
   const getTicketStatus = (ticket: Ticket) => {
-    // Since we are only displaying CONFIRMADO tickets, we can simplify this.
-    // The ticket.status will always be 'CONFIRMADO' here.
+    if (ticket.status === 'PENDING') {
+      return {
+        label: t('pending'),
+        icon: ClockIcon,
+        className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+        cardClass: 'border-yellow-300 bg-yellow-50',
+      };
+    }
+    
     return {
-      label: t('ordersReady'),
+      label: t('ordersReady'), // Changed from 'acknowledged' to 'ordersReady'
       icon: CheckCircleIcon,
       className: 'bg-green-100 text-green-800 border-green-200',
       cardClass: 'border-green-300 bg-green-50',
@@ -183,6 +190,9 @@ export default function EcranEstafetaPage() {
         <div>
           <h2 className="text-3xl font-bold text-gray-800">
             {t('ecranEstafeta')}
+            {currentRestaurantName && (
+              <span className="ml-2 text-blue-600">({currentRestaurantName})</span>
+            )}
           </h2>
           <p className="text-muted-foreground">
             {t('activeTicketsDescription', { count: tickets.length })}
