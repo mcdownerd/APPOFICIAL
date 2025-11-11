@@ -80,6 +80,20 @@ export const SessionContextProvider = ({ children }: { children: ReactNode }) =>
   useEffect(() => {
     let isMounted = true;
 
+    const getInitialSession = async () => {
+      setIsLoading(true);
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error("[AuthContext] Error getting initial session:", error);
+        showError(t("authErrorOccurred"));
+        setUser(null);
+      } else {
+        loadUser(session?.user, 'INITIAL_LOAD');
+      }
+    };
+
+    getInitialSession();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
       console.log("[AuthContext] Auth state change detected. Event:", event, "Session:", session);
@@ -91,7 +105,7 @@ export const SessionContextProvider = ({ children }: { children: ReactNode }) =>
       subscription.unsubscribe();
       console.log("[AuthContext] Auth state change subscription unsubscribed.");
     };
-  }, [loadUser]);
+  }, [loadUser, t]);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
