@@ -410,7 +410,10 @@ export const TicketAPI = {
       .select()
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      console.error("Supabase RLS Error during TicketAPI.update:", error); // Log de erro detalhado
+      throw error;
+    }
     if (!data) {
       throw new Error("Ticket not found or user does not have permission to update it. Check RLS policies.");
     }
