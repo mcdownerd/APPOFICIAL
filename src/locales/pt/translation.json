@@ -63,6 +63,7 @@
   "failedToConfirmTicket": "Falha ao confirmar ticket.",
   "clickAgainToRemove": "Clique novamente para remover.",
   "ticketRemovedSuccessfully": "Ticket removido com sucesso!",
+  "failedToRemoveTicket": "Falha ao remover ticket.",
   "failedToLoadActiveTickets": "Falha ao carregar tickets ativos.",
   "ticketHistory": "Histórico de Tickets",
   "removedTickets": "Tickets Removidos",
