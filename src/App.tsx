@@ -25,7 +25,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <SessionContextProvider>
+        <SessionContextProvider> {/* Movido para envolver todas as rotas */}
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<RegisterPage />} />
