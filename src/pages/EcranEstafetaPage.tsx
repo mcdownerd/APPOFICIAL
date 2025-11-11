@@ -109,18 +109,11 @@ export default function EcranEstafetaPage() {
   }, [loadTickets]);
 
   const getTicketStatus = (ticket: Ticket) => {
-    if (ticket.status === 'PENDING') {
-      return {
-        label: t('pending'),
-        icon: ClockIcon,
-        className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-        cardClass: 'border-yellow-300 bg-yellow-50',
-      };
-    }
-    
-    // Para tickets CONFIRMADO
+    // No Ecrã Estafeta, tickets PENDING devem aparecer como CONFIRMADO/PRONTO
+    // para o estafeta ver que o pedido foi recebido e está a ser processado.
+    // O status real no backend e no balcão permanece PENDING.
     return {
-      label: t('ordersReady'), // Ou 'Confirmado' se preferir
+      label: t('ordersReady'), // Sempre mostrar como "PRONTO" no ecrã do estafeta
       icon: CheckCircleIcon,
       className: 'bg-green-100 text-green-800 border-green-200',
       cardClass: 'border-green-300 bg-green-50',
