@@ -181,5 +181,7 @@
   "disabled": "desativado",
   "manageRestaurants": "Gerenciar Restaurantes",
   "noRestaurantsFound": "Nenhum restaurante encontrado.",
-  "updatedAt": "Atualizado Em"
+  "updatedAt": "Atualizado Em",
+  "ecranEstafetaDisabled": "Ecrã Estafeta Desativado",
+  "ecranEstafetaDisabledMessage": "O Ecrã Estafeta está desativado para este restaurante. Por favor, peça a um administrador para ativá-lo na página de Gerenciamento de Usuários."
 }
